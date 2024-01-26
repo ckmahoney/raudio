@@ -1,0 +1,33 @@
+{
+  "name": "wendy",
+  "version": "0.9.0",
+  "description": "",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.3.1",
+    "axios": "^1.5.0",
+    "express": "^4.18.2",
+    "lodash": "^4.17.21",
+    "typescript": "^5.2.2",
+    "uuid": "^9.0.1"
+  },
+  "scripts": {
+    "compile": "npx prisma generate && tsc && webpack",
+    "compile-runner": "webpack --config webpack.runner.config.js",
+    "build-local": "export NODE_ENV=local && npm run compile",
+    "build-stage": "export NODE_ENV=stage && npm run compile && npm run build-runner-stage",
+    "build-runner-stage": "export NODE_ENV=stage && npm run compile-runner",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/lodash": "^4.14.198",
+    "@types/uuid": "^9.0.4",
+    "ts-loader": "^9.4.4",
+    "webpack-cli": "^5.1.4"
+  }
+}
