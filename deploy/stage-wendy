@@ -1,0 +1,33 @@
+NODE_ENV=stage
+HOSTNAME=138.197.92.88
+SOURCE_PATH=/home/naltroc/synthony-service/wendy
+SUPERCOLLIDER_CONTENT=/usr/share/SuperCollider/Extensions/SynPlugins
+CONTENT_PATH=/var/www/wendy
+
+
+rsync -uav \
+    "$SOURCE_PATH/dist/$NODE_ENV-wendy-server.js" \
+    "$SOURCE_PATH/dist/stage-wendy-runner.js" \
+    "$SOURCE_PATH/nrt.sc" \
+    "$SOURCE_PATH/samples" \
+    "root@$HOSTNAME:$CONTENT_PATH/"
+    
+rsync -uav \
+    "$SOURCE_PATH/.env.d/$NODE_ENV" \
+    "root@$HOSTNAME:$CONTENT_PATH/.env"
+
+# prisma has an issue on de-coupled clients
+# https://github.com/prisma/prisma/discussions/20257
+# to resolve, copy the generated client to the server 
+
+rsync -uav \
+    "$SOURCE_PATH/prisma" \
+    "root@$HOSTNAME:$CONTENT_PATH/"
+
+rsync -uav \
+    "$SOURCE_PATH/node_modules/.prisma/client" \
+    "root@$HOSTNAME:$CONTENT_PATH/node_modules/.prisma"
+
+rsync -uav \
+    "$SUPERCOLLIDER_CONTENT" \
+    "root@$HOSTNAME:/usr/local/share/SuperCollider/Extensions/"

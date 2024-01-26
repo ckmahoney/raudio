@@ -1,0 +1,8 @@
+NODE_ENV=stage
+HOSTNAME=138.197.92.88
+SOURCE_PATH=/home/naltroc/synthony-service/wendy
+CONTENT_PATH=/var/www/wendy
+
+rsync -uav \
+    "root@$HOSTNAME:$CONTENT_PATH/*log" \
+    "$SOURCE_PATH/receive" 
