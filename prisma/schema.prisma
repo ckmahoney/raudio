@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+//local-friends:my-secret-pw@localhost:3300/dev-friends
+datasource db {
+  provider = "mysql"
+  url      = env("CONNECTION_URL")
+}
+
+enum JobStatus {
+  pending
+  started
+  failed
+  satisfied
+}
+
+enum JobType {
+  asyncRender
+  wendyRenderRaw
+}
+
+enum RecordingFormat {
+  mp3
+  aiff
+}
+
+
+model Recording {
+  id            Int      @id @default(autoincrement())
+  createdAt     DateTime @default(now())
+
+  name  String?  @default("")
+  uri   String            @default("")
+  performanceId  Int
+  format RecordingFormat
+  label   String
+}
+
+
+// a deterministic input/output audio recording
+model RenderRaw {
+  id            Int      @id @default(autoincrement())
+  location       String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+
+  performanceId  Int
+  status JobStatus
+}
+
+model RenderTask {
+  id            Int      @id @default(autoincrement())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+
+  name          String  @default("")
+  performanceId  Int
+  jobId         Int
+}
+
+
+model Job {
+  id            Int      @id @default(autoincrement())
+
+  inputFile     String   @default("")
+  outFile       String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+  status JobStatus
+}

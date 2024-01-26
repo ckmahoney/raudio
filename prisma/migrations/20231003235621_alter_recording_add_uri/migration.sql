@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `Recording` ADD COLUMN `uri` VARCHAR(191) NOT NULL DEFAULT '';

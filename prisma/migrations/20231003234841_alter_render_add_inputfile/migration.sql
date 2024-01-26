@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `RenderRaw` ADD COLUMN `inputFile` VARCHAR(191) NOT NULL DEFAULT '';
