@@ -20,7 +20,7 @@ pub struct RenderConfig {
     pub cps: f32
 }
 
-fn sine(sample_rate:usize, sample_num:usize, frequency:f32) -> f32 {
+fn silly_sine(sample_rate:usize, sample_num:usize, frequency:f32) -> f32 {
     let pi2 = std::f32::consts::PI * 2.0f32;
     let samples_per_period = (sample_rate as f32 / frequency) as f32;
     let sample_index = sample_num.rem_euclid(samples_per_period as usize) as f32;
@@ -33,7 +33,6 @@ fn sine(sample_rate:usize, sample_num:usize, frequency:f32) -> f32 {
 // it is considerable to correct the drift by factoring the dt lost and total number of samples lost
 pub fn sample_ugen(config:&RenderConfig, ugen:Ugen, duration:f32, freq:f32) -> Vec<f32> {
     let samples_per_cycle:f32 = config.sample_rate as f32 / config.cps;
-
     let n_samples = (samples_per_cycle * duration).floor() as usize;
     (0..n_samples-1).map({|i| 
             config.amplitude_scaling * ugen(config.sample_rate, i, freq)
@@ -42,7 +41,6 @@ pub fn sample_ugen(config:&RenderConfig, ugen:Ugen, duration:f32, freq:f32) -> V
 
 
 #[test] 
-
 fn test_sample_ugen(){
     let config = RenderConfig {
         sample_rate: 44100,
@@ -50,13 +48,13 @@ fn test_sample_ugen(){
         cps: 1.0
     };
 
-    let result100 = sample_ugen(&config, sine, 8.0, 100.0);
+    let result100 = sample_ugen(&config, silly_sine, 8.0, 100.0);
     render::samples_f32(config.sample_rate, &result100, "dev-audio/test-sample-ugen-100-hz.wav");
 
-    let result600 = sample_ugen(&config, sine, 8.0, 600.0);
+    let result600 = sample_ugen(&config, silly_sine, 8.0, 600.0);
     render::samples_f32(config.sample_rate, &result600, "dev-audio/test-sample-ugen-600-hz.wav");
 
-    let result3000 = sample_ugen(&config, sine, 8.0, 3000.0);
+    let result3000 = sample_ugen(&config, silly_sine, 8.0, 3000.0);
     render::samples_f32(config.sample_rate, &result3000, "dev-audio/test-sample-ugen-3000-hz.wav");
 }
 
