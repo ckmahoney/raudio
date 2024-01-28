@@ -1,6 +1,7 @@
 //! Generation of novel audio signals 
 use itertools::Either;
 
+use crate::convolve;
 use crate::freq_forms;
 use crate::render;
 use crate::synth_config;
@@ -9,7 +10,25 @@ use crate::modulate;
 use crate::mix;
 use crate::phrase;
 use crate::synth_config::SynthConfig;
+pub enum HarmonicSelector {
+    All,
+    Odd,
+    Even,
+    Geometric(f32),
+    Constant(f32),
+}
 
+impl HarmonicSelector {
+    pub fn generate_harmonics(&self, start: usize, end: usize, offset: f32) -> Vec<f32> {
+        match self {
+            HarmonicSelector::All => (start..=end).map(|x| x as f32 + offset).collect(),
+            HarmonicSelector::Odd => (start..=end).filter(|x| x % 2 != 0).map(|x| x as f32 + offset).collect(),
+            HarmonicSelector::Even => (start..=end).filter(|x| x % 2 == 0).map(|x| x as f32 + offset).collect(),
+            HarmonicSelector::Geometric(ratio) => (start..=end).map(|x| ratio.powi(x as i32) + offset).collect(),
+            HarmonicSelector::Constant(value) => vec![*value + offset; end - start + 1],
+        }
+    }
+}
 
 // sample_rate, sample_num, frequency
 type Ugen = fn(usize, usize, f32) -> f32;
@@ -22,7 +41,7 @@ pub struct RenderConfig {
     pub cps: f32
 }
 
-fn silly_sine(sample_rate:usize, sample_num:usize, frequency:f32) -> f32 {
+pub fn silly_sine(sample_rate:usize, sample_num:usize, frequency:f32) -> f32 {
     let pi2 = std::f32::consts::PI * 2.0f32;
     let samples_per_period = (sample_rate as f32 / frequency) as f32;
     let sample_index = sample_num.rem_euclid(samples_per_period as usize) as f32;
@@ -54,7 +73,7 @@ pub fn sample_period(config:&RenderConfig, ugen:Ugen, freq:f32) -> SampleBuffer 
 // may not have a harmonic length to the longest samples. 
 // therefore the final iterated loop will not copy the entire period, 
 // resulting in sync. 
-fn silly_sum_periods(config:&RenderConfig, freqs:&Vec<f32>, periods:&Vec<SampleBuffer>) -> SampleBuffer {
+pub fn silly_sum_periods(config:&RenderConfig, freqs:&Vec<f32>, periods:&Vec<SampleBuffer>) -> SampleBuffer {
     
     let n_samples = periods.iter().map(|vec| vec.len()).max().unwrap_or(0);
     let mut result = vec![0.0; n_samples];
@@ -69,6 +88,21 @@ fn silly_sum_periods(config:&RenderConfig, freqs:&Vec<f32>, periods:&Vec<SampleB
     render::amp_scale(&mut result, config.amplitude_scaling);
     result
 }
+
+pub fn silly_convolve_periods(periods: &[SampleBuffer]) -> SampleBuffer {
+    if periods.is_empty() {
+        return Vec::new();
+    }
+    let longest_length = periods.iter().map(Vec::len).max().unwrap_or_default();
+    let initial_period = &periods[0];
+    let convolved_result = periods.iter().skip(1).fold(initial_period.clone(), |acc, period| {
+        convolve::full(&acc, period)
+    });
+    let mut resampled = convolve::resample(&convolved_result, longest_length);
+    render::normalize(&mut resampled);
+    resampled
+}
+
 
 #[test] 
 fn test_sample_ugen() {
@@ -103,6 +137,7 @@ fn test_sample_period() {
         render::samples_f32(config.sample_rate, &result, &filename);
     }
 }
+
 #[test] 
 fn test_silly_sum_periods() {
     let config = RenderConfig {
@@ -120,6 +155,29 @@ fn test_silly_sum_periods() {
     for &freq in &frequencies {
         let result = silly_sum_periods(&config, &frequencies, &periods);
         let filename = format!("dev-audio/test-silly-sum-periods-odds-1thru{}.wav", n);
+        render::samples_f32(config.sample_rate, &result, &filename);
+    }
+}
+
+
+
+#[test] 
+fn test_silly_convolve_periods() {
+    let config = RenderConfig {
+        sample_rate: 44100,
+        amplitude_scaling: 1.0,
+        cps: 1.0,
+    };
+    
+    let n:usize = 101;
+    let frequencies:Vec<f32> = (0..n).filter(|x| x % 2 != 0).map(|x| x as f32).collect();
+    let periods:Vec<SampleBuffer> = frequencies.iter().map(|f| 
+        sample_period(&config, silly_sine, *f)
+    ).collect();
+
+    for &freq in &frequencies {
+        let result = silly_convolve_periods(&periods);
+        let filename = format!("dev-audio/test-silly-convolve-periods-odds-1thru{}.wav", n);
         render::samples_f32(config.sample_rate, &result, &filename);
     }
 }

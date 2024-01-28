@@ -13,3 +13,24 @@ pub mod modulate;
 pub mod render;
 pub mod phrase;
 pub mod canvas;
+
+
+
+
+pub fn sum_periods(config: &synth::RenderConfig, selector: &synth::HarmonicSelector, start: usize, max_harmonic: usize, offset: f32) -> synth::SampleBuffer {
+    let frequencies = selector.generate_harmonics(start, max_harmonic, offset);
+    let periods: Vec<synth::SampleBuffer> = frequencies.iter().map(|f| 
+        synth::sample_period(config, synth::silly_sine, *f)
+    ).collect();
+
+    synth::silly_sum_periods(config, &frequencies, &periods)
+}
+
+pub fn convolve_periods(config: &synth::RenderConfig, selector: &synth::HarmonicSelector, start: usize, max_harmonic: usize, offset: f32) -> synth::SampleBuffer {
+    let frequencies = selector.generate_harmonics(start, max_harmonic, offset);
+    let periods: Vec<synth::SampleBuffer> = frequencies.iter().map(|f| 
+        synth::sample_period(config, synth::silly_sine, *f)
+    ).collect();
+
+    synth::silly_convolve_periods(&periods)
+}

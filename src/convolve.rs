@@ -3,6 +3,135 @@ use std::env;
 use std::fs::File;
 use std::io::{Write, BufReader};
 
+
+
+/// Resamples a given signal to a specified length using linear interpolation.
+///
+/// # Arguments
+/// * `signal` - A slice of the input signal to be resampled.
+/// * `target_length` - The desired length of the output signal.
+///
+/// # Returns
+/// A `Vec<f32>` containing the resampled signal.
+pub fn resample(signal: &[f32], target_length: usize) -> Vec<f32> {
+    if target_length == 0 || signal.is_empty() {
+        return Vec::new();
+    }
+    let mut resampled = Vec::with_capacity(target_length);
+
+    let scale = (signal.len() - 1) as f32 / (target_length - 1) as f32;
+    for i in 0..target_length {
+        let float_idx = i as f32 * scale;
+        let idx = float_idx as usize;
+        let frac = float_idx - idx as f32;
+
+        // Linear interpolation
+        let next_idx = (idx + 1).min(signal.len() - 1);
+        let interpolated_value = (1.0 - frac) * signal[idx] + frac * signal[next_idx];
+        resampled.push(interpolated_value);
+    }
+    resampled
+}
+
+
+/// Performs full convolution on a signal and an impulse response.
+/// 
+/// This method includes all possible overlaps between the signal and the impulse response.
+/// The length of the output is `signal.len() + impulse.len() - 1`.
+/// 
+/// Benefits: It provides a complete representation of the convolution, including edge effects.
+/// Costs: Results in the longest output, which might include significant zero-padding effects at the edges.
+/// Lossiness: Non-lossy, as it includes all interactions.
+/// 
+/// # Arguments
+/// * `signal` - A slice of the input signal.
+/// * `impulse` - A slice of the impulse response.
+/// 
+/// # Returns
+/// A `Vec<f32>` containing the full convolution result.
+pub fn full(signal: &[f32], impulse: &[f32]) -> Vec<f32> {
+    let mut convolved = vec![0.0_f32; signal.len() + impulse.len() - 1];
+    for (i, &s) in signal.iter().enumerate() {
+        for (j, &imp) in impulse.iter().enumerate() {
+            convolved[i + j] += s * imp;
+        }
+    }
+    convolved
+}
+
+/// Performs full convolution on a signal and an impulse response and then resamples
+/// the result back to the original signal length.
+///
+/// # Arguments
+/// * `signal` - A slice of the input signal.
+/// * `impulse` - A slice of the impulse response.
+///
+/// # Returns
+/// A `Vec<f32>` containing the convolved and resampled signal.
+pub fn full_resample(signal: &[f32], impulse: &[f32]) -> Vec<f32> {
+    let convolved = full(signal, impulse);
+    resample(&convolved, signal.len())
+}
+
+
+/// Performs same convolution on a signal and an impulse response.
+/// 
+/// This method pads the input signal to ensure the output has the same length as the input signal.
+/// 
+/// Benefits: Output length matches the input signal length, useful for consistent dimensionality.
+/// Costs: Padding can introduce artifacts at the edges.
+/// Lossiness: Potentially lossy at the edges due to padding.
+/// 
+/// # Arguments
+/// * `signal` - A slice of the input signal.
+/// * `impulse` - A slice of the impulse response.
+/// 
+/// # Returns
+/// A `Vec<f32>` containing the same convolution result.
+pub fn same(signal: &[f32], impulse: &[f32]) -> Vec<f32> {
+    let pad = impulse.len() / 2;
+    let mut padded_signal = vec![0.0_f32; signal.len() + 2 * pad];
+    padded_signal[pad..pad + signal.len()].copy_from_slice(signal);
+
+    let mut convolved = vec![0.0_f32; signal.len()];
+    for (i, &s) in padded_signal.iter().enumerate().take(signal.len() + pad) {
+        for (j, &imp) in impulse.iter().enumerate() {
+            if i + j < convolved.len() {
+                convolved[i + j] += s * imp;
+            }
+        }
+    }
+    convolved
+}
+
+/// Performs valid convolution on a signal and an impulse response.
+/// 
+/// This method only includes the parts of the signal that fully overlap with the impulse response,
+/// resulting in a shorter output.
+/// 
+/// Benefits: No edge effects due to zero-padding.
+/// Costs: Results in a shorter output, potentially missing some interactions.
+/// Lossiness: Lossy, as it excludes partial overlaps.
+/// 
+/// # Arguments
+/// * `signal` - A slice of the input signal.
+/// * `impulse` - A slice of the impulse response.
+/// 
+/// # Returns
+/// A `Vec<f32>` containing the valid convolution result.
+pub fn valid(signal: &[f32], impulse: &[f32]) -> Vec<f32> {
+    if impulse.len() > signal.len() {
+        return vec![];
+    }
+
+    let mut convolved = vec![0.0_f32; signal.len() - impulse.len() + 1];
+    for (i, window) in signal.windows(impulse.len()).enumerate() {
+        convolved[i] = window.iter().zip(impulse).map(|(&s, &imp)| s * imp).sum();
+    }
+    convolved
+}
+
+
 mod audio_utils {
     use hound;
     use itertools::Either;
@@ -53,7 +182,7 @@ mod audio_utils {
 
 }
 
-fn convolve(signal: &[f32], impulse: &[f32]) -> Vec<f32> {
+pub fn convolve(signal: &[f32], impulse: &[f32]) -> Vec<f32> {
     let mut convolved = vec![0.0_f32; signal.len() + impulse.len() - 1];
     let mut min: f32 = 0.0;
     let mut max: f32 = 0.0;
@@ -71,6 +200,8 @@ fn convolve(signal: &[f32], impulse: &[f32]) -> Vec<f32> {
     });
     convolved
 }
+
+
 
 fn write_wav(file_path: &str, samples: &[i32], spec: hound::WavSpec) {
     let mut writer = hound::WavWriter::create(file_path, spec).expect("Failed to create WAV file");
