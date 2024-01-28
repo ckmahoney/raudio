@@ -2,6 +2,30 @@ use crate::synth_config::SynthConfig;
 
 pub type Ugen = fn(&SynthConfig, u32, f32, Option<f32>) -> f32;
 
+pub fn rescale(samples: &[f32], original_freq: f32, target_freq: f32) -> Vec<f32> {
+    let ratio = original_freq / target_freq;
+    let new_length = (samples.len() as f32 * ratio) as usize;
+    let mut resampled = Vec::with_capacity(new_length);
+
+    for i in 0..new_length {
+        let float_idx = i as f32 / ratio;
+        let idx = float_idx as usize;
+        let next_idx = if idx + 1 < samples.len() { idx + 1 } else { idx };
+        
+        // Linear interpolation
+        let sample = if idx != next_idx {
+            let fraction = float_idx.fract();
+            samples[idx] * (1.0 - fraction) + samples[next_idx] * fraction
+        } else {
+            samples[idx]
+        };
+
+        resampled.push(sample);
+    }
+
+    resampled
+}
+
 pub fn normalize(buffer: &mut Vec<f32>) {
     if buffer.is_empty() {
         return;

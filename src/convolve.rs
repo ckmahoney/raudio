@@ -1,8 +1,5 @@
 use hound;
-use std::env;
-use std::fs::File;
-use std::io::{Write, BufReader};
-
+use crate::render;
 
 
 /// Resamples a given signal to a specified length using linear interpolation.
@@ -31,6 +28,11 @@ pub fn resample(signal: &[f32], target_length: usize) -> Vec<f32> {
         resampled.push(interpolated_value);
     }
     resampled
+}
+
+pub fn tidy(signal: &mut[f32], length:usize) {
+    let mut resampled = resample(&signal, length);
+    render::normalize(&mut resampled);
 }
 
 

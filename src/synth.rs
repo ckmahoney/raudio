@@ -31,7 +31,7 @@ impl HarmonicSelector {
 }
 
 // sample_rate, sample_num, frequency
-type Ugen = fn(usize, usize, f32) -> f32;
+pub type Ugen = fn(usize, usize, f32) -> f32;
 
 pub type SampleBuffer = Vec<f32>;
 
@@ -95,12 +95,11 @@ pub fn silly_convolve_periods(periods: &[SampleBuffer]) -> SampleBuffer {
     }
     let longest_length = periods.iter().map(Vec::len).max().unwrap_or_default();
     let initial_period = &periods[0];
-    let convolved_result = periods.iter().skip(1).fold(initial_period.clone(), |acc, period| {
+    let mut convolved_result = periods.iter().skip(1).fold(initial_period.clone(), |acc, period| {
         convolve::full(&acc, period)
     });
-    let mut resampled = convolve::resample(&convolved_result, longest_length);
-    render::normalize(&mut resampled);
-    resampled
+    convolve::tidy(&mut convolved_result, longest_length);
+    convolved_result
 }
 
 

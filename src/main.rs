@@ -87,7 +87,7 @@ fn main() {
         HarmonicSelector::Geometric(_) => "geometric",
         HarmonicSelector::Constant(_) => "constant",
     };
-    println!("Running with args {},{},{},{}", selector_str, start, max_harmonic, sample_rate);
+    // println!("Running with args {},{},{},{}", selector_str, start, max_harmonic, sample_rate);
     
 
     let sum_filename = format!("audio-out/sum_{}_{}_{}_{}.wav", selector_str, start, max_harmonic, sample_rate);
@@ -105,7 +105,7 @@ fn main() {
 
     
     let convolve_filename = format!("audio-out/convolve_{}_{}_{}_{}.wav", selector_str, start, max_harmonic, sample_rate);
-    path = Path::new(&sum_filename);
+    path = Path::new(&convolve_filename);
     if !path.exists() {
         println!("Computing convolution");
         let convolve_result = wendy::convolve_periods(&config, &selector, start, max_harmonic, offset);
@@ -115,4 +115,5 @@ fn main() {
     } else {
         println!("Asset exists: {}", convolve_filename);
     }
+    return;
 }
