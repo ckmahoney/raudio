@@ -14,6 +14,8 @@ use crate::synth_config::SynthConfig;
 // sample_rate, sample_num, frequency
 type Ugen = fn(usize, usize, f32) -> f32;
 
+pub type SampleBuffer = Vec<f32>;
+
 pub struct RenderConfig {
     pub sample_rate: usize,
     pub amplitude_scaling: f32,
@@ -24,14 +26,14 @@ fn silly_sine(sample_rate:usize, sample_num:usize, frequency:f32) -> f32 {
     let pi2 = std::f32::consts::PI * 2.0f32;
     let samples_per_period = (sample_rate as f32 / frequency) as f32;
     let sample_index = sample_num.rem_euclid(samples_per_period as usize) as f32;
-    let phase:f32 = pi2 * (sample_index /samples_per_period) ;
+    let phase:f32 = pi2 * (sample_index /samples_per_period);
     (pi2 * frequency + phase).sin()
 }
 
 // !! note this may truncate a partial sample for non-harmonic cps. 
 // This eventually leads to frequency drift
 // it is considerable to correct the drift by factoring the dt lost and total number of samples lost
-pub fn sample_ugen(config:&RenderConfig, ugen:Ugen, duration:f32, freq:f32) -> Vec<f32> {
+pub fn sample_ugen(config:&RenderConfig, ugen:Ugen, duration:f32, freq:f32) -> SampleBuffer {
     let samples_per_cycle:f32 = config.sample_rate as f32 / config.cps;
     let n_samples = (samples_per_cycle * duration).floor() as usize;
     (0..n_samples-1).map({|i| 
@@ -39,25 +41,88 @@ pub fn sample_ugen(config:&RenderConfig, ugen:Ugen, duration:f32, freq:f32) -> V
     }).collect()
 }
 
+pub fn sample_period(config:&RenderConfig, ugen:Ugen, freq:f32) -> SampleBuffer {
+    let samples_per_period = (config.sample_rate as f32 / freq) as usize;
+    (0..samples_per_period-1).map({|i| 
+        config.amplitude_scaling * ugen(config.sample_rate, i, freq)
+    }).collect()
+}
+
+// !! note 
+// this implementation may cause "sync" 
+// in that the final copied period of a shorter-than-longest samples
+// may not have a harmonic length to the longest samples. 
+// therefore the final iterated loop will not copy the entire period, 
+// resulting in sync. 
+fn silly_sum_periods(config:&RenderConfig, freqs:&Vec<f32>, periods:&Vec<SampleBuffer>) -> SampleBuffer {
+    
+    let n_samples = periods.iter().map(|vec| vec.len()).max().unwrap_or(0);
+    let mut result = vec![0.0; n_samples];
+
+    for i in 0..n_samples-1 {
+        for period in periods.to_owned() {
+            let index:usize = i % period.len();
+            result[i] += period[index];
+        };
+    };
+    render::normalize(&mut result);
+    render::amp_scale(&mut result, config.amplitude_scaling);
+    result
+}
 
 #[test] 
-fn test_sample_ugen(){
+fn test_sample_ugen() {
     let config = RenderConfig {
         sample_rate: 44100,
         amplitude_scaling: 1.0,
-        cps: 1.0
+        cps: 1.0,
     };
 
-    let result100 = sample_ugen(&config, silly_sine, 8.0, 100.0);
-    render::samples_f32(config.sample_rate, &result100, "dev-audio/test-sample-ugen-100-hz.wav");
+    let frequencies = [100.0, 600.0, 3000.0];
 
-    let result600 = sample_ugen(&config, silly_sine, 8.0, 600.0);
-    render::samples_f32(config.sample_rate, &result600, "dev-audio/test-sample-ugen-600-hz.wav");
-
-    let result3000 = sample_ugen(&config, silly_sine, 8.0, 3000.0);
-    render::samples_f32(config.sample_rate, &result3000, "dev-audio/test-sample-ugen-3000-hz.wav");
+    for &freq in &frequencies {
+        let result = sample_ugen(&config, silly_sine, 8.0, freq);
+        let filename = format!("dev-audio/test-sample-ugen-{}-hz.wav", freq);
+        render::samples_f32(config.sample_rate, &result, &filename);
+    }
 }
 
+#[test] 
+fn test_sample_period() {
+    let config = RenderConfig {
+        sample_rate: 44100,
+        amplitude_scaling: 1.0,
+        cps: 1.0,
+    };
+
+    let frequencies = [1.0, 3.0, 5.0, 7.0, 9.0];
+
+    for &freq in &frequencies {
+        let result = sample_period(&config, silly_sine, freq);
+        let filename = format!("dev-audio/test-sample-period-{}-hz.wav", freq);
+        render::samples_f32(config.sample_rate, &result, &filename);
+    }
+}
+#[test] 
+fn test_silly_sum_periods() {
+    let config = RenderConfig {
+        sample_rate: 44100,
+        amplitude_scaling: 1.0,
+        cps: 1.0,
+    };
+    
+    let n:usize = 9;
+    let frequencies:Vec<f32> = (0..n).filter(|x| x % 2 != 0).map(|x| x as f32).collect();
+    let periods:Vec<SampleBuffer> = frequencies.iter().map(|f| 
+        sample_period(&config, silly_sine, *f)
+    ).collect();
+
+    for &freq in &frequencies {
+        let result = silly_sum_periods(&config, &frequencies, &periods);
+        let filename = format!("dev-audio/test-silly-sum-periods-odds-1thru{}.wav", n);
+        render::samples_f32(config.sample_rate, &result, &filename);
+    }
+}
 
 
 
