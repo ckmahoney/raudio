@@ -5,6 +5,7 @@ pub mod time_forms;
 pub mod synth_config;
 pub mod color;
 pub mod convolve;
+pub mod files;
 pub mod gen;
 pub mod synth;
 pub mod sequence;
