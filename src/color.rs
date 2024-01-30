@@ -13,7 +13,7 @@ pub fn carry(config:&synth::RenderConfig, carrier:&synth::SampleBuffer, colors:V
     render::normalize(&mut result)
 }
 
-pub fn color_samples_with(freq:f32, carrier:&synth::SampleBuffer, file_names: &Vec<&str>) -> Result<Vec<f32>, String> {
+pub fn with_samples(freq:f32, carrier:&synth::SampleBuffer, file_names: &Vec<&str>) -> Result<Vec<f32>, String> {
     for &file_name in file_names {
         if !fs::metadata(file_name).is_ok() {
             return Err(format!("File not found: {}", file_name));
@@ -27,16 +27,45 @@ pub fn color_samples_with(freq:f32, carrier:&synth::SampleBuffer, file_names: &V
         let mut wav_reader = hound::WavReader::new(reader)
             .map_err(|e| format!("Error reading WAV file '{}': {}", file_name, e))?;
 
-        let fundamental_samples: Vec<f32> = wav_reader.samples::<f32>()
+        let primitive_samples: Vec<f32> = wav_reader.samples::<f32>()
             .map(|s| s.unwrap() as f32 )
             .collect();
 
-        let samples = render::rescale(&fundamental_samples, 1.0f32, freq);
+        let samples = render::rescale(&primitive_samples, 1.0f32, freq);
         
         result = convolve::full_resample(&result, &samples);
     }
-    convolve::tidy(&mut result, carrier.len());
-    Ok(result)
+    Ok(convolve::tidy(&mut result, carrier.len()))
+}
+
+pub fn with_samples_echo(freq:f32, carrier:&synth::SampleBuffer, file_names: &Vec<&str>, echos: usize) -> Result<Vec<f32>, String> {
+    for &file_name in file_names {
+        if !fs::metadata(file_name).is_ok() {
+            return Err(format!("File not found: {}", file_name));
+        }
+    }
+
+    let mut result = carrier.to_owned();
+    
+    for &file_name in file_names {
+        let reader = BufReader::new(fs::File::open(file_name).map_err(|e| e.to_string())?);
+        let mut wav_reader = hound::WavReader::new(reader)
+            .map_err(|e| format!("Error reading WAV file '{}': {}", file_name, e))?;
+
+        let primitive_samples: Vec<f32> = wav_reader.samples::<f32>()
+            .map(|s| s.unwrap() as f32 )
+            .collect();
+
+        let echoed:Vec<f32> = (0..echos)
+            .flat_map(|_| primitive_samples.iter())
+            .cloned()
+            .collect();
+
+        let samples = render::rescale(&echoed, 1.0f32, freq);
+        
+        result = convolve::full_resample(&result, &samples);
+    }
+    Ok(convolve::tidy(&mut result, carrier.len()))
 }
 
 #[test]
@@ -60,7 +89,7 @@ fn test_color_samples_two_known_sums() {
         render::samples_f32(config.sample_rate, &samples, &before_name);
 
         println!("Coloring frequency {}", freq);
-        match color_samples_with(freq, &samples, &file_names) {
+        match with_samples(freq, &samples, &file_names) {
             Ok(result) => {
                 let filename = format!("dev-audio/color_res_sum_{}_hz.wav", freq);
                 render::samples_f32(config.sample_rate, &result, &filename);
@@ -91,7 +120,7 @@ fn test_color_samples_two_known_convolutions() {
         render::samples_f32(config.sample_rate, &samples, &before_name);
 
         println!("Coloring frequency {}", freq);
-        match color_samples_with(freq, &samples, &file_names) {
+        match with_samples(freq, &samples, &file_names) {
             Ok(result) => {
                 let filename = format!("dev-audio/color_res_convolve_{}_hz.wav", freq);
                 render::samples_f32(config.sample_rate, &result, &filename);

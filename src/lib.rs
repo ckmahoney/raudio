@@ -1,20 +1,24 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-pub mod freq_forms;
-pub mod time_forms;
-pub mod synth_config;
+
+pub mod canvas;
 pub mod color;
 pub mod convolve;
-pub mod files;
-pub mod gen;
-pub mod synth;
-pub mod sequence;
+pub mod engrave;
 pub mod envelope;
+pub mod files;
+pub mod freq_forms;
+pub mod gen;
+pub mod midi;
 pub mod mix;
 pub mod modulate;
-pub mod render;
 pub mod phrase;
-pub mod canvas;
+pub mod render;
+pub mod sequence;
+pub mod song;
+pub mod synth;
+pub mod synth_config;
+pub mod time_forms;
 
 pub fn sum_periods(config: &synth::RenderConfig, selector: &synth::HarmonicSelector, start: usize, max_harmonic: usize, offset: f32) -> synth::SampleBuffer {
     let frequencies = selector.generate_harmonics(start, max_harmonic, offset);

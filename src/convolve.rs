@@ -30,9 +30,10 @@ pub fn resample(signal: &[f32], target_length: usize) -> Vec<f32> {
     resampled
 }
 
-pub fn tidy(signal: &mut[f32], length:usize) {
+pub fn tidy(signal: &mut[f32], length:usize) -> Vec<f32> {
     let mut resampled = resample(&signal, length);
     render::normalize(&mut resampled);
+    resampled
 }
 
 

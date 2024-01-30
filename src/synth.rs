@@ -1,6 +1,7 @@
 //! Generation of novel audio signals 
 use itertools::Either;
 
+use crate::color;
 use crate::convolve;
 use crate::files;
 use crate::freq_forms;
@@ -57,21 +58,22 @@ pub fn silly_sine(sample_rate:usize, sample_num:usize, frequency:f32) -> f32 {
 pub fn sample_ugen(config:&RenderConfig, ugen:Ugen, duration:f32, freq:f32) -> SampleBuffer {
     let samples_per_cycle:f32 = config.sample_rate as f32 / config.cps;
     let n_samples = (samples_per_cycle * duration).floor() as usize;
-    (0..n_samples-1).map({|i| 
+    (0..n_samples).map({|i| 
             config.amplitude_scaling * ugen(config.sample_rate, i, freq)
     }).collect()
 }
 
 pub fn sample_period(config:&RenderConfig, ugen:Ugen, freq:f32) -> SampleBuffer {
     let samples_per_period = (config.sample_rate as f32 / freq) as usize;
-    (0..samples_per_period-1).map({|i| 
+    (0..samples_per_period).map({|i| 
         config.amplitude_scaling * ugen(config.sample_rate, i, freq)
     }).collect()
 }
 
 pub fn sample_scale_period(config:&RenderConfig, ugen:Ugen, freq:f32, amp:f32) -> SampleBuffer {
     let samples_per_period = (config.sample_rate as f32 / freq) as usize;
-    (0..samples_per_period-1).map({|i| 
+    println!("Scaling with amplitude {}", amp);
+    (0..samples_per_period).map({|i| 
         amp * ugen(config.sample_rate, i, freq)
     }).collect()
 }
@@ -102,13 +104,14 @@ pub fn silly_convolve_periods(periods: &[SampleBuffer]) -> SampleBuffer {
     if periods.is_empty() {
         return Vec::new();
     }
+    let pp = periods;
+    
     let longest_length = periods.iter().map(Vec::len).max().unwrap_or_default();
     let initial_period = &periods[0];
     let mut convolved_result = periods.iter().skip(1).fold(initial_period.clone(), |acc, period| {
         convolve::full(&acc, period)
     });
-    convolve::tidy(&mut convolved_result, longest_length);
-    convolved_result
+    convolve::tidy(&mut convolved_result, longest_length)
 }
 
 
@@ -165,10 +168,13 @@ fn test_silly_sum_periods() {
     render::samples_f32(config.sample_rate, &result, &filename);
 }
 
-fn get_freqs() -> std::ops::Range<usize> {
+fn get_freqs() -> Vec::<usize> {
     let min_f:usize = 25;
     let max_f:usize = 3500;
-    min_f..max_f
+    // min_f..max_f
+    // vec![3.0, 5.0, 20.0, 26.0, 33.0, 42.0, 64.0,80.0, 96.0, 110.0, 128.0, 280.0, 400.0, 490.0, 640.0, 980.0, 1240.0, 1900.0]
+    vec![150.0, 200.0, 500.0, 700.0, 900.0, 1900.0]
+    .into_iter().map(|x| x as usize).collect()
 }
 
 const DEST_FUNDAMENTAL:&str = "fundamentals";
@@ -192,7 +198,7 @@ fn test_prerender_fundamental_sums() {
     for fundamental in basis {
         let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
 
-        let monics:Vec<f32> = (1..n).map(|x| x as f32).collect();
+        let monics:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
         let periods:Vec<SampleBuffer> = monics.iter().map(|f| 
             sample_period(&config, silly_sine, *f)
         ).collect();
@@ -204,7 +210,7 @@ fn test_prerender_fundamental_sums() {
 
         let fundamental2 = fundamental as f32 + offset;
         let n2:usize = (config.sample_rate as f32 / fundamental2) as usize;
-        let monics2:Vec<f32> = (1..n).map(|x| x as f32).collect();
+        let monics2:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
         let periods2:Vec<SampleBuffer> = monics2.iter().map(|f| 
             sample_period(&config, silly_sine, *f)
         ).collect();
@@ -235,10 +241,10 @@ fn test_prerender_fundamental_sums_saw() {
     for fundamental in basis {
         let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
         // use all freqs for saw
-        let monics:Vec<f32> = (1..n).map(|x| x as f32).collect();
+        let monics:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
 
-        let mut periods:Vec<SampleBuffer> = monics.iter().map({|f| 
-            sample_period(&config, silly_sine, *f as f32)
+        let mut periods:Vec<SampleBuffer> = monics.iter().enumerate().map({|(i,f)| 
+            sample_scale_period(&config, silly_sine, *f as f32, 1.0/(i+1) as f32)
         })
         .collect(); 
 
@@ -248,16 +254,16 @@ fn test_prerender_fundamental_sums_saw() {
         );
 
         let result = silly_sum_periods(&config, &monics, &periods);
-        let filename = format!("{}/sum/saw/_{}_hz_{}.wav", DEST_FUNDAMENTAL, fundamental, config.sample_rate);
+        let filename = format!("{}/sum/saw/saw_{}_hz_{}.wav", DEST_FUNDAMENTAL, fundamental, config.sample_rate);
         render::samples_f32(config.sample_rate, &result, &filename);
         std::mem::drop(periods);
         std::mem::drop(result);
 
         let fundamental2 = fundamental as f32 + offset;
         let n2:usize = (config.sample_rate as f32 / fundamental2) as usize;
-        let monics2:Vec<f32> = (1..n).map(|x| x as f32).collect();
-        let mut periods2:Vec<SampleBuffer> = monics2.iter().map(|f| 
-            sample_period(&config, silly_sine, *f)
+        let monics2:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
+        let mut periods2:Vec<SampleBuffer> = monics2.iter().enumerate().map(|(i,f)| 
+            sample_scale_period(&config, silly_sine, *f as f32, 1.0/(i+1) as f32)
         ).collect();
 
         periods2.iter_mut().enumerate()
@@ -272,12 +278,95 @@ fn test_prerender_fundamental_sums_saw() {
     }
 }
 
+#[test] 
+fn test_color_carrier() {
+    let base_path = "/convolve";
+    let max_monics = 3;
+    let mut dir = DEST_FUNDAMENTAL.to_owned();
+    files::ensure_directory_exists(&dir);
+    let path = format!("{}/test-color", base_path);
+    dir.push_str(&path);
+    files::ensure_directory_exists(&dir);
+
+    let mixers:Vec<&str> = vec![ 
+        "fundamentals/convolve/m-3/saw_1_hz_44100.wav" 
+    ];
+
+    files::ensure_directory_exists(DEST_FUNDAMENTAL);
+    let config = RenderConfig {
+        sample_rate: 44100,
+        amplitude_scaling: 1.0,
+        cps: 1.0,
+    };
+
+    let basis = get_freqs();
+
+    for fundamental in basis {
+        println!("Color convolving {} with {} colors", fundamental, mixers.len());
+
+        let carrier:Vec<f32> = sample_period(&config, silly_sine, fundamental as f32);
+        match color::with_samples(fundamental as f32, &carrier, &mixers) {
+            Ok(result) => {
+                let filename = format!("{}/saw_{}_hz_{}.wav", dir, fundamental, config.sample_rate);
+                println!("Writing file {}", filename);
+                render::samples_f32(config.sample_rate, &result, &filename);
+            },
+            Err(msg) => {
+                println!("Error while running color convolution. Message: {}", msg);
+            }
+        }
+    }
+}
+
+
+#[test] 
+fn test_color_carrier_echos() {
+    let base_path = "/convolve";
+    let max_monics = 3;
+    let mut dir = DEST_FUNDAMENTAL.to_owned();
+    files::ensure_directory_exists(&dir);
+    let echoes:usize = 10 ;
+    let path = format!("{}/test-color-echo/echo-{}/", base_path, echoes);
+    dir.push_str(&path);
+    files::ensure_directory_exists(&dir);
+
+    let mixers:Vec<&str> = vec![ 
+        "fundamentals/convolve/m-3/saw_1_hz_44100.wav" 
+    ];
+
+    files::ensure_directory_exists(DEST_FUNDAMENTAL);
+    let config = RenderConfig {
+        sample_rate: 44100,
+        amplitude_scaling: 1.0,
+        cps: 1.0,
+    };
+
+    let basis = get_freqs();
+    for fundamental in basis {
+        println!("Coloring {} echos convolving {} with {} colors", echoes, fundamental, mixers.len());
+
+        let carrier:Vec<f32> = sample_period(&config, silly_sine, fundamental as f32);
+        match color::with_samples_echo(fundamental as f32, &carrier, &mixers, echoes) {
+            Ok(result) => {
+                let filename = format!("{}/saw_{}_hz_{}.wav", dir, fundamental, config.sample_rate);
+                println!("Writing file {}", filename);
+                render::samples_f32(config.sample_rate, &result, &filename);
+            },
+            Err(msg) => {
+                println!("Error while running color convolution. Message: {}", msg);
+            }
+        }
+    }
+}
 
 #[test] 
 fn test_prerender_fundamental_convolutions_saw() {
+    let base_path = "/convolve";
+    let max_monics = 3;
     let mut dir = DEST_FUNDAMENTAL.to_owned();
     files::ensure_directory_exists(&dir);
-    dir.push_str(&"/convolve/saw");
+    let path = format!("{}/m-{}", base_path, &max_monics.to_string());
+    dir.push_str(&path);
     files::ensure_directory_exists(&dir);
 
     files::ensure_directory_exists(DEST_FUNDAMENTAL);
@@ -289,25 +378,25 @@ fn test_prerender_fundamental_convolutions_saw() {
 
     let basis = get_freqs();
     let offset = 0.5; 
-    let max_monics = 24;
     for fundamental in basis {
         let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
-        // use all freqs
-        let monics:Vec<f32> = (1..n).map(|x| x as f32).collect();
-
-        let periods:Vec<SampleBuffer> = monics.iter().map({|f| 
-            sample_scale_period(&config, silly_sine, *f as f32, 1.0/f)
+        let monics:Vec<f32> = (2..n+2).map(|x| x as f32).collect();
+        let carrier:Vec<f32> = sample_period(&config, silly_sine, fundamental as f32);
+        let periods:Vec<SampleBuffer> = monics.iter().enumerate().map({|(i,f)| 
+            sample_scale_period(&config, silly_sine, fundamental as f32 * *f as f32, 1.0/(i+1) as f32)
         })
         .collect(); 
+        for p in &periods {
+            println!("Got period length {:?}", p.len())
+        }
 
         println!("Convolving {} periods", n);
-        let result = silly_convolve_periods(&periods);
-        let filename = format!("{}/convolve_{}_saw_{}.wav", DEST_FUNDAMENTAL, fundamental, config.sample_rate);
+        let mut group = vec![carrier.clone()];
+        group.extend(periods);
+        let result = silly_convolve_periods(&group);
+        let filename = format!("{}/saw_{}_hz_{}.wav", dir, fundamental, config.sample_rate);
         println!("Writing file {}", filename);
         render::samples_f32(config.sample_rate, &result, &filename);
-        std::mem::drop(periods);
-        std::mem::drop(result);
-
     }
 }
 
@@ -568,59 +657,6 @@ fn test_render_phrases() {
     }
 }
 
-
-#[test]
-fn test_render_with_time_fx() {
-    let config = synth_config::SynthConfig::new(44100, 20.0, 20000.0, 0.1, 0.0, 0.0, 1.2);
-    let freq: f32 = 440.0;
-    let max_freq = (config.sample_rate/2) as f32 / freq;
-    let n_monics = max_freq.floor() as i8;
-    let monics: Vec<i8> = (1..n_monics+1).collect();
-    let buffers:Vec<Vec<f32>> = monics.into_iter().map(|r| {
-        let duration = 128.0;
-        let n = (config.sample_rate as f32 * duration).floor() as usize;
-        let f = freq * r as f32;
-        let mut buf = Vec::with_capacity(n);
-        let mut amp_mod = Vec::with_capacity(n);
-
-        // write the base signal and modulator for the monic
-        for i in 0..n {
-            buf.push(freq_forms::sine(&config, i as u32, f, None));
-
-            // add a modulator 
-            // modulators have the same lifetime as the note
-            // so iterate at the same time as fundamental creation
-            let amod = (r as f32 * r as f32 * r as f32 * r as f32 * r as f32) as f32;
-            amp_mod.push(freq_forms::sine(&config, i as u32, amod, None));
-        }
-
-        if r > 2 {
-            // add an envelope
-            let env = Envelope::new(2*config.sample_rate as usize, config.sample_rate, 1.0);
-            let e = env.power(2.0, 2.0, true);
-
-            match modulate::apply(&config, &buf, vec![e; 1]) {
-                Ok(res) => {
-                    buf = res;
-                }
-                Err(e) =>panic!("Bad envelope stuff {}", e)
-            }
-        }
-
-        match modulate::apply(&config, &buf, vec![amp_mod; 1]) {
-            Ok(res) => res,
-            Err(e) => panic!("Bad modulation stuff {}", e)
-        }
-    }).collect();
-
-    match render::mix_and_normalize_buffers(buffers) {
-        Ok(mix) => {
-            let label = "dev-audio/time-sample.wav";
-            render::samples(&config, &mix, &label);
-        }
-        Err(e) => println!("Caught an error while mixing buffers: {}", e)
-    }
-}
 
 
 #[test]
