@@ -83,7 +83,6 @@ pub fn sample_period(config:&RenderConfig, ugen:Ugen, freq:f32) -> SampleBuffer 
 
 pub fn sample_scale_period(config:&RenderConfig, ugen:Ugen, freq:f32, amp:f32) -> SampleBuffer {
     let samples_per_period = (config.sample_rate as f32 / freq) as usize;
-    println!("Scaling with amplitude {}", amp);
     (0..samples_per_period).map({|i| 
         amp * ugen(config.sample_rate, i, freq)
     }).collect()
@@ -179,13 +178,10 @@ fn test_silly_sum_periods() {
     render::samples_f32(config.sample_rate, &result, &filename);
 }
 
-fn get_freqs() -> Vec::<usize> {
-    let min_f:usize = 25;
+fn get_freqs() -> std::ops::Range::<usize> {
+    let min_f:usize = 10;
     let max_f:usize = 3500;
-    // min_f..max_f
-    // vec![3.0, 5.0, 20.0, 26.0, 33.0, 42.0, 64.0,80.0, 96.0, 110.0, 128.0, 280.0, 400.0, 490.0, 640.0, 980.0, 1240.0, 1900.0]
-    vec![150.0, 200.0, 500.0, 700.0, 900.0, 1900.0]
-    .into_iter().map(|x| x as usize).collect()
+    min_f..max_f
 }
 
 const DEST_FUNDAMENTAL:&str = "fundamentals";
@@ -376,7 +372,7 @@ fn test_prerender_fundamental_convolutions_saw() {
     let max_monics = 3;
     let mut dir = DEST_FUNDAMENTAL.to_owned();
     files::ensure_directory_exists(&dir);
-    let path = format!("{}/m-{}", base_path, &max_monics.to_string());
+    let path = format!("{}/m-{}/saw", base_path, &max_monics.to_string());
     dir.push_str(&path);
     files::ensure_directory_exists(&dir);
 
@@ -388,18 +384,15 @@ fn test_prerender_fundamental_convolutions_saw() {
     };
 
     let basis = get_freqs();
-    let offset = 0.5; 
     for fundamental in basis {
         let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
         let monics:Vec<f32> = (2..n+2).map(|x| x as f32).collect();
         let carrier:Vec<f32> = sample_period(&config, silly_sine, fundamental as f32);
         let periods:Vec<SampleBuffer> = monics.iter().enumerate().map({|(i,f)| 
-            sample_scale_period(&config, silly_sine, fundamental as f32 * *f as f32, 1.0/(i+1) as f32)
+            sample_scale_period(&config, silly_sine, *f as f32, 1.0/(i+1) as f32)
         })
         .collect(); 
-        for p in &periods {
-            println!("Got period length {:?}", p.len())
-        }
+    
 
         println!("Convolving {} periods", n);
         let mut group = vec![carrier.clone()];
@@ -410,6 +403,46 @@ fn test_prerender_fundamental_convolutions_saw() {
         render::samples_f32(config.sample_rate, &result, &filename);
     }
 }
+
+
+#[test] 
+fn test_prerender_fundamental_convolutions_tri() {
+    let base_path = "/convolve";
+    let max_monics = 3;
+    let mut dir = DEST_FUNDAMENTAL.to_owned();
+    files::ensure_directory_exists(&dir);
+    let path = format!("{}/m-{}/tri", base_path, &max_monics.to_string());
+    dir.push_str(&path);
+    files::ensure_directory_exists(&dir);
+
+    files::ensure_directory_exists(DEST_FUNDAMENTAL);
+    let config = RenderConfig {
+        sample_rate: 44100,
+        amplitude_scaling: 1.0,
+        cps: 1.0,
+    };
+
+    let basis = get_freqs();
+    for fundamental in basis {
+        let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
+        let monics:Vec<f32> = (2..n+2).filter(|x| x % 2 != 0).map(|x| x as f32).collect();
+        let carrier:Vec<f32> = sample_period(&config, silly_sine, fundamental as f32);
+        let periods:Vec<SampleBuffer> = monics.iter().enumerate().map({|(i,f)| 
+            sample_scale_period(&config, silly_sine, *f as f32, 1.0/(i+1).pow(2) as f32)
+        })
+        .collect(); 
+    
+
+        println!("Convolving {} periods", n);
+        let mut group = vec![carrier.clone()];
+        group.extend(periods);
+        let result = silly_convolve_periods(&group);
+        let filename = format!("{}/tri_{}_hz_{}.wav", dir, fundamental, config.sample_rate);
+        println!("Writing file {}", filename);
+        render::samples_f32(config.sample_rate, &result, &filename);
+    }
+}
+
 
 #[test] 
 fn test_silly_convolve_periods() {
