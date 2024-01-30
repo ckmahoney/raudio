@@ -13,6 +13,9 @@ pub fn carry(config:&synth::RenderConfig, carrier:&synth::SampleBuffer, colors:V
     render::normalize(&mut result)
 }
 
+// Given a carrier and its frequency (required for wavelet scaling)
+// apply the provided files as a coloration layer to the carrier
+// return the new buffer or error on file handling
 pub fn with_samples(freq:f32, carrier:&synth::SampleBuffer, file_names: &Vec<&str>) -> Result<Vec<f32>, String> {
     for &file_name in file_names {
         if !fs::metadata(file_name).is_ok() {

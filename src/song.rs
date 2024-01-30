@@ -171,7 +171,7 @@ pub mod x_files {
             conf: Conf {
                 origin: "A minor",
                 duration: -1,
-                cps: 1.75,
+                cps: 1.2,
                 title: "The X Files Theme Song",
                 transposition: 10,
             },

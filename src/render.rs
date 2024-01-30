@@ -70,6 +70,22 @@ pub fn mix_and_normalize_buffers(buffers: Vec<Vec<f32>>) -> Result<Vec<f32>, &'s
     Ok(mixed_buffer)
 }
 
+pub fn pad_and_mix_buffers(buffers: Vec<Vec<f32>>) -> Result<Vec<f32>, &'static str> {
+    if buffers.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let max_buffer_length = buffers.iter().map(|b| b.len()).max().unwrap_or(0);
+    let padded_buffers = buffers.into_iter()
+    .map(|buffer| {
+        let mut padded = buffer;
+        padded.resize(max_buffer_length, 0.0);
+        padded
+    })
+    .collect();
+
+    mix_and_normalize_buffers(padded_buffers)
+}
 
 pub fn render_ugen(config: &SynthConfig, ugen: &Ugen, filename: &str) -> String {
     let dur_cycles = 4;

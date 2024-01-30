@@ -63,6 +63,17 @@ pub fn sample_ugen(config:&RenderConfig, ugen:Ugen, duration:f32, freq:f32) -> S
     }).collect()
 }
 
+// !! note this may truncate a partial sample for non-harmonic cps. 
+// This eventually leads to frequency drift
+// it is considerable to correct the drift by factoring the dt lost and total number of samples lost
+pub fn samp_ugen(sample_rate:usize, cps:f32, amp:f32, ugen:Ugen, duration:f32, freq:f32) -> SampleBuffer {
+    let samples_per_cycle:f32 = sample_rate as f32 / cps;
+    let n_samples = (samples_per_cycle * duration).floor() as usize;
+    (0..n_samples).map({|i| 
+            amp * ugen(sample_rate, i, freq)
+    }).collect()
+}
+
 pub fn sample_period(config:&RenderConfig, ugen:Ugen, freq:f32) -> SampleBuffer {
     let samples_per_period = (config.sample_rate as f32 / freq) as usize;
     (0..samples_per_period).map({|i| 
