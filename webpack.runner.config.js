@@ -2,7 +2,7 @@ const webpack = require('webpack')
 const path = require('path')
 const { copyFile, readFile } = require('node:fs/promises');
 
-const entrypoint = "src/job-reader.ts"
+const entrypoint = "server/job-reader.ts"
 async function setEnvironmentFromProcess() {
     const environments = [ "local", "stage", "service" ]
     process.env.NODE_ENV = (process.env.NODE_ENV ?? "").toLowerCase()

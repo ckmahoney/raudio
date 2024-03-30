@@ -13,7 +13,7 @@
         "rootDir": "."
     },
     "include": [
-        "src/job-reader.ts",
+        "server/job-reader.ts",
     ],
     "exclude": ["node_modules"],
     "ts-node": {
