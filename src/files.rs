@@ -14,3 +14,10 @@ pub fn ensure_directory_exists(dir: &str) {
         fs::create_dir_all(path).expect("Failed to create directory");
     }
 }
+
+pub fn with_dir(dir: &str) {
+    let path = Path::new(dir);
+    if !path.exists() {
+        fs::create_dir_all(path).expect("Failed to create directory");
+    }
+}
