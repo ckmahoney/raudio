@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `Job` ADD COLUMN `outFile` VARCHAR(191) NOT NULL DEFAULT '';
