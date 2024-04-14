@@ -1,17 +1,33 @@
 {
     "conf": {
-        "cps": 60,
-        "root": 440
+        "cps": 2.1,
+        "root": 1.71,
+        "cube": "room"
     },
     "parts": [
         {
             "sound": {
-                "osc_type": "sine",
-                "filepath": "path/to/soundfile.wav",
-                "min_freq": 220.0,
-                "max_freq": 880.0
+                "register": 6,
+                "energy": "medium",
+                "presence": "staccatto",
+                "fill": "frame",
+                "mode": "melodic",
+                "role": "lead",
+                "visibility": "foreground"
             },
-            "motes": [ [4.0, 220.0, 1.0], [2.0, 880.0, 0.5], [2.0, 440.0, 1.0]]
+            "monaes": [ [4.0, 220.0, 1.0], [2.0, 880.0, 0.5], [2.0, 440.0, 1.0]]
+        },
+        {
+            "sound": {
+                "register": 9,
+                "energy": "low",
+                "presence": "tenuto",
+                "fill": "frame",
+                "mode": "melodic",
+                "role": "chords",
+                "visibility": "visible"
+            },
+            "monaes": [ [4.0, 220.0, 1.0], [2.0, 880.0, 0.5], [2.0, 440.0, 1.0]]
         }
     ]
 }

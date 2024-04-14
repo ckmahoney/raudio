@@ -1,5 +1,7 @@
 use crate::midi::*;
-use crate::types::*;
+use crate::types::synthesis::*;
+use crate::types::timbre::*;
+use crate::types::render::*;
 
 pub mod x_files {
     use super::*;
@@ -103,48 +105,38 @@ pub mod x_files {
     ];
 
         let piano:ScoreEntry<Midi> = (
-            ContribComp {
+            Contrib {
                 role: Role::Bass,
                 register: 5,
                 mode: Mode::Melodic,
-                fill: Fill::Support,
                 visibility: Visibility::Foreground,
-                base: BaseOsc::Sine,
             },
             vec![PIANO_LINE.to_vec()]
         );
 
         let flute:ScoreEntry<Midi> = (
-            ContribComp {
+            Contrib {
                 role: Role::Lead,
                 register: 8,
                 mode: Mode::Melodic,
                 visibility: Visibility::Visible,
-                fill: Fill::Focus,
-                base: BaseOsc::Sine,
             },
             vec![FLUTE_LINE.to_vec()]
         );
         let parts = vec![piano, flute];
         PlayerTrack {
             conf: Conf {
-                origin: "A minor",
-                duration: -1,
-                cps: 1.2,
-                title: "The X Files Theme Song",
-                transposition: 10,
+                root: 1.3f32,
+                cps: 1.2f32,
+                cube: Cube::Room
             },
-            composition: Composition {
-                composition_id: -1,
-                duration: -1,
-                quality: "minor",
-                dimensions: Dimensions {
-                    size: 4,
-                    cpc: 3,
-                    base: 2,
-                },
-                parts,
-            }
+            duration: 132f32,
+            dimensions: Dimensions {
+                size: 4i8,
+                cpc: 3i16,
+                base: 2i8,
+            },
+            parts,
         }
     }
 }

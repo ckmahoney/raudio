@@ -1,4 +1,5 @@
-use crate::types::*;
+use crate::types::synthesis::*;
+use crate::types::render::*;
 
 use crate::song;
 use crate::midi;
