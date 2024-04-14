@@ -19,7 +19,7 @@
         },
         {
             "sound": {
-                "register": 9,
+                "register": 5,
                 "energy": "low",
                 "presence": "tenuto",
                 "fill": "frame",
