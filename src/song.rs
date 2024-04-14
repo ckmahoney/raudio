@@ -1,20 +1,65 @@
-use once_cell::sync::Lazy;
 pub use std::collections::HashMap;
 use crate::midi::*;
 
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Spec {
-    pub role: &'static str,
-    pub register: i32,
-    pub fill: &'static str,
-    pub spec_type: &'static str,
+#[derive(Debug)]
+enum Fill {
+    Frame,
+    Support,
+    Focus
 }
 
-#[derive(Debug, Clone)]
-pub struct PlayerTrack {
+#[derive(Debug)]
+enum Visibility {
+    Foreground,
+    Visible,
+    Background,
+    Hidden,
+}
+
+#[derive(Debug)]
+enum Mode {
+    Melodic,
+    Enharmonic,
+    Vagrant,
+    Noise
+}
+
+#[derive(Debug)]
+enum BaseOsc {
+    Sine,
+    Pulse,
+    Saw,
+    Tri
+}
+
+#[derive(Debug)]
+enum Role {
+    Kick,
+    Perc,
+    Hats,
+    Bass,
+    Chords,
+    Lead
+}
+
+
+pub type Melody<C> = Vec<Vec<C>>;
+
+
+#[derive(Debug)]
+pub struct ContribComp {
+    pub base: BaseOsc,
+    pub fill: Fill,
+    pub mode: Mode,
+    pub register: i32,
+    pub role: Role,
+    pub visibility: Visibility,
+}
+
+#[derive(Debug)]
+pub struct PlayerTrack<C> {
     pub conf: Conf,
-    pub composition: Composition,
+    pub composition: Composition<C>,
 }
 
 #[derive(Debug, Clone)]
@@ -26,14 +71,15 @@ pub struct Conf {
     pub transposition: i32,
 }
 
-#[derive(Debug, Clone)]
-pub struct Composition {
+pub type ScoreEntry<C> = (ContribComp, Melody<C>);
+
+#[derive(Debug)]
+pub struct Composition<C> {
     pub composition_id: i32,
     pub duration: i32,
     pub quality: &'static str,
     pub dimensions: Dimensions,
-    pub progression: Vec<(i32, &'static str)>,
-    pub parts: HashMap<Spec, Vec<Vec<Midi>>>,
+    pub parts: Vec<ScoreEntry<C>>,
 }
 
 #[derive(Debug, Clone)]
@@ -46,127 +92,129 @@ pub struct Dimensions {
 pub mod x_files {
     use super::*;
 
-    static PIANO_LINE: Lazy<Vec<Midi>> = Lazy::new(|| {
-        vec![
-            (0.33333333, 57, 127),
-            (0.33333333, 60, 127),
-            (0.33333333, 64, 127),
-            (0.33333333, 65, 127),
-            (0.33333333, 60, 101),
-            (0.33333333, 64, 95),
-            (0.33333333, 53, 101),
-            (0.33333333, 48, 95),
-            (0.33333333, 52, 84),
-            (0.33333333, 53, 95),
-            (0.33333333, 48, 84),
-            (0.33333333, 52, 63),
-            (1.0, 69, 84),
-            (1.0, 69, 84),
-            (1.0, 69, 63),
-            (1.0, 60, 0),
-            (0.33333333, 57, 127),
-            (0.33333333, 60, 127),
-            (0.33333333, 64, 127),
-            (0.33333333, 65, 127),
-            (0.33333333, 60, 101),
-            (0.33333333, 64, 95),
-            (0.33333333, 53, 101),
-            (0.33333333, 48, 95),
-            (0.33333333, 52, 84),
-            (0.33333333, 53, 95),
-            (0.33333333, 48, 84),
-            (0.33333333, 52, 63),
-            (1.0, 71, 84),
-            (1.0, 71, 63),
-            (1.0, 71, 95),
-            (1.0, 71, 101),
-            (0.33333333, 57, 127),
-            (0.33333333, 60, 127),
-            (0.33333333, 64, 127),
-            (0.33333333, 65, 127),
-            (0.33333333, 60, 101),
-            (0.33333333, 64, 95),
-            (0.33333333, 53, 101),
-            (0.33333333, 48, 95),
-            (0.33333333, 52, 84),
-            (0.33333333, 53, 95),
-            (0.33333333, 48, 84),
-            (0.33333333, 52, 63),
-            (1.0, 69, 84),
-            (1.0, 69, 63),
-            (1.0, 69, 95),
-            (1.0, 69, 101),
-            (0.33333333, 57, 127),
-            (0.33333333, 60, 127),
-            (0.33333333, 64, 127),
-            (0.33333333, 65, 127),
-            (0.33333333, 60, 101),
-            (0.33333333, 64, 95),
-            (0.33333333, 53, 101),
-            (0.33333333, 48, 95),
-            (0.33333333, 52, 84),
-            (0.33333333, 53, 95),
-            (0.33333333, 48, 84),
-            (0.33333333, 52, 63),
-            (4.0, 71, 127),
-        ]
-    });
+    
+    pub fn get_track() -> PlayerTrack<Midi> {
+        let PIANO_LINE: Vec<Midi> = vec![
+        (0.33333333, 57, 127),
+        (0.33333333, 60, 127),
+        (0.33333333, 64, 127),
+        (0.33333333, 65, 127),
+        (0.33333333, 60, 101),
+        (0.33333333, 64, 95),
+        (0.33333333, 53, 101),
+        (0.33333333, 48, 95),
+        (0.33333333, 52, 84),
+        (0.33333333, 53, 95),
+        (0.33333333, 48, 84),
+        (0.33333333, 52, 63),
+        (1.0, 69, 84),
+        (1.0, 69, 84),
+        (1.0, 69, 63),
+        (1.0, 60, 0),
+        (0.33333333, 57, 127),
+        (0.33333333, 60, 127),
+        (0.33333333, 64, 127),
+        (0.33333333, 65, 127),
+        (0.33333333, 60, 101),
+        (0.33333333, 64, 95),
+        (0.33333333, 53, 101),
+        (0.33333333, 48, 95),
+        (0.33333333, 52, 84),
+        (0.33333333, 53, 95),
+        (0.33333333, 48, 84),
+        (0.33333333, 52, 63),
+        (1.0, 71, 84),
+        (1.0, 71, 63),
+        (1.0, 71, 95),
+        (1.0, 71, 101),
+        (0.33333333, 57, 127),
+        (0.33333333, 60, 127),
+        (0.33333333, 64, 127),
+        (0.33333333, 65, 127),
+        (0.33333333, 60, 101),
+        (0.33333333, 64, 95),
+        (0.33333333, 53, 101),
+        (0.33333333, 48, 95),
+        (0.33333333, 52, 84),
+        (0.33333333, 53, 95),
+        (0.33333333, 48, 84),
+        (0.33333333, 52, 63),
+        (1.0, 69, 84),
+        (1.0, 69, 63),
+        (1.0, 69, 95),
+        (1.0, 69, 101),
+        (0.33333333, 57, 127),
+        (0.33333333, 60, 127),
+        (0.33333333, 64, 127),
+        (0.33333333, 65, 127),
+        (0.33333333, 60, 101),
+        (0.33333333, 64, 95),
+        (0.33333333, 53, 101),
+        (0.33333333, 48, 95),
+        (0.33333333, 52, 84),
+        (0.33333333, 53, 95),
+        (0.33333333, 48, 84),
+        (0.33333333, 52, 63),
+        (4.0, 71, 127),
+    ];
 
-    static FLUTE_LINE: Lazy<Vec<Midi>> = Lazy::new(|| {
-        vec![
-            (3.0, 45, 0),
-            (1.0, 81, 95),
-            (1.0, 88, 95),
-            (1.0, 86, 63),
-            (1.0, 88, 63),
-            (1.0, 91, 63),
-            (4.0, 88, 63),
-            (2.0, 45, 63),
-            (1.0, 45, 0),
-            (1.0, 81, 127),
-            (1.0, 88, 95),
-            (1.0, 86, 63),
-            (1.0, 88, 63),
-            (1.0, 93, 95),
-            (4.0, 88, 63),
-            (2.0, 45, 63),
-            (1.0, 45, 0),
-            (1.0, 96, 127),
-            (1.0, 95, 127),
-            (1.0, 93, 63),
-            (1.0, 91, 63),
-            (1.0, 93, 95),
-            (4.0, 88, 63),
-            (2.0, 45, 63),
-            (1.0, 45, 0),
-            (1.0, 96, 127),
-            (1.0, 95, 127),
-            (1.0, 93, 63),
-            (1.0, 91, 63),
-            (1.0, 95, 95),
-        ]
-    });
+    let FLUTE_LINE: Vec<Midi> = vec![
+        (3.0, 45, 0),
+        (1.0, 81, 95),
+        (1.0, 88, 95),
+        (1.0, 86, 63),
+        (1.0, 88, 63),
+        (1.0, 91, 63),
+        (4.0, 88, 63),
+        (2.0, 45, 63),
+        (1.0, 45, 0),
+        (1.0, 81, 127),
+        (1.0, 88, 95),
+        (1.0, 86, 63),
+        (1.0, 88, 63),
+        (1.0, 93, 95),
+        (4.0, 88, 63),
+        (2.0, 45, 63),
+        (1.0, 45, 0),
+        (1.0, 96, 127),
+        (1.0, 95, 127),
+        (1.0, 93, 63),
+        (1.0, 91, 63),
+        (1.0, 93, 95),
+        (4.0, 88, 63),
+        (2.0, 45, 63),
+        (1.0, 45, 0),
+        (1.0, 96, 127),
+        (1.0, 95, 127),
+        (1.0, 93, 63),
+        (1.0, 91, 63),
+        (1.0, 95, 95),
+    ];
 
-    pub static TRACK: Lazy<PlayerTrack> = Lazy::new(|| {
-        let mut parts = HashMap::new();
+        let piano:ScoreEntry<Midi> = (
+            ContribComp {
+                role: Role::Bass,
+                register: 5,
+                mode: Mode::Melodic,
+                fill: Fill::Support,
+                visibility: Visibility::Foreground,
+                base: BaseOsc::Sine,
+            },
+            vec![PIANO_LINE.to_vec()]
+        );
 
-        let piano_spec = Spec {
-            role: "bass",
-            register: 5,
-            fill: "frame",
-            spec_type: "sine",
-        };
-
-        let flute_spec = Spec {
-            role: "lead",
-            register: 8,
-            fill: "focus",
-            spec_type: "sine",
-        };
-
-        parts.insert(flute_spec, vec![FLUTE_LINE.to_vec()]);
-        parts.insert(piano_spec, vec![PIANO_LINE.to_vec()]);
-
+        let flute:ScoreEntry<Midi> = (
+            ContribComp {
+                role: Role::Lead,
+                register: 8,
+                mode: Mode::Melodic,
+                visibility: Visibility::Visible,
+                fill: Fill::Focus,
+                base: BaseOsc::Sine,
+            },
+            vec![FLUTE_LINE.to_vec()]
+        );
+        let parts = vec![piano, flute];
         PlayerTrack {
             conf: Conf {
                 origin: "A minor",
@@ -184,9 +232,8 @@ pub mod x_files {
                     cpc: 3,
                     base: 2,
                 },
-                progression: vec![(48, "A minor")],
                 parts,
-            },
+            }
         }
-    });
+    }
 }

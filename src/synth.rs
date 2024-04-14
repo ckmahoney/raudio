@@ -1,11 +1,28 @@
-use crate::convolve;
-use crate::files;
 use crate::render;
-use crate::synth_config;
-use crate::envelope::Envelope;
-use crate::modulate;
-use crate::mix;
-use crate::synth_config::SynthConfig;
+
+pub type Duration = f32;
+pub type Freq = f32;
+pub type Ampl = f32;
+
+pub type Mote = (Duration, Freq, Ampl);
+
+pub struct Renderable {
+    pub composition_id: i32,
+    pub samples: Vec<SampleBuffer>
+}
+
+
+impl Renderable {
+    pub fn render(self, mix_polypohonics:bool) -> SampleBuffer {
+        let buf:Vec<f32> = Vec::new();
+
+        if mix_polypohonics {
+            buf
+        } else {
+            buf
+        }
+    }
+}
 
 pub enum HarmonicSelector {
     All,
@@ -105,166 +122,172 @@ pub fn silly_sum_periods(config:&RenderConfig, freqs:&Vec<f32>, periods:&Vec<Sam
 }
 
 
-#[test] 
-fn test_sample_ugen() {
-    let config = RenderConfig {
-        sample_rate: 44100,
-        amplitude_scaling: 1.0,
-        cps: 1.0,
-    };
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::files;
 
-    let frequencies = [100.0, 600.0, 3000.0];
 
-    for &freq in &frequencies {
-        let result = sample_ugen(&config, silly_sine, 8.0, freq);
-        let filename = format!("dev-audio/test-sample-ugen-{}-hz.wav", freq);
-        render::samples_f32(config.sample_rate, &result, &filename);
+    #[test] 
+    fn test_sample_ugen() {
+        let config = RenderConfig {
+            sample_rate: 44100,
+            amplitude_scaling: 1.0,
+            cps: 1.0,
+        };
+
+        let frequencies = [100.0, 600.0, 3000.0];
+
+        for &freq in &frequencies {
+            let result = sample_ugen(&config, silly_sine, 8.0, freq);
+            let filename = format!("dev-audio/test-sample-ugen-{}-hz.wav", freq);
+            render::samples_f32(config.sample_rate, &result, &filename);
+        }
     }
-}
 
-#[test] 
-fn test_sample_period() {
-    let config = RenderConfig {
-        sample_rate: 44100,
-        amplitude_scaling: 1.0,
-        cps: 1.0,
-    };
+    #[test] 
+    fn test_sample_period() {
+        let config = RenderConfig {
+            sample_rate: 44100,
+            amplitude_scaling: 1.0,
+            cps: 1.0,
+        };
 
-    let frequencies = [1.0, 3.0, 5.0, 7.0, 9.0];
+        let frequencies = [1.0, 3.0, 5.0, 7.0, 9.0];
 
-    for &freq in &frequencies {
-        let result = sample_period(&config, silly_sine, freq);
-        let filename = format!("dev-audio/test-sample-period-{}-hz.wav", freq);
-        render::samples_f32(config.sample_rate, &result, &filename);
+        for &freq in &frequencies {
+            let result = sample_period(&config, silly_sine, freq);
+            let filename = format!("dev-audio/test-sample-period-{}-hz.wav", freq);
+            render::samples_f32(config.sample_rate, &result, &filename);
+        }
     }
-}
 
-#[test] 
-fn test_silly_sum_periods() {
-    let config = RenderConfig {
-        sample_rate: 44100,
-        amplitude_scaling: 1.0,
-        cps: 1.0,
-    };
-    
-    let n:usize = 9;
-    let frequencies:Vec<f32> = (1..n).filter(|x| x % 2 != 0).map(|x| x as f32).collect();
-    let periods:Vec<SampleBuffer> = frequencies.iter().map(|f| 
-        sample_period(&config, silly_sine, *f)
-    ).collect();
-
-    let result = silly_sum_periods(&config, &frequencies, &periods);
-    let filename = format!("dev-audio/test-silly-sum-periods-odds-1thru{}.wav", n);
-    render::samples_f32(config.sample_rate, &result, &filename);
-}
-
-fn get_freqs() -> std::ops::Range::<usize> {
-    let min_f:usize = 10;
-    let max_f:usize = 3500;
-    min_f..max_f
-}
-
-const DEST_FUNDAMENTAL:&str = "fundamentals";
-
-#[test] 
-fn test_prerender_fundamental_sums() {
-    let mut dir = DEST_FUNDAMENTAL.to_owned();
-    files::ensure_directory_exists(&dir);
-    dir.push_str(&"/sum/all");
-    files::ensure_directory_exists(&dir);
-
-    let config = RenderConfig {
-        sample_rate: 44100,
-        amplitude_scaling: 1.0,
-        cps: 1.0,
-    };
-    let max_monics = 1024;
-
-    let basis = get_freqs();
-    let offset = 0.5; 
-    for fundamental in basis {
-        let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
-
-        let monics:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
-        let periods:Vec<SampleBuffer> = monics.iter().map(|f| 
+    #[test] 
+    fn test_silly_sum_periods() {
+        let config = RenderConfig {
+            sample_rate: 44100,
+            amplitude_scaling: 1.0,
+            cps: 1.0,
+        };
+        
+        let n:usize = 9;
+        let frequencies:Vec<f32> = (1..n).filter(|x| x % 2 != 0).map(|x| x as f32).collect();
+        let periods:Vec<SampleBuffer> = frequencies.iter().map(|f| 
             sample_period(&config, silly_sine, *f)
         ).collect();
 
-        let result = silly_sum_periods(&config, &monics, &periods);
-        let filename = format!("{}/sum/all/all_{}_{}.wav", DEST_FUNDAMENTAL, fundamental, config.sample_rate);
+        let result = silly_sum_periods(&config, &frequencies, &periods);
+        let filename = format!("dev-audio/test-silly-sum-periods-odds-1thru{}.wav", n);
         render::samples_f32(config.sample_rate, &result, &filename);
-        std::mem::drop(result);
+    }
 
-        let fundamental2 = fundamental as f32 + offset;
-        let n2:usize = (config.sample_rate as f32 / fundamental2) as usize;
-        let monics2:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
-        let periods2:Vec<SampleBuffer> = monics2.iter().map(|f| 
-            sample_period(&config, silly_sine, *f)
-        ).collect();
-        let result2 = silly_sum_periods(&config, &monics2, &periods);
-        let filename2 = format!("{}/sum/all/all_{}_{}.wav", DEST_FUNDAMENTAL, fundamental2, config.sample_rate);
-        render::samples_f32(config.sample_rate, &result2, &filename2);
-        std::mem::drop(result2);
+    fn get_freqs() -> std::ops::Range::<usize> {
+        let min_f:usize = 10;
+        let max_f:usize = 3500;
+        min_f..max_f
+    }
+
+    const DEST_FUNDAMENTAL:&str = "fundamentals";
+
+    #[test] 
+    fn test_prerender_fundamental_sums() {
+        let mut dir = DEST_FUNDAMENTAL.to_owned();
+        files::ensure_directory_exists(&dir);
+        dir.push_str(&"/sum/all");
+        files::ensure_directory_exists(&dir);
+
+        let config = RenderConfig {
+            sample_rate: 44100,
+            amplitude_scaling: 1.0,
+            cps: 1.0,
+        };
+        let max_monics = 1024;
+
+        let basis = get_freqs();
+        let offset = 0.5; 
+        for fundamental in basis {
+            let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
+
+            let monics:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
+            let periods:Vec<SampleBuffer> = monics.iter().map(|f| 
+                sample_period(&config, silly_sine, *f)
+            ).collect();
+
+            let result = silly_sum_periods(&config, &monics, &periods);
+            let filename = format!("{}/sum/all/all_{}_{}.wav", DEST_FUNDAMENTAL, fundamental, config.sample_rate);
+            render::samples_f32(config.sample_rate, &result, &filename);
+            std::mem::drop(result);
+
+            let fundamental2 = fundamental as f32 + offset;
+            let n2:usize = (config.sample_rate as f32 / fundamental2) as usize;
+            let monics2:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
+            let periods2:Vec<SampleBuffer> = monics2.iter().map(|f| 
+                sample_period(&config, silly_sine, *f)
+            ).collect();
+            let result2 = silly_sum_periods(&config, &monics2, &periods);
+            let filename2 = format!("{}/sum/all/all_{}_{}.wav", DEST_FUNDAMENTAL, fundamental2, config.sample_rate);
+            render::samples_f32(config.sample_rate, &result2, &filename2);
+            std::mem::drop(result2);
+        }
+    }
+
+    #[test] 
+    fn test_prerender_fundamental_sums_saw() {
+        let mut dir = DEST_FUNDAMENTAL.to_owned();
+        files::ensure_directory_exists(&dir);
+        dir.push_str(&"/sum/saw");
+        files::ensure_directory_exists(&dir);
+        
+        files::ensure_directory_exists(DEST_FUNDAMENTAL);
+        let config = RenderConfig {
+            sample_rate: 44100,
+            amplitude_scaling: 1.0,
+            cps: 1.0,
+        };
+
+        let basis = get_freqs();
+        let offset = 0.5; 
+        let max_monics = 1024;
+        for fundamental in basis {
+            let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
+            // use all freqs for saw
+            let monics:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
+
+            let mut periods:Vec<SampleBuffer> = monics.iter().enumerate().map({|(i,f)| 
+                sample_scale_period(&config, silly_sine, *f as f32, 1.0/(i+1) as f32)
+            })
+            .collect(); 
+
+            periods.iter_mut().enumerate()
+            .for_each(|(i, period)|
+                render::amp_scale(&mut *period, 1.0/(i+1) as f32)
+            );
+
+            let result = silly_sum_periods(&config, &monics, &periods);
+            let filename = format!("{}/sum/saw/saw_{}_hz_{}.wav", DEST_FUNDAMENTAL, fundamental, config.sample_rate);
+            render::samples_f32(config.sample_rate, &result, &filename);
+            std::mem::drop(periods);
+            std::mem::drop(result);
+
+            let fundamental2 = fundamental as f32 + offset;
+            let n2:usize = (config.sample_rate as f32 / fundamental2) as usize;
+            let monics2:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
+            let mut periods2:Vec<SampleBuffer> = monics2.iter().enumerate().map(|(i,f)| 
+                sample_scale_period(&config, silly_sine, *f as f32, 1.0/(i+1) as f32)
+            ).collect();
+
+            periods2.iter_mut().enumerate()
+            .for_each(|(i, period)|
+                render::amp_scale(&mut *period, 1.0/(i+1) as f32)
+            );
+            let result2 = silly_sum_periods(&config, &monics2, &periods2);
+            let filename2 = format!("{}/sum/saw/saw_{}_hz_{}.wav", DEST_FUNDAMENTAL, fundamental2, config.sample_rate);
+            render::samples_f32(config.sample_rate, &result2, &filename2);
+            std::mem::drop(periods2);
+            std::mem::drop(result2);
+        }
     }
 }
-
-#[test] 
-fn test_prerender_fundamental_sums_saw() {
-    let mut dir = DEST_FUNDAMENTAL.to_owned();
-    files::ensure_directory_exists(&dir);
-    dir.push_str(&"/sum/saw");
-    files::ensure_directory_exists(&dir);
-    
-    files::ensure_directory_exists(DEST_FUNDAMENTAL);
-    let config = RenderConfig {
-        sample_rate: 44100,
-        amplitude_scaling: 1.0,
-        cps: 1.0,
-    };
-
-    let basis = get_freqs();
-    let offset = 0.5; 
-    let max_monics = 1024;
-    for fundamental in basis {
-        let n:usize = max_monics.min((config.sample_rate/2) / fundamental as usize);
-        // use all freqs for saw
-        let monics:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
-
-        let mut periods:Vec<SampleBuffer> = monics.iter().enumerate().map({|(i,f)| 
-            sample_scale_period(&config, silly_sine, *f as f32, 1.0/(i+1) as f32)
-        })
-        .collect(); 
-
-        periods.iter_mut().enumerate()
-        .for_each(|(i, period)|
-            render::amp_scale(&mut *period, 1.0/(i+1) as f32)
-        );
-
-        let result = silly_sum_periods(&config, &monics, &periods);
-        let filename = format!("{}/sum/saw/saw_{}_hz_{}.wav", DEST_FUNDAMENTAL, fundamental, config.sample_rate);
-        render::samples_f32(config.sample_rate, &result, &filename);
-        std::mem::drop(periods);
-        std::mem::drop(result);
-
-        let fundamental2 = fundamental as f32 + offset;
-        let n2:usize = (config.sample_rate as f32 / fundamental2) as usize;
-        let monics2:Vec<f32> = (1..n+1).map(|x| x as f32).collect();
-        let mut periods2:Vec<SampleBuffer> = monics2.iter().enumerate().map(|(i,f)| 
-            sample_scale_period(&config, silly_sine, *f as f32, 1.0/(i+1) as f32)
-        ).collect();
-
-        periods2.iter_mut().enumerate()
-        .for_each(|(i, period)|
-            render::amp_scale(&mut *period, 1.0/(i+1) as f32)
-        );
-        let result2 = silly_sum_periods(&config, &monics2, &periods2);
-        let filename2 = format!("{}/sum/saw/saw_{}_hz_{}.wav", DEST_FUNDAMENTAL, fundamental2, config.sample_rate);
-        render::samples_f32(config.sample_rate, &result2, &filename2);
-        std::mem::drop(periods2);
-        std::mem::drop(result2);
-    }
-}
-
 /*
 // notes from /home/naltroc/synthony-serivce/wendy/src/synth.rs
     * notes on amplitude modulation of harmonics

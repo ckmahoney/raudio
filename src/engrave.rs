@@ -1,32 +1,42 @@
-use crate::files;
-use crate::song::*;
+use crate::song;
 use crate::midi;
-use crate::midi::{Duration, Midi};
+use crate::midi::Midi;
 use crate::synth;
+use crate::synth::Mote;
+use crate::song::Melody;
 
-pub fn process_parts(parts: &HashMap<Spec, Vec<Vec<Midi>>>, cps: f32) -> Vec<(Spec, Vec<(Duration, f32, f32)>)> {
-    parts.iter().map(|(spec, midi_vecs)| {
-        let mote_vec = midi_vecs.iter().flat_map(|midi_vec| {
-            midi_vec.iter().map(|&(duration, note, amplitude)| {
-                let frequency = midi::note_to_frequency(note as f32);
-                let amplitude_mapped = midi::map_amplitude(amplitude as u8);
-                let adjusted_duration = duration / cps;
+fn midi_to_mote(cps:f32, (duration, note, amplitude):&Midi) -> Mote {
+    let frequency = midi::note_to_frequency(*note as f32);
+    let amp = midi::map_amplitude(*amplitude as f32);
+    let dur = duration / cps;
 
-                (adjusted_duration, frequency, amplitude_mapped)
-            })
-        }).collect::<Vec<(Duration, f32, f32)>>();
-
-        (spec.clone(), mote_vec)
-    }).collect()
+    (dur, frequency, amp)
 }
 
-pub fn transform_to_sample_buffers(cps:f32, motes: &Vec<(Duration, f32, f32)>) -> Vec<synth::SampleBuffer> {
+pub fn midi_mel_to_mote(cps:f32, mel:&Vec<Midi>) -> Vec<Mote> {
+    mel.into_iter().map(|&mid| midi_to_mote(cps, &mid)).collect()
+}
+
+/// Given a list of score part, create a list of motes. 
+pub fn midi_entry_to_motes(cps:f32, entry:song::ScoreEntry<Midi>) -> Melody<Mote> {
+    let midi_mels = entry.1;
+    midi_mels.into_iter().map(|midi_mel| midi_mel_to_mote(cps, &midi_mel)).collect()
+}
+
+
+pub fn process_midi_parts(parts: Vec::<song::ScoreEntry<Midi>>, cps: f32) -> Vec<Melody<Mote>> {
+    parts.into_iter().map(|entry|
+        midi_entry_to_motes(cps, entry)
+    ).collect()
+}
+
+pub fn transform_to_sample_buffers(cps:f32, motes: &Vec<Mote>) -> Vec<synth::SampleBuffer> {
     motes.iter().map(|&(duration, frequency, amplitude)| {
         synth::samp_ugen(44100, cps, amplitude, synth::silly_sine, duration, frequency)
     }).collect()
 }
 
-pub fn transform_to_sample_pairs(cps:f32, motes: &Vec<(Duration, f32, f32)>) -> Vec<(f32, synth::SampleBuffer)> {
+pub fn transform_to_sample_pairs(cps:f32, motes: &Vec<Mote>) -> Vec<(f32, synth::SampleBuffer)> {
     motes.iter().map(|&(duration, frequency, amplitude)| {
         (frequency, synth::samp_ugen(44100, cps, amplitude, synth::silly_sine, duration, frequency))
     }).collect()
@@ -35,18 +45,20 @@ pub fn transform_to_sample_pairs(cps:f32, motes: &Vec<(Duration, f32, f32)>) -> 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::song::x_files::TRACK;
+    use crate::song::x_files;
     use crate::render; 
-
+    use crate::files;
     #[test]
     fn test_song_x_files() {
-
-        let cps = TRACK.conf.cps;
-        let processed_parts = process_parts(&TRACK.composition.parts, cps);
+        let track = x_files::get_track();
+        let cps = track.conf.cps;
+        let processed_parts = process_midi_parts(track.composition.parts, cps);
         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
 
-        for (spec, motes) in processed_parts {
-            buffs.push(transform_to_sample_buffers(cps, &motes))
+        for mote_mels in processed_parts {
+            for mel_mote in mote_mels {
+                buffs.push(transform_to_sample_buffers(cps, &mel_mote))
+            }
         }
 
         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
@@ -63,5 +75,4 @@ mod test {
             }
         }
     }
-
 }

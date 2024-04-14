@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
+
 pub type Rotation = i8; 
 pub type Monic = i8;
+
 #[derive(Debug)]
 pub enum Q {
     O,
@@ -11,14 +13,14 @@ pub type Origin = (Rotation, Q);
 pub type Monae = (Rotation, Q, Monic);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Spec {
+pub struct ContribComp {
     pub role: &'static str,
     pub register: i32,
     pub fill: &'static str,
     pub spec_type: &'static str,
 }
 
-/// When in the Spec's melody does the filter activate
+/// When in the ContribComp's melody does the filter activate
 #[derive(Debug)]
 pub enum FilterPoint {
     Constant,
@@ -26,7 +28,7 @@ pub enum FilterPoint {
     Tail
 }
 
-/// How does the filter get from point A to point B
+/// How the filter goes  from point A to point B
 #[derive(Debug)]
 pub enum FilterMode {
     Linear,
@@ -34,36 +36,34 @@ pub enum FilterMode {
 }
 
 #[derive(Debug)]
-pub enum ContribEnergy {
+pub enum Energy {
     Low,
     Medium,
     High
 }
 
 #[derive(Debug)]
-pub enum ContribPresence {
+pub enum Presence {
     Staccatto,
     Legato,
     Tenuto,
 }
-
 
 pub type Bandpass = (f32, f32);
 
 /// Instructions for rendering a part in a composition
 /// The "same" part can have many renditions. For example, using new bandpass settings remarkably affects how it is perceived
 #[derive(Debug)]
-pub struct SegmentSoundSpec {
-    pub filter: (FilterMode, FilterPoint, Bandpass, Bandpass),
-    pub energy: ContribEnergy,
-    pub presence: ContribPresence,
+pub struct ContribSound {
+    pub filter: (FilterMode, FilterPoint, Bandpass),
+    pub energy: Energy,
+    pub presence: Presence,
     pub pan: f32
 }
 
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Conf {
-    pub origin: &'static str,
+    pub origin: Origin,
     pub duration: i32,
     pub cps: f32,
     pub title: &'static str,
@@ -76,5 +76,5 @@ pub struct InputScore {
     pub duration: f32,
     pub origin: Origin,
     pub progression: Vec<(i32, Origin)>,
-    pub parts: HashMap<Spec, Vec<Vec<Monae>>>,
+    pub parts: HashMap<ContribComp, Vec<Vec<Monae>>>,
 }
