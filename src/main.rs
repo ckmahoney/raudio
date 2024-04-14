@@ -1,3 +1,13 @@
+#![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(non_snake_case)]
+#![allow(unused_must_use)]
+
+mod arg_parse;
+
+
 pub mod synth_config;
 pub mod convolve;
 pub mod sequence;

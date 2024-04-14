@@ -6,9 +6,9 @@
     "parts": [
         {
             "sound": {
-                "osc_type": "Sine",
+                "osc_type": "sine",
                 "filepath": "path/to/soundfile.wav",
-                "min_freq": 440.0,
+                "min_freq": 220.0,
                 "max_freq": 880.0
             },
             "motes": [ [4.0, 220.0, 1.0], [2.0, 880.0, 0.5], [2.0, 440.0, 1.0]]

@@ -1,39 +1,41 @@
+use serde::{Deserialize, Serialize};
+
 pub use std::collections::HashMap;
 use crate::midi::*;
 
-#[derive(Debug)]
-enum Fill {
+#[derive(Debug, Serialize)]
+pub enum Fill {
     Frame,
     Support,
     Focus
 }
 
-#[derive(Debug)]
-enum Visibility {
+#[derive(Debug, Serialize)]
+pub enum Visibility {
     Foreground,
     Visible,
     Background,
     Hidden,
 }
 
-#[derive(Debug)]
-enum Mode {
+#[derive(Debug, Serialize)]
+pub enum Mode {
     Melodic,
     Enharmonic,
     Vagrant,
     Noise
 }
 
-#[derive(Debug)]
-enum BaseOsc {
+#[derive(Debug, Serialize)]
+pub enum BaseOsc {
     Sine,
-    Pulse,
-    Saw,
-    Tri
+    Square,
+    Sawtooth,
+    Triangle
 }
 
-#[derive(Debug)]
-enum Role {
+#[derive(Debug, Serialize)]
+pub enum Role {
     Kick,
     Perc,
     Hats,
@@ -46,7 +48,7 @@ enum Role {
 pub type Melody<C> = Vec<Vec<C>>;
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ContribComp {
     pub base: BaseOsc,
     pub fill: Fill,
@@ -56,13 +58,13 @@ pub struct ContribComp {
     pub visibility: Visibility,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct PlayerTrack<C> {
     pub conf: Conf,
     pub composition: Composition<C>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Conf {
     pub origin: &'static str,
     pub duration: i32,
@@ -73,7 +75,7 @@ pub struct Conf {
 
 pub type ScoreEntry<C> = (ContribComp, Melody<C>);
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Composition<C> {
     pub composition_id: i32,
     pub duration: i32,
@@ -82,7 +84,7 @@ pub struct Composition<C> {
     pub parts: Vec<ScoreEntry<C>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Dimensions {
     pub size: i32,
     pub cpc: i32,

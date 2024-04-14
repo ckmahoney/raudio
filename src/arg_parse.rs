@@ -1,8 +1,42 @@
 use crate::synth::{Mote};
 use crate::song::{BaseOsc};
 
-use serde::{Deserialize, Serialize};
-use serde_json::Result;
+use serde::{Deserialize, Serialize, Deserializer};
+// use serde_json::Result;
+use serde::de::{self, Visitor};
+use std::fmt;
+
+
+impl<'de> Deserialize<'de> for BaseOsc {
+    fn deserialize<D>(deserializer: D) -> Result<BaseOsc, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct BaseOscVisitor;
+
+        impl<'de> Visitor<'de> for BaseOscVisitor {
+            type Value = BaseOsc;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("`sine`, `square`, `sawtooth`, or `triangle`")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<BaseOsc, E>
+            where
+                E: de::Error,
+            {
+                match value.to_lowercase().as_str() {
+                    "sine" => Ok(BaseOsc::Sine),
+                    "square" => Ok(BaseOsc::Square),
+                    "sawtooth" => Ok(BaseOsc::Sawtooth),
+                    "triangle" => Ok(BaseOsc::Triangle),
+                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `sine`, `square`, `sawtooth`, `triangle`", value))),
+                }
+            }
+        }
+        deserializer.deserialize_str(BaseOscVisitor)
+    }
+}
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,23 +65,6 @@ pub struct Template {
     parts: Vec<TinPanContrib>,
 }
 
-// pub fn typed_example() -> Result<()> {
-//     let data = r#"
-//         {
-//             "name": "John Doe",
-//             "age": 43,
-//             "phones": [
-//                 "+44 1234567",
-//                 "+44 2345678"
-//             ]
-//         }"#;
-
-//     let p: Person = serde_json::from_str(data)?;
-
-//     println!("Please call {} at the number {}", p.name, p.phones[0]);
-
-//     Ok(())
-// }
 #[derive(Debug, Serialize)]
 struct Ratio (i32, i32);
 
@@ -57,7 +74,7 @@ mod test_unit {
     use std::io;
 
     #[test]
-    fn test_parse_template() -> Result<()> {
+    fn test_parse_template() {
         let motes:Vec<Mote> = vec![ (4.0, 220., 1.0), (2.0, 880., 0.5), (2.0, 440., 1.)];
 
         let sound = SCSound {
@@ -85,9 +102,8 @@ mod test_unit {
 
         let str = fs::read_to_string("test-score.json").expect("Missing test score 'test-score.json'");
         
-        let actual:Template = serde_json::from_str(&str)?;
+        let actual:Template = serde_json::from_str(&str).expect("Bad parser");
         println!("parsed score: {:?}", actual);
-        Ok(())
     }
 }
 
