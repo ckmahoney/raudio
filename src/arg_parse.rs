@@ -1,8 +1,6 @@
-use crate::synth::{Mote};
-use crate::song::{BaseOsc};
+use crate::types::*;
 
 use serde::{Deserialize, Serialize, Deserializer};
-// use serde_json::Result;
 use serde::de::{self, Visitor};
 use std::fmt;
 
@@ -55,8 +53,8 @@ pub struct TinPanContrib {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Conf {
-    cps: i32,
-    root: i32,
+    cps: f32,
+    root: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -91,8 +89,8 @@ mod test_unit {
         };
 
         let conf = Conf {
-            cps: 60,
-            root: 440,
+            cps: 60.0,
+            root: 440.0,
         };
 
         let expected = Template {
@@ -100,10 +98,32 @@ mod test_unit {
             parts: vec![part],
         };
 
-        let str = fs::read_to_string("test-score.json").expect("Missing test score 'test-score.json'");
-        
-        let actual:Template = serde_json::from_str(&str).expect("Bad parser");
-        println!("parsed score: {:?}", actual);
+        match fs::read_to_string("test-score.json") {
+            Ok(str) => {
+                let actual:Template = serde_json::from_str(&str).expect("Bad parser");
+                println!("parsed score: {:?}", actual);
+            },
+            Err(msg) => {
+                println!("Missing test score 'test-score.json'");
+                assert!(false);
+            }
+        };
+    }
+
+    #[test]
+    fn test_parse_tin_pan_score() {
+        let score_path = "test-tin-pan-score.json";
+
+        match fs::read_to_string(&score_path) {
+            Ok(str) => {
+                let actual:Template = serde_json::from_str(&str).expect("Bad parser");
+                println!("parsed score: {:?}", actual);
+            },
+            Err(msg) => {
+                println!("Missing test score 'test-score.json'");
+                assert!(false);
+            }
+        };
     }
 }
 

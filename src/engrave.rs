@@ -1,9 +1,10 @@
+use crate::types::*;
+
 use crate::song;
 use crate::midi;
 use crate::midi::Midi;
 use crate::synth;
-use crate::synth::Mote;
-use crate::song::Melody;
+
 
 fn midi_to_mote(cps:f32, (duration, note, amplitude):&Midi) -> Mote {
     let frequency = midi::note_to_frequency(*note as f32);
@@ -18,13 +19,13 @@ pub fn midi_mel_to_mote(cps:f32, mel:&Vec<Midi>) -> Vec<Mote> {
 }
 
 /// Given a list of score part, create a list of motes. 
-pub fn midi_entry_to_motes(cps:f32, entry:song::ScoreEntry<Midi>) -> Melody<Mote> {
+pub fn midi_entry_to_motes(cps:f32, entry:ScoreEntry<Midi>) -> Melody<Mote> {
     let midi_mels = entry.1;
     midi_mels.into_iter().map(|midi_mel| midi_mel_to_mote(cps, &midi_mel)).collect()
 }
 
 
-pub fn process_midi_parts(parts: Vec::<song::ScoreEntry<Midi>>, cps: f32) -> Vec<Melody<Mote>> {
+pub fn process_midi_parts(parts: Vec::<ScoreEntry<Midi>>, cps: f32) -> Vec<Melody<Mote>> {
     parts.into_iter().map(|entry|
         midi_entry_to_motes(cps, entry)
     ).collect()

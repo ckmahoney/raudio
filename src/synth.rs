@@ -1,10 +1,7 @@
 use crate::render;
+use crate::types::*;
 
-pub type Duration = f32;
-pub type Freq = f32;
-pub type Ampl = f32;
 
-pub type Mote = (Duration, Freq, Ampl);
 
 pub struct Renderable {
     pub composition_id: i32,
