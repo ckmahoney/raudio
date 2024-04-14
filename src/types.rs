@@ -5,19 +5,23 @@ pub mod synthesis {
     use super::timbre;
     use super::render;
 
-    pub type Rotation = i8; #[derive(Debug, Serialize)]
-    pub enum Q {
-        O,
-        U
-    }
+    pub type Rotation = i8;
+    pub type Q = i8;
+    pub type Ratio = (i32, i32);
+    pub type Place = (Rotation, Q);
     pub type Monic = i8;
+    pub type Register = i8;
     pub type Origin = (Rotation, Q);
     pub type Monae = (Rotation, Q, Monic);
-    pub type Duration = f32;
+    pub type Tone = (Register, Monae);
+    pub type Duration = Ratio;
+    pub type Dur = f32;
     pub type Freq = f32;
     pub type Ampl = f32;
-    pub type Mote = (Duration, Freq, Ampl);
-
+    pub type Mote = (Dur, Freq, Ampl);
+    pub type Note = (Duration, Tone, Ampl);
+    pub type Progression = Vec<(Duration, Place)>;
+    
     /// When in the melody does the filter activate
     #[derive(Debug)]
     pub enum FilterPoint {
@@ -69,6 +73,7 @@ pub mod render {
         pub duration: f32,
         pub dimensions: Dimensions,
         pub parts: Vec<Part>,
+        // pub progression: Vec<Progression>
     }
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -78,10 +83,10 @@ pub mod render {
         parts: Vec<timbre::Contrib>,
     }
 
-
     pub type Melody<C> = Vec<Vec<C>>;
     pub type ScoreEntry<C> = (timbre::Contrib, Melody<C>);
     pub type Part = (timbre::Contrib, Melody<synthesis::Monae>);
+    pub type Entry = (timbre::Contrib, Melody<synthesis::Note>);
 }
 
 pub mod timbre {

@@ -39,34 +39,34 @@ impl<'de> Deserialize<'de> for timbre::BaseOsc {
         deserializer.deserialize_str(BaseOscVisitor)
     }
 }
-impl<'de> Deserialize<'de> for synthesis::Q {
-    fn deserialize<D>(deserializer: D) -> Result<Q, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct QVisitor;
+// impl<'de> Deserialize<'de> for synthesis::Q {
+//     fn deserialize<D>(deserializer: D) -> Result<Q, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         struct QVisitor;
 
-        impl<'de> Visitor<'de> for QVisitor {
-            type Value = Q;
+//         impl<'de> Visitor<'de> for QVisitor {
+//             type Value = Q;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("`O` or `Q`")
-            }
+//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+//                 formatter.write_str("`O` or `Q`")
+//             }
 
-            fn visit_str<E>(self, value: &str) -> Result<Q, E>
-            where
-                E: de::Error,
-            {
-                match value.to_lowercase().as_str() {
-                    "o" => Ok(Q::O),
-                    "u" => Ok(Q::U),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `O`, `Q`", value))),
-                }
-            }
-        }
-        deserializer.deserialize_str(QVisitor)
-    }
-}
+//             fn visit_str<E>(self, value: &str) -> Result<Q, E>
+//             where
+//                 E: de::Error,
+//             {
+//                 match value.to_lowercase().as_str() {
+//                     "o" => Ok(Q::O),
+//                     "u" => Ok(Q::U),
+//                     _ => Err(E::custom(format!("unknown variant `{}`, expected one of `O`, `Q`", value))),
+//                 }
+//             }
+//         }
+//         deserializer.deserialize_str(QVisitor)
+//     }
+// }
 
 // impl<'de> Deserialize<'de> for timbre::Fill {
 //     fn deserialize<D>(deserializer: D) -> Result<Fill, D::Error>
