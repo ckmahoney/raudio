@@ -8,7 +8,7 @@ use crate::midi::Midi;
 use crate::synth;
 
 use std::f32::consts::PI;
-pub static SR:usize = 48000;
+pub static SR:usize = 44100;
 pub static pi2:f32 = PI*2.;
 pub static pi:f32 = PI;
 
@@ -49,15 +49,17 @@ fn dur (cps: f32, ratio:&Ratio) -> f32 {
 /// 4/pi * sin(kx)/k for odd k > 0 
 fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).min(1);
+    let k = ((SR as f32 / freq) as usize).max(1);
     let n_samples = (samples_per_cycle(cps) as f32 * dur(cps, &note.0)) as usize;
 
     let phase = 0f32;
     let c = 4f32/pi;
 
     let mut sig:Vec<f32> = vec![0.0; n_samples];
-    for i in (1..k).filter(|x| x % 2 == 1) {
-        let f = freq * k as f32;
+    println!("square k {} for note {:?}", k , note);
+
+    for i in (1..=k).filter(|x| x % 2 == 1) {
+        let f = freq * i as f32;
         for j in 0..n_samples {
             let phase = 2.0 * PI * f * (j as f32 / SR as f32);
             sig[j] += amod * c * phase.sin();
@@ -71,21 +73,22 @@ fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
 /// sin(kx)/k for even k > 0 
 fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).min(1);
+    let k = ((SR as f32 / freq) as usize).max(1);
     let n_samples = (samples_per_cycle(cps) as f32 * dur(cps, &note.0)) as usize;
 
     let phase = 0f32;
     let c = 4f32/pi;
 
+    println!("sine k {} for note {:?}", k , note);
     let mut sig:Vec<f32> = vec![0.0; n_samples];
-    for i in (1..k).filter(|x| *x == 1usize ||  x % 2 == 0) {
-        let f = freq * k as f32;
+    for i in (1..=k).filter(|x| *x == 1usize ||  x % 2 == 0) {
+        let f = freq * i as f32;
         for j in 0..n_samples {
             let phase = 2.0 * PI * f * (j as f32 / SR as f32);
             sig[j] += amod * phase.sin();
         }
     }
-    // normalize(&mut sig);
+    normalize(&mut sig);
     sig
 } 
 
@@ -108,23 +111,21 @@ fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
 }
 
 fn render_note(cps:f32, note:&Note) -> SampleBuffer {
-    ugen_sine(cps, 1f32, note)
-
-    // let (_, (_,_, monic)) = note.1;
-    // match monic {
-    //     1 => {
-    //         ugen_square(cps, 1f32, note)
-    //     },
-    //     3 => {
-    //         ugen_square(cps, 0.5f32, note)
-    //     },
-    //     5 => {
-    //         ugen_sine(cps, 1f32, note)
-    //     },
-    //     _ => {
-    //         ugen_sine(cps, 0.5f32, note)
-    //     }
-    // }
+    let (_, (_,_, monic)) = note.1;
+    match monic {
+        1 => {
+            ugen_square(cps, 1f32, note)
+        },
+        3 => {
+            ugen_square(cps, 0.5f32, note)
+        },
+        5 => {
+            ugen_sine(cps, 1f32, note)
+        },
+        _ => {
+            ugen_sine(cps, 0.5f32, note)
+        }
+    }
 }
 
 
@@ -211,6 +212,7 @@ mod test {
             }
         }
     }
+
 
     #[test]
     fn test_song_happy_birthday() {
