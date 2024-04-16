@@ -17,6 +17,7 @@ pub mod files;
 pub mod midi;
 pub mod mix;
 pub mod modulate;
+pub mod monic_theory;
 pub mod pre;
 pub mod render;
 pub mod song;
