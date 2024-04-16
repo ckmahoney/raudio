@@ -5,6 +5,7 @@ use crate::types::render::*;
 use crate::song;
 use crate::midi;
 use crate::midi::Midi;
+use crate::monic_theory::{tone_to_freq};
 use crate::synth;
 
 use std::f32::consts::PI;
@@ -49,7 +50,7 @@ fn dur (cps: f32, ratio:&Ratio) -> f32 {
 /// 4/pi * sin(kx)/k for odd k > 0 
 fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).max(1);
+    let k = ((SR as f32 / freq) as usize).max(1).min(50);
     let n_samples = (samples_per_cycle(cps) as f32 * dur(cps, &note.0)) as usize;
 
     let phase = 0f32;
@@ -62,7 +63,7 @@ fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
         let f = freq * i as f32;
         for j in 0..n_samples {
             let phase = 2.0 * PI * f * (j as f32 / SR as f32);
-            sig[j] += amod * c * phase.sin();
+            sig[j] += amod * c * (phase.sin() / k as f32);
         }
     }
     normalize(&mut sig);
@@ -73,7 +74,7 @@ fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
 /// sin(kx)/k for even k > 0 
 fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).max(1);
+    let k = ((SR as f32 / freq) as usize).max(1).min(50);
     let n_samples = (samples_per_cycle(cps) as f32 * dur(cps, &note.0)) as usize;
 
     let phase = 0f32;
@@ -85,18 +86,13 @@ fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
         let f = freq * i as f32;
         for j in 0..n_samples {
             let phase = 2.0 * PI * f * (j as f32 / SR as f32);
-            sig[j] += amod * phase.sin();
+            sig[j] += amod * phase.sin() / k as f32;
         }
     }
     normalize(&mut sig);
     sig
 } 
 
-fn tone_to_freq(tone:&Tone) -> f32 {
-    let (register, (rotation, q, monic)) = tone;
-    let qq = if *q == 0 {1} else {-1};
-    fit(2f32.powi(*register as i32), (1.5f32.powi(*rotation as i32) * *monic as f32).powi(qq))
-}
 
 fn midi_to_mote(cps:f32, (duration, note, amplitude):&Midi) -> Mote {
     let frequency = midi::note_to_frequency(*note as f32);

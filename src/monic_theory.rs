@@ -70,6 +70,17 @@ pub fn tone_to_chrom((register,monae):Tone) -> Chrom {
     octaveMod + monae_to_chrom(monae, 0)
 }
 
+pub fn monae_to_freq((rotation, q, monic):&Monae) -> f32 {
+    let qq = if *q == 0 {1} else {-1};
+    let harmonic_basis = 1.5f32;
+    let m = (*monic as f32).powi(qq);
+    harmonic_basis.powi(*rotation as i32) * m
+}
+
+pub fn tone_to_freq(tone:&Tone) -> f32 {
+    let (register, m) = tone;
+    fit(2f32.powi(*register as i32), monae_to_freq(m))
+}
 
 #[test]
 fn view_early_monics() {
