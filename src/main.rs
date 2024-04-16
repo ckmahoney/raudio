@@ -4,7 +4,7 @@
 #![allow(unused_mut)]
 #![allow(non_snake_case)]
 #![allow(unused_must_use)]
-
+#![allow(non_upper_case_globals)]
 mod arg_parse;
 
 

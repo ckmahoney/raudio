@@ -5,11 +5,11 @@ use crate::types::render::*;
 use crate::song;
 use crate::midi;
 use crate::midi::Midi;
-use crate::monic_theory::{tone_to_freq};
+use crate::monic_theory::tone_to_freq;
 use crate::synth;
 
 use std::f32::consts::PI;
-pub static SR:usize = 44100;
+use crate::synth::SR;
 pub static pi2:f32 = PI*2.;
 pub static pi:f32 = PI;
 
@@ -24,7 +24,6 @@ fn normalize(signal: &mut Vec<f32>) {
         signal.iter_mut().for_each(|sample| *sample /= max_amplitude);
     }
 }
-
 
 /// Given dynamic playback rate and constant sample rate, 
 /// determines the number of samples required to recreate
@@ -46,6 +45,24 @@ fn fit(a:f32, b:f32) -> f32 {
 fn dur (cps: f32, ratio:&Ratio) -> f32 {
     (ratio.0 as f32 / ratio.1 as f32)/cps
 }
+
+/// Better for linear modulation of amplitude
+fn db_to_amp(db:f32) -> f32 {
+    10f32.powf(db/20f32)
+}
+
+/// Given the current tempo and the number of cycles to span,
+/// Create a -60dB to 0dB amplitude curve lasting k cycles.
+fn exp_env_k_cycle_db_60_0(cps:f32, k:f32) -> Vec<f32> {
+    let n_samples = (samples_per_cycle(cps) as f32 * k) as usize;
+    let minDb = -60f32;
+    let maxDb = 0f32;
+    let dDb = (maxDb - minDb)/n_samples as f32;
+    (0..=n_samples).map(|i|
+        minDb + i as f32 * dDb
+    ).collect()
+}
+
 
 /// 4/pi * sin(kx)/k for odd k > 0 
 fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
@@ -106,9 +123,23 @@ fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
     (dur(cps,ratio), tone_to_freq(tone), *ampl)
 }
 
+fn mix_envelope(env:&SampleBuffer, buf:&mut SampleBuffer) {
+    if env.len() > buf.len() {
+        panic!("Unable to mix envelopes with greater length than the target signal")
+    }
+
+    for i in 0..env.len() {
+        buf[i] *= env[i]
+    }
+}
+
 fn render_note(cps:f32, note:&Note) -> SampleBuffer {
-    let (_, (_,_, monic)) = note.1;
-    match monic {
+    let (duration, (_, (_,_, monic)), amp) = note;
+    let d = dur(cps, duration);
+    let adur:f32 = if d > 1.1f32 { 1f32 } else if d > 0.25 { 0.125 } else  { 1f32/64f32 } ;
+    let aenv = exp_env_k_cycle_db_60_0(cps, adur);
+
+    let mut buf = match monic {
         1 => {
             ugen_square(cps, 1f32, note)
         },
@@ -121,9 +152,10 @@ fn render_note(cps:f32, note:&Note) -> SampleBuffer {
         _ => {
             ugen_sine(cps, 0.5f32, note)
         }
-    }
+    };
+    mix_envelope(&aenv, &mut buf);
+    buf
 }
-
 
 /// Given a list of score part, create a list of motes. 
 pub fn midi_entry_to_motes(cps:f32, entry:ScoreEntry<Midi>) -> Melody<Mote> {
@@ -142,7 +174,6 @@ pub fn note_entry_to_motes(cps:f32, entry:ScoreEntry<Note>) -> Melody<Mote> {
     ).collect()
 }
 
-
 pub fn process_midi_parts(parts: Vec::<ScoreEntry<Midi>>, cps: f32) -> Vec<Melody<Mote>> {
     parts.into_iter().map(|entry|
         midi_entry_to_motes(cps, entry)
@@ -154,24 +185,12 @@ pub fn process_note_parts(parts: Vec::<ScoreEntry<Note>>, cps: f32) -> Vec<Melod
         note_entry_to_motes(cps, entry)
     ).collect()
 }
-
-pub fn transform_to_sample_buffers(cps:f32, motes: &Vec<Mote>) -> Vec<synth::SampleBuffer> {
-    motes.iter().map(|&(duration, frequency, amplitude)| {
-        synth::samp_ugen(44100, cps, amplitude, synth::silly_sine, duration, frequency)
-    }).collect()
-}
-
 pub fn transform_to_monic_buffers(cps:f32, notes: &Vec<Note>) -> Vec<synth::SampleBuffer> {
     notes.iter().map(|&note| {
         render_note(cps, &note)
     }).collect()
 }
 
-pub fn transform_to_sample_pairs(cps:f32, motes: &Vec<Mote>) -> Vec<(f32, synth::SampleBuffer)> {
-    motes.iter().map(|&(duration, frequency, amplitude)| {
-        (frequency, synth::samp_ugen(44100, cps, amplitude, synth::silly_sine, duration, frequency))
-    }).collect()
-}
 
 #[cfg(test)]
 mod test {
@@ -182,32 +201,32 @@ mod test {
     use crate::render; 
     use crate::files;
     #[test]
-    fn test_song_x_files() {
-        let track = x_files::get_track();
-        let cps = track.conf.cps;
-        let processed_parts = process_midi_parts(track.parts, cps);
-        let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+    // fn test_song_x_files() {
+    //     let track = x_files::get_track();
+    //     let cps = track.conf.cps;
+    //     let processed_parts = process_midi_parts(track.parts, cps);
+    //     let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
 
-        for mote_mels in processed_parts {
-            for mel_mote in mote_mels {
-                buffs.push(transform_to_sample_buffers(cps, &mel_mote))
-            }
-        }
+    //     for mote_mels in processed_parts {
+    //         for mel_mote in mote_mels {
+    //             buffs.push(transform_to_sample_buffers(cps, &mel_mote))
+    //         }
+    //     }
 
-        let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
-            buff.into_iter().flatten().collect()
-        ).collect();
+    //     let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
+    //         buff.into_iter().flatten().collect()
+    //     ).collect();
 
-        files::with_dir("dev-audio");
-        match render::pad_and_mix_buffers(mixers) {
-            Ok(signal) => {
-                render::samples_f32(44100, &signal, "dev-audio/x_files.wav");
-            },
-            Err(err) => {
-                println!("Problem while mixing buffers. Message: {}", err)
-            }
-        }
-    }
+    //     files::with_dir("dev-audio");
+    //     match render::pad_and_mix_buffers(mixers) {
+    //         Ok(signal) => {
+    //             render::samples_f32(44100, &signal, "dev-audio/x_files.wav");
+    //         },
+    //         Err(err) => {
+    //             println!("Problem while mixing buffers. Message: {}", err)
+    //         }
+    //     }
+    // }
 
 
     #[test]
