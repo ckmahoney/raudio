@@ -214,7 +214,7 @@ pub mod happy_birthday {
         PlayerTrack {
             conf: Conf {
                 root: 1.3f32,
-                cps: 1.6f32,
+                cps: 1.1f32,
                 cube: Cube::Room
             },
             duration: 132f32,

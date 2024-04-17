@@ -22,6 +22,7 @@ pub mod pre;
 pub mod render;
 pub mod song;
 pub mod synth;
+pub mod time;
 pub mod types;
 
 
