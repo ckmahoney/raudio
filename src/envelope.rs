@@ -1,4 +1,5 @@
-use crate::types::synthesis::Note;
+use crate::types::synthesis::{Duration, Note, Monae, Tone};
+use crate::types::render::{Melody};
 use crate::synth::SampleBuffer;
 use crate::time;
 
@@ -59,25 +60,116 @@ pub fn gen_env(cps:f32, note:&Note, offset_start:usize) -> SampleBuffer {
 
     //@art-choice use a dynamic allocation of body/tail
     //@art-choice let them overlap and use a window function to blend them
-    // let n_body = (0.9 * total_samples as f32) as usize;
     let n_body = (1. * total_samples as f32) as usize;
-    // let n_tail = total_samples - n_body;
     
     let mut ys = Vec::<f32>::new();
 
-    let keyframes = (00f32, -20f32, -60f32);
+    let keyframes = (00f32, -20f32);
     let body:Vec::<f32> = db_env_n(n_body, keyframes.0, keyframes.1);
-    // let tail:Vec::<f32> = db_env_n(n_tail, keyframes.1, keyframes.2);
 
     ys.extend(body);
-    // ys.extend(tail.clone());
-    // if ys.len() != total_samples {
-    //     println!("total_samples {} ys.len {}",  total_samples , ys.len());
-    //     let x = total_samples - ys.len();
-    //     println!("Expected to produce {} samples and actually got {}. Filling in the gap with {} tail value", total_samples, ys.len(), x);
-    //     let fill = vec![tail[tail.len()-1]; x];
-    //     ys.extend(fill);
-    // }
+   
     ys
+}
 
+/// the syllabic portion of the envelope is the main body. It occupies 66% to 98% of the notes duration.
+pub fn rnd_env(cps:f32, note:&Note, offset_start:usize) -> SampleBuffer {
+    let (d,_,_) = note;
+    let total_samples = time::samples_of_dur(cps, d) - offset_start;
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    
+    //@art-choice use a dynamic allocation of body/tail
+    //@art-choice let them overlap and use a window function to blend them
+    let n_body = (1. * total_samples as f32) as usize;
+    
+    let mut ys = Vec::<f32>::new();
+    let a = 0f32;
+    let r:f32 = rng.gen();
+    let b:f32 = -10f32 - (r * -60f32);
+
+    let keyframes = (00f32, -20f32);
+    let body:Vec::<f32> = db_env_n(n_body, a, b);
+
+    ys.extend(body);
+   
+    ys
+}
+
+
+
+mod test_unit {
+    use super::*;
+    use crate::engrave::transform_to_monic_buffers;
+    use crate::synth;
+    use crate::render;
+    use crate::files;
+    use crate::song::happy_birthday;
+
+    /// iterate early monics over sequential rotations in alternating spaces
+    fn test_line(register:i8) -> Vec<Note> {
+        let monics:Vec<i8> = vec![1, 3, 5, 7];
+        let rotations:Vec<i8> = vec![-3,-2,-1,0,1,2,3];
+        let qs:Vec<i8> = vec![0, 1];
+
+        const dur:Duration = (1,1);
+        const amp:f32 = 1.0;
+        let mut mel:Vec<Note> = Vec::new();
+        for r in &rotations {
+            for m in &monics {
+                for q in &qs {
+                    let monae:Monae = (*r,*q, *m);
+                    let tone:Tone = (register, monae);
+                    mel.push((dur, tone, amp));
+                }
+            }
+        }
+
+        mel
+    }
+
+    fn test_overs(register:i8) -> Vec<Note> {
+        let monics:Vec<i8> = vec![1, 3, 5, 7];
+        let rotations:Vec<i8> = vec![-2,-1,0,1,2];
+        let qs:Vec<i8> = vec![0];
+
+        const dur:Duration = (1,1);
+        const amp:f32 = 1.0;
+        let mut mel:Vec<Note> = Vec::new();
+        for r in &rotations {
+            for m in &monics {
+                for q in &qs {
+                    let monae:Monae = (*r,*q, *m);
+                    let tone:Tone = (register, monae);
+                    mel.push((dur, tone, amp));
+                }
+            }
+        }
+
+        mel
+    }
+
+    #[test]
+    fn test_constant_env() {
+        let track = happy_birthday::get_track();
+        let cps = track.conf.cps;
+        let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+            let melody:Vec<Note> = test_overs(7);
+            let notebufs = transform_to_monic_buffers(cps, &melody);
+            buffs.push(notebufs);
+
+        let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
+            buff.into_iter().flatten().collect()
+        ).collect();
+
+        files::with_dir("dev-audio");
+        match render::pad_and_mix_buffers(mixers) {
+            Ok(signal) => {
+                render::samples_f32(44100, &signal, "dev-audio/test-constant-env.wav");
+            },
+            Err(err) => {
+                println!("Problem while mixing buffers. Message: {}", err)
+            }
+        }
+    }
 }

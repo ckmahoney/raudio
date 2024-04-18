@@ -1,6 +1,7 @@
 use crate::synth::SampleBuffer;
 use crate::types::synthesis::*;
 use crate::types::render::*;
+use crate::types::timbre::BaseOsc;
 
 use crate::envelope;
 use crate::song;
@@ -38,34 +39,77 @@ fn fit(a:f32, b:f32) -> f32 {
 }
 
 
-/// 4/pi * sin(kx)/k for odd k > 0 
+/// 4/pi * sum(sin(kx)/k for odd k > 0)
 fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).max(1).min(13);
+    let k = ((SR as f32 / freq) as usize).max(1).min(101);
     let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
 
     let phase = 0f32;
-    let c = 4f32/pi;
 
     let mut sig:Vec<f32> = vec![0.0; n_samples];
-    println!("square k {} for note {:?}", k , note);
 
+    let c = 4f32/pi;
     for i in (1..=k).filter(|x| x % 2 == 1) {
-        let f = freq * i as f32;
+        let f = cps * freq * i as f32;
         for j in 0..n_samples {
             let phase = 2.0 * PI * f * (j as f32 / SR as f32);
-            sig[j] += amod * c * (phase.sin() / k as f32);
+            sig[j] += amod * c * (phase.sin() / i as f32);
         }
     }
     normalize(&mut sig);
     sig
 } 
 
+/// 8 / pi^2 * sum(cos ks / (k*k)) for odd k > 0
+fn ugen_triangle(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
+    let freq = tone_to_freq(&note.1);
+    let k = ((SR as f32 / freq) as usize).max(1).min(101);
+    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+
+    let phase = 0f32;
+
+    let mut sig:Vec<f32> = vec![0.0; n_samples];
+
+    let c = 8f32/(pi *pi);
+    for i in (1..=k).filter(|x| x % 2 == 1) {
+        let f = cps * freq * i as f32;
+        for j in 0..n_samples {
+            let phase = 2.0 * PI * f * (j as f32 / SR as f32);
+            sig[j] += amod * c * (phase.cos() / (i*i) as f32);
+        }
+    }
+    normalize(&mut sig);
+    sig
+}
+
+/// 2/pi * sum((-1f32).powi(k) * sin(kf) / k) for k > 0
+fn ugen_sawtooth(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
+    let freq = tone_to_freq(&note.1);
+    let k = ((SR as f32 / freq) as usize).max(1).min(51);
+    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+
+    let phase = 0f32;
+
+    let mut sig:Vec<f32> = vec![0.0; n_samples];
+
+    let c = 2f32/pi;
+    for i in 1..=k {
+        let f = cps * freq * i as f32;
+        for j in 0..n_samples {
+            let sign = (-1f32).powi(i as i32);
+            let phase = sign * 2.0 * PI * f * (j as f32 / SR as f32);
+            sig[j] += amod * c * (phase.sin() / i as f32);
+        }
+    }
+    normalize(&mut sig);
+    sig
+}
 
 /// sin(kx)/k for even k > 0 
 fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).max(1).min(13);
+    let k = ((SR as f32 / freq) as usize).max(1).min(51);
     let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
 
     let phase = 0f32;
@@ -73,15 +117,27 @@ fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
 
     let mut sig:Vec<f32> = vec![0.0; n_samples];
     for i in (1..=k).filter(|x| *x == 1usize ||  x % 2 == 0) {
-        let f = freq * i as f32;
+        let f = cps * freq * 1.0001f32.powi(i as i32) * i as f32;
         for j in 0..n_samples {
             let phase = 2.0 * PI * f * (j as f32 / SR as f32);
-            sig[j] += amod * phase.sin() / k as f32;
+            sig[j] += amod * phase.sin() / (i) as f32;
         }
     }
     normalize(&mut sig);
     sig
 } 
+
+// static msg:&str = r#"
+// Consider including a mgen collection of functions
+// which use the harmonic and phase structure of base
+// waveforms like sine, square, sawtooth, triangle and 
+// accepts the following args:
+
+// mod_phase: fn (k, i) -> Radian
+// mod_amp: fn (k, i) -> Range
+// mod_freq: fn (k, i) -> f32
+// "#;
+
 
 
 fn midi_to_mote(cps:f32, (duration, note, amplitude):&Midi) -> Mote {
@@ -96,12 +152,36 @@ fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
     (time::dur(cps,ratio), tone_to_freq(tone), *ampl)
 }
 
+fn color_note(cps:f32, note:&Note, osc:&BaseOsc) -> SampleBuffer {
+    let (duration, (_, (_,_, monic)), amp) = note;
+    let d = time::dur(cps, duration);
+    let adur:f32 = 0.002;
+    let breath = envelope::db_env_n(time::samples_of_cycles(cps, adur), -60f32, 0f32);
+    let envelope = envelope::gen_env(cps, note, breath.len());
+
+    let mut buf = match osc {
+        BaseOsc::Sine => {
+            ugen_sine(cps, 1f32, note)
+        },
+        BaseOsc::Triangle => {
+            ugen_triangle(cps, 0.5f32, note)
+        },
+        BaseOsc::Square => {
+            ugen_square(cps, 1f32, note)
+        },
+        BaseOsc::Sawtooth => {
+            ugen_sawtooth(cps, 1f32, note)
+        }
+    };
+    envelope::mix_envelope(&breath, &mut buf, 0);
+    envelope::mix_envelope(&envelope, &mut buf, breath.len());
+    buf
+}
 
 fn render_note(cps:f32, note:&Note) -> SampleBuffer {
     let (duration, (_, (_,_, monic)), amp) = note;
     let d = time::dur(cps, duration);
     let adur:f32 = 0.002;
-    let breath = envelope::exp_env_k_cycles_db_60_0(cps, adur);
     let breath = envelope::db_env_n(time::samples_of_cycles(cps, adur), -60f32, 0f32);
     let envelope = envelope::gen_env(cps, note, breath.len());
 
@@ -159,6 +239,12 @@ pub fn transform_to_monic_buffers(cps:f32, notes: &Vec<Note>) -> Vec<synth::Samp
     }).collect()
 }
 
+pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc) -> Vec<synth::SampleBuffer> {
+    notes.iter().map(|&note| {
+        color_note(cps, &note, &osc)
+    }).collect()
+}
+
 
 #[cfg(test)]
 mod test {
@@ -168,7 +254,7 @@ mod test {
 
     use crate::render; 
     use crate::files;
-    #[test]
+    // #[test]
     // fn test_song_x_files() {
     //     let track = x_files::get_track();
     //     let cps = track.conf.cps;
@@ -205,7 +291,7 @@ mod test {
 
         for (contrib, mels_notes) in track.parts {
             for mel_notes in mels_notes {
-                buffs.push(transform_to_monic_buffers(cps, &mel_notes));
+                buffs.push(color_line(cps, &mel_notes, &BaseOsc::Sine));
             }
         }
 
