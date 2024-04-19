@@ -10,7 +10,7 @@ mod arg_parse;
 
 pub mod synth_config;
 pub mod convolve;
-pub mod sequence;
+pub mod decor;
 pub mod engrave;
 pub mod envelope;
 pub mod files;
@@ -20,6 +20,7 @@ pub mod modulate;
 pub mod monic_theory;
 pub mod pre;
 pub mod render;
+pub mod sequence;
 pub mod song;
 pub mod synth;
 pub mod time;

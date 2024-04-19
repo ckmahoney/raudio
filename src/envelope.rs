@@ -13,7 +13,7 @@ pub fn exp_env_k_cycles_db_60_0(cps:f32, k:f32) -> Vec<f32> {
 }
 
 /// Better for linear modulation of amplitude
-fn db_to_amp(db:f32) -> f32 {
+pub fn db_to_amp(db:f32) -> f32 {
     10f32.powf(db/20f32)
 }
 
@@ -56,7 +56,7 @@ pub fn mix_envelope(env:&SampleBuffer, buf:&mut SampleBuffer, offset:usize) {
 /// the syllabic portion of the envelope is the main body. It occupies 66% to 98% of the notes duration.
 pub fn gen_env(cps:f32, note:&Note, offset_start:usize) -> SampleBuffer {
     let (d,_,_) = note;
-    let total_samples = time::samples_of_dur(cps, d) - offset_start;
+    let total_samples = time::samples_of_duration(cps, d) - offset_start;
 
     //@art-choice use a dynamic allocation of body/tail
     //@art-choice let them overlap and use a window function to blend them
@@ -75,7 +75,7 @@ pub fn gen_env(cps:f32, note:&Note, offset_start:usize) -> SampleBuffer {
 /// the syllabic portion of the envelope is the main body. It occupies 66% to 98% of the notes duration.
 pub fn rnd_env(cps:f32, note:&Note, offset_start:usize) -> SampleBuffer {
     let (d,_,_) = note;
-    let total_samples = time::samples_of_dur(cps, d) - offset_start;
+    let total_samples = time::samples_of_duration(cps, d) - offset_start;
     use rand::Rng;
     let mut rng = rand::thread_rng();
     
@@ -151,8 +151,7 @@ mod test_unit {
 
     #[test]
     fn test_constant_env() {
-        let track = happy_birthday::get_track();
-        let cps = track.conf.cps;
+        let cps = 1.8f32;
         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
             let melody:Vec<Note> = test_overs(7);
             let notebufs = transform_to_monic_buffers(cps, &melody);

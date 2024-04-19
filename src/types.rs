@@ -29,14 +29,6 @@ pub mod synthesis {
         Mid, 
         Tail
     }
-
-    /// How the filter goes from point A to point B
-    #[derive(Debug)]
-    pub enum FilterMode {
-        Linear,
-        Logarithmic,
-    }
-
     
     pub type Bandpass = (f32, f32);
 }
@@ -94,6 +86,14 @@ pub mod timbre {
     use super::synthesis;
     use serde::{Deserialize, Serialize};
 
+
+    /// How the filter goes from point A to point B
+    #[derive(Debug)]
+    pub enum FilterMode {
+        Linear,
+        Logarithmic,
+    }
+
     #[derive(Debug, Serialize)] // requires custom serde Deserialize
     pub enum BaseOsc {
         Sine,
@@ -102,9 +102,11 @@ pub mod timbre {
         Triangle
     }
 
+    pub type Bandpass =  (FilterMode, synthesis::FilterPoint, synthesis::Bandpass);
+
     #[derive(Debug)]
     pub struct Sound {
-        pub bandpass: (synthesis::FilterMode, synthesis::FilterPoint, synthesis::Bandpass),
+        pub bandpass:Bandpass,
         pub energy: Energy,
         pub presence: Presence,
         pub pan: f32
@@ -125,13 +127,6 @@ pub mod timbre {
         Hall, 
         Vast
     }
-
-    // #[derive(Debug, Serialize)]
-    // pub enum Fill {
-    //     Frame,
-    //     Support,
-    //     Focus
-    // }
 
     #[derive(Debug, Serialize)]
     pub enum Visibility {
@@ -160,14 +155,14 @@ pub mod timbre {
     }
 
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, Copy, Clone)]
     pub enum Energy {
         Low,
         Medium,
         High
     }
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, Copy, Clone)]
     pub enum Presence {
         Staccatto,
         Legato,
