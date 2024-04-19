@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+pub type Range = f32;
+pub type Radian = f32;
+
 pub mod synthesis {
     use serde::{Deserialize, Serialize};
     use super::timbre;
@@ -22,12 +25,22 @@ pub mod synthesis {
     pub type Note = (Duration, Tone, Ampl);
     pub type Progression = Vec<(Duration, Place)>;
     
+    
+    type Radian = f32;
+    type Range = f32;
+
     /// When in the melody does the filter activate
     #[derive(Debug)]
     pub enum FilterPoint {
         Constant,
         Mid, 
         Tail
+    }
+    pub enum Direction {
+        Constant,
+        Rising,
+        Falling,
+        Brownian
     }
     
     pub type Bandpass = (f32, f32);
@@ -110,6 +123,15 @@ pub mod timbre {
         pub energy: Energy,
         pub presence: Presence,
         pub pan: f32
+    }
+
+    #[derive(Debug)]
+    pub struct Phrasing {
+        pub total_cycles: f32,
+        pub total_p: super::Range,
+        pub cycles: f32,
+        pub p:f32,
+        pub instance:usize
     }
 
 
