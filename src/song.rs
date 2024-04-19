@@ -217,7 +217,9 @@ pub mod happy_birthday {
                 cps: 1.1f32,
                 cube: Cube::Room
             },
-            duration: 132f32,
+            duration: parts[0].1.iter().fold(0f32, |acc_melody, line|
+                    acc_melody + line.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32/note.0.0 as f32)
+            ),
             dimensions: Dimensions {
                 size: 4i8,
                 cpc: 3i16,

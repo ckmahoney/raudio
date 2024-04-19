@@ -1,7 +1,7 @@
 use crate::synth::SampleBuffer;
-use crate::types::synthesis::{Freq, Mote, Note, Tone, Monae, Duration, FilterPoint};
+use crate::types::synthesis::{Freq, Mote, Note, Tone, Monae, Duration, FilterPoint, Direction};
 use crate::types::render::*;
-use crate::types::timbre::{Energy, Presence, BaseOsc, Sound, FilterMode};
+use crate::types::timbre::{Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 
 use crate::decor::{Modulators, Ctx, Coords};
 use crate::decor;
@@ -130,7 +130,7 @@ fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
 } 
 
 /// additive synthesizer taking monic modulators in the shape of a "rhodes sine"
-fn mgen_sine(cps:f32, note:&Note, energy:Energy, presence:Presence) -> synth::SampleBuffer {
+fn mgen_sine(cps:f32, note:&Note, energy:Energy, presence:Presence, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1).min(51);
@@ -144,15 +144,20 @@ fn mgen_sine(cps:f32, note:&Note, energy:Energy, presence:Presence) -> synth::Sa
         pan: 0f32,
     };
 
-    let  m8s:decor::Modulators = decor::gen(cps, &note);
+    let dir:Direction = Direction::Constant;
 
+    //@art-choice Create modulators in a diferent way
+    let m8s:decor::Modulators = decor::gen(cps, &note);
+
+    phr.note.cycles = note.0.1  as f32 / note.0.0 as f32;        
     for k in (1..=ks).filter(|x| *x == 1usize ||  x % 2 == 0) {
         for j in 0..n_samples {
+            phr.note.p = j as f32 / n_samples as f32;
             let coords = Coords { cps, k, i: j};
-            let ctx = Ctx { root:frequency, dur_seconds: time::dur(coords.cps, &note.0)};
-            let amp = ampl * (m8s.amp)(&coords, &ctx, &sound);
-            let f = frequency * (m8s.freq)(&coords, &ctx, &sound);
-            let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound);
+            let ctx = Ctx { root:frequency, dur_seconds: time::dur(coords.cps, &note.0) };
+            let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
+            let f = frequency * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
+            let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
             sig[j] += amp * phase.sin();
         }
     }
@@ -200,16 +205,14 @@ fn color_note(cps:f32, note:&Note, osc:&BaseOsc) -> SampleBuffer {
     buf
 }
 
-fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, energy:Energy, presence:Presence) -> SampleBuffer {
+fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, energy:Energy, presence:Presence, dir:Direction, phr:&mut Phrasing) -> SampleBuffer {
     let (duration, (_, (_,_, monic)), amp) = note;
     let d = time::dur(cps, duration);
     let adur:f32 = 0.002;
-    let breath = envelope::db_env_n(time::samples_of_cycles(cps, adur), -60f32, 0f32);
-    let envelope = envelope::gen_env(cps, note, breath.len());
 
     let mut buf = match osc {
         BaseOsc::Sine => {
-            mgen_sine(cps, note, energy, presence)
+            mgen_sine(cps, note, energy, presence, dir, phr)
         },
         BaseOsc::Triangle => {
             ugen_triangle(cps, 0.5f32, note)
@@ -221,8 +224,6 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, energy:Energy, presence:Pre
             ugen_sawtooth(cps, 1f32, note)
         }
     };
-    // envelope::mix_envelope(&breath, &mut buf, 0);
-    // envelope::mix_envelope(&envelope, &mut buf, breath.len());
     buf
 }
 
@@ -287,9 +288,12 @@ pub fn transform_to_monic_buffers(cps:f32, notes: &Vec<Note>) -> Vec<synth::Samp
     }).collect()
 }
 
-pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, energy:Energy, presence:Presence) -> Vec<synth::SampleBuffer> {
+pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, energy:Energy, presence:Presence, phr:&mut Phrasing) -> Vec<synth::SampleBuffer> {
+    let dir = Direction::Constant;
+    phr.line.cycles = notes.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32 / note.0.0 as f32 );
+
     notes.iter().map(|&note| {
-        color_mod_note(cps, &note, &osc, energy, presence)
+        color_mod_note(cps, &note, &osc, energy, presence, dir, phr)
     }).collect()
 }
 
@@ -357,10 +361,38 @@ mod test {
         let track = happy_birthday::get_track();
         let cps = track.conf.cps;
         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+        let dir = Direction::Constant;
+
+        // this test has one arc containing one line
+        // so use the same duration for each of form/arc/line
+        let mut phr = Phrasing {
+            form: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            arc: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            line: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            // needs to be set in the ugen controller
+            note: Timeframe {
+                cycles: 0f32,
+                p: 0f32,
+                instance: 0
+            }
+        };
 
         for (contrib, mels_notes) in track.parts {
+            // iterate over the stack of lines
             for mel_notes in mels_notes {
-                buffs.push(color_line(cps, &mel_notes, &BaseOsc::Sine, Energy::Medium, Presence::Legato));
+                buffs.push(color_line(cps, &mel_notes, &BaseOsc::Sine, Energy::Medium, Presence::Legato, &mut phr));
             }
         }
 
@@ -384,7 +416,38 @@ mod test {
         let cps = 1.8f32;
         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
         let melody:Vec<Note> = test_tone(7);
-        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, Energy::Medium, Presence::Staccatto);
+
+        let dir = Direction::Constant;
+
+        let length = melody.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32/note.0.0 as f32);
+
+        // this test has one noteevent
+        // so use the same duration for all members
+        let mut phr = Phrasing { 
+            form: Timeframe {
+                cycles: length,
+                p: 0f32,
+                instance: 0
+            },
+            arc: Timeframe {
+                cycles: length,
+                p: 0f32,
+                instance: 0
+            },
+            line: Timeframe {
+                cycles: length,
+                p: 0f32,
+                instance: 0
+            },
+            note: Timeframe {
+                cycles: length,
+                p: 0f32,
+                instance: 0
+            }
+        };
+
+
+        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, Energy::Medium, Presence::Staccatto, &mut phr);
         buffs.push(notebufs);
 
         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|

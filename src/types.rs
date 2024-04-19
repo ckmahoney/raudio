@@ -36,6 +36,7 @@ pub mod synthesis {
         Mid, 
         Tail
     }
+    #[derive(Clone, Copy)]
     pub enum Direction {
         Constant,
         Rising,
@@ -126,12 +127,22 @@ pub mod timbre {
     }
 
     #[derive(Debug)]
-    pub struct Phrasing {
-        pub total_cycles: f32,
-        pub total_p: super::Range,
+    pub struct Timeframe {
         pub cycles: f32,
-        pub p:f32,
-        pub instance:usize
+        pub p: super::Range,
+        pub instance: usize
+    }
+
+    #[derive(Debug)]
+    pub struct Phrasing {
+        /// Current position wrt the complete Composition
+        pub form: Timeframe,
+        /// Current position wrt the current Arc
+        pub arc: Timeframe,
+        /// Current position wrt the current Line in an Arc
+        pub line: Timeframe,
+        /// Current position wrt the current Note in a Line
+        pub note: Timeframe
     }
 
 
