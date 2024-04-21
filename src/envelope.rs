@@ -213,7 +213,7 @@ mod unit_test {
         // let registers:Vec<i8> = vec![4,5,6,7,8,9,10,11,12,13];
         let registers:Vec<i8> = vec![7];
         let directions:Vec<Direction> = vec![Direction::Constant];
-        let energies:Vec<Energy> = vec![Energy::Low, Energy::Medium, Energy::High];
+        let energies:Vec<Energy> = vec![Energy::High, Energy::Low, Energy::Medium, Energy::High];
         let presences:Vec<Presence> = vec![Presence::Staccatto, Presence::Legato, Presence::Tenuto ];
         
         for register in &registers {
