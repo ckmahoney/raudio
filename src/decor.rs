@@ -74,20 +74,33 @@ fn test_map_range_lin() {
     assert_eq!(expected, actual, "Expected to find {} but actually got {}", expected, actual);
 }
 
-/// Generate a monic frequency modulation curve by Presence and Energy
-/// Recommended that values stay in bounds of \[0.5, 1\]
-/// or do manual validation that result (when muliplied by ctx.r) is below Nyquist freq
+/// @art-choice Frequency modualtor providing time, glide, and sweep effects parametrized by extension
+/// @art-curr Has a vibrato effect at the entry portion of the note. 
+/// @art-choice Create a glide by going from highest available octave to ctx.root
 /// returns a value in (0, 2.pow(ctx.extension))
 fn fmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
-    let dur_seconds = ctx.dur_seconds * 0.5;
+    if ctx.extension == 0 {
+        return 1f32;
+    }
+
+    let dur_seconds = match snd.presence {
+        timbre::Presence::Staccatto => {
+            ctx.dur_seconds * 0f32
+        },
+        timbre::Presence::Legato => {
+            ctx.dur_seconds * 0.33
+        },
+        timbre::Presence::Tenuto => {
+            ctx.dur_seconds * 0.66
+        }
+    };
 
     // last sample to apply frequency modulation 
     let final_sample = time::samples_from_dur(xyz.cps, dur_seconds);
-    if ctx.extension == 0 || xyz.i > final_sample {
+    if xyz.i > final_sample {
         return 1.0f32
     }
 
-    let mut rng = rand::thread_rng();
     let glide_mix = (final_sample - xyz.i) as f32 / final_sample as f32;
     let glide_rate_cycles = xyz.cps / 0.25;
     let j = time::samples_from_dur(xyz.cps, 0.5) as f32;
@@ -100,33 +113,17 @@ fn fmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32
     let min_f = -1f32;
     let max_f = 1f32;
     let mul_glide:f32 = map_range_lin(min_f, max_f, min_factor, max_factor, x.sin());
-    glide_mix * mul_glide
-    // match &snd.energy {
-    //     timbre::Energy::Low => {
-            
-    //     },
-    //     timbre::Energy::Medium => {
-    //         offset_noise = 0.05 * rng.gen::<f32>() * pi/3f32
-    //     },
-    //     timbre::Energy::High => {   
-    //         offset_noise = 0.01 * rng.gen::<f32>() * pi
-            
-    //     }
-    // };
-    
-    
-    // glide = match snd.presence {
-    //     timbre::Presence::Staccatto => {
-    //         glide
-    //     },
-    //     timbre::Presence::Legato => {
-    //         glide
-    //     },
-    //     timbre::Presence::Tenuto => {
-    //         glide
-    //     }
-    // };
-    // glide
+    glide_mix * mul_glide * match &snd.energy {
+        timbre::Energy::Low => {
+            0.05f32
+        },
+        timbre::Energy::Medium => {
+            0.33f32
+        },
+        timbre::Energy::High => {   
+            1.0f32
+        }
+    }
 }
 
 /// Generate a monic amplitude modulation curve by Presence and Energy
@@ -218,40 +215,48 @@ fn amod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> Ran
 
 /// returns a value in [-pi, pi]
 fn pmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
-    let mut offset_noise:f32 = 0.0;
-
-    let vibrato_rate = xyz.cps* 0.25;
-    let mut rng = rand::thread_rng();
-    let t = vibrato_rate *2f32*pi*xyz.i as f32;
-    let vibrato = pi * t.sin();
-
-    match &snd.energy {
-        timbre::Energy::Low => {
-            
+    let dur_seconds = match snd.presence {
+        timbre::Presence::Staccatto => {
+            ctx.dur_seconds * 0.2f32
         },
-        timbre::Energy::Medium => {
-            offset_noise = 0.05 * rng.gen::<f32>() * pi/3f32
+        timbre::Presence::Legato => {
+            ctx.dur_seconds * 0.33
         },
-        timbre::Energy::High => {   
-            offset_noise = 0.01 * rng.gen::<f32>() * pi
-            
+        timbre::Presence::Tenuto => {
+            ctx.dur_seconds * 0.9
         }
     };
 
-    // match snd.presence {
-    //     timbre::Presence::Staccatto => {
-    //         0.3 * vibrato
-    //     },
-    //     timbre::Presence::Legato => {
-    //         0.5 * vibrato
-    //     },
-    //     timbre::Presence::Tenuto => {
-    //         1.0 * vibrato
-    //     }
-    // };
+    // last sample to apply phase modulation 
+    let final_sample = time::samples_from_dur(xyz.cps, dur_seconds);
+    if xyz.i > final_sample {
+        return 0.0f32
+    }
 
-    // offset_vibrato + offset_noise
-    offset_noise 
+    //@art-choice Select a modulation mix function 
+    //@art-curr linear fade out for vibrato, linear fade in for noise
+    let vibrato_mix = (final_sample - xyz.i) as f32 / final_sample as f32;
+    let noise_mix = xyz.i as f32 / final_sample as f32;
+    let vibrato_rate_cycles = xyz.cps / 0.66;
+
+    let mut rng = rand::thread_rng();
+    let j = time::samples_from_dur(xyz.cps, 0.5) as f32;
+    let p = (xyz.i as f32%j)/j;
+    let x = vibrato_rate_cycles * p;
+
+    let add_vibrato:f32 = map_range_lin(-1f32, 1f32, -1f32*pi, pi, x.sin());
+    let add_noise = match &snd.energy {
+        timbre::Energy::Low => {
+            0f32
+        },
+        timbre::Energy::Medium => {
+            0.05 * rng.gen::<f32>() * pi
+        },
+        timbre::Energy::High => {   
+            0.2 * rng.gen::<f32>() * pi
+        }
+    };
+    vibrato_mix * add_vibrato + noise_mix * add_noise
 }
 
 pub fn gen(cps:f32, note:&Note)->Modulators {

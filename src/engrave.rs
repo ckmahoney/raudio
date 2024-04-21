@@ -169,8 +169,6 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, energy:Energy, presence:Presence, d
     sig
 }
 
-
-
 fn midi_to_mote(cps:f32, (duration, note, amplitude):&Midi) -> Mote {
     let frequency = midi::note_to_frequency(*note as f32);
     let amp = midi::map_amplitude(*amplitude as f32);
