@@ -1,7 +1,7 @@
 use crate::synth::SampleBuffer;
-use crate::types::synthesis::{Freq, Mote, Note, Tone, Monae, Duration, FilterPoint, Direction};
+use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::*;
-use crate::types::timbre::{Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
+use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 
 use crate::decor::{Modulators, Ctx, Coords};
 use crate::decor;
@@ -129,25 +129,43 @@ fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     sig
 } 
 
+fn filter_activation(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:usize) -> bool {
+    let min_frequency = filter.2.0;
+    let max_frequency = filter.2.1;
+    match filter.0 {
+        FilterMode::Linear => {
+            match filter.1 {
+                FilterPoint::Constant => {
+                    return freq > min_frequency && freq < max_frequency;
+                },
+                FilterPoint::Mid => {
+                    true
+                },
+                FilterPoint::Tail => {
+                    true
+                }
+            }
+        },
+        FilterMode::Logarithmic => {
+            panic!("No implementation for a logarithmic mixer yet")
+        }
+    }
+}
+
 /// additive synthesizer taking monic modulators in the shape of a "rhodes sine"
-fn mgen_sine(cps:f32, note:&Note, ext:usize, energy:Energy, presence:Presence, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1).min(51);
     let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
-    let sound = Sound {
-        bandpass: (FilterMode::Logarithmic, FilterPoint::Tail, (1f32, 24000f32)),
-        energy,
-        presence,
-        pan: 0f32,
-    };
 
     let dir:Direction = Direction::Constant;
 
     //@art-choice Create modulators in a diferent way
     let m8s:decor::Modulators = decor::gen(cps, &note);
+
 
     phr.note.cycles = note.0.1  as f32 / note.0.0 as f32;        
     for k in (1..=ks).filter(|x| *x == 1usize ||  x % 2 == 0) {
@@ -159,10 +177,14 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, energy:Energy, presence:Presence, d
                 dur_seconds: time::dur(coords.cps, &note.0), 
                 extension: ext 
             };
-            let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
             let f = frequency * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
-            let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
-            sig[j] += amp * phase.sin();
+            if filter_activation(&sound.bandpass, phr, f, j, k) {
+                continue
+            } else {
+                let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += amp * phase.sin();
+            }
         }
     }
     normalize(&mut sig);
@@ -207,7 +229,7 @@ fn color_note(cps:f32, note:&Note, osc:&BaseOsc) -> SampleBuffer {
     buf
 }
 
-fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, energy:Energy, presence:Presence, dir:Direction, phr:&mut Phrasing) -> SampleBuffer {
+fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> SampleBuffer {
     let (duration, (_, (_,_, monic)), amp) = note;
     let d = time::dur(cps, duration);
     let adur:f32 = 0.002;
@@ -215,7 +237,7 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, energy:Energy, presence:Pre
 
     let mut buf = match osc {
         BaseOsc::Sine => {
-            mgen_sine(cps, note, ext, energy, presence, dir, phr)
+            mgen_sine(cps, note, ext, sound, dir, phr)
         },
         BaseOsc::Triangle => {
             ugen_triangle(cps, 0.5f32, note)
@@ -291,12 +313,12 @@ pub fn transform_to_monic_buffers(cps:f32, notes: &Vec<Note>) -> Vec<synth::Samp
     }).collect()
 }
 
-pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, energy:Energy, presence:Presence, phr:&mut Phrasing) -> Vec<synth::SampleBuffer> {
+pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing) -> Vec<synth::SampleBuffer> {
     let dir = Direction::Constant;
     phr.line.cycles = notes.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32 / note.0.0 as f32 );
 
     notes.iter().map(|&note| {
-        color_mod_note(cps, &note, &osc, energy, presence, dir, phr)
+        color_mod_note(cps, &note, &osc, &sound, dir, phr)
     }).collect()
 }
 
@@ -391,11 +413,17 @@ mod test {
                 instance: 0
             }
         };
-
+        
         for (contrib, mels_notes) in track.parts {
             // iterate over the stack of lines
             for mel_notes in mels_notes {
-                buffs.push(color_line(cps, &mel_notes, &BaseOsc::Sine, Energy::Medium, Presence::Legato, &mut phr));
+                let sound = Sound {
+                    bandpass: (FilterMode::Logarithmic, FilterPoint::Tail, (1f32, 24000f32)),
+                    energy: Energy::Medium,
+                    presence : Presence::Legato,
+                    pan: 0f32,
+                };
+                buffs.push(color_line(cps, &mel_notes, &BaseOsc::Sine, &sound, &mut phr));
             }
         }
 
@@ -449,8 +477,14 @@ mod test {
             }
         };
 
+        let sound = Sound {
+            bandpass: (FilterMode::Logarithmic, FilterPoint::Tail, (1f32, 24000f32)),
+            energy: Energy::Medium,
+            presence : Presence::Legato,
+            pan: 0f32,
+        };
 
-        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, Energy::Medium, Presence::Staccatto, &mut phr);
+        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, &sound, &mut phr);
         buffs.push(notebufs);
 
         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|

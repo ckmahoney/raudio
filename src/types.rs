@@ -116,11 +116,11 @@ pub mod timbre {
         Triangle
     }
 
-    pub type Bandpass =  (FilterMode, synthesis::FilterPoint, synthesis::Bandpass);
+    pub type BandpassFilter =  (FilterMode, synthesis::FilterPoint, synthesis::Bandpass);
 
     #[derive(Debug)]
     pub struct Sound {
-        pub bandpass:Bandpass,
+        pub bandpass:BandpassFilter,
         pub energy: Energy,
         pub presence: Presence,
         pub pan: f32

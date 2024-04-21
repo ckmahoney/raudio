@@ -180,8 +180,8 @@ mod unit_test {
     use crate::synth;
     use crate::files;
     use crate::render;
-    use crate::types::synthesis::{Duration, Note, Monae, Tone, Direction};
-    use crate::types::timbre::{Energy, Presence, BaseOsc, Timeframe, Phrasing};
+    use crate::types::synthesis::{Duration, Note, Monae, Tone, Direction, FilterPoint};
+    use crate::types::timbre::{Energy, Presence, Sound, FilterMode, BaseOsc, Timeframe, Phrasing};
     use crate::engrave::color_line;
     use crate::time;
     
@@ -248,10 +248,17 @@ mod unit_test {
                             }
                         };
 
+                        let sound = Sound {
+                            bandpass: (FilterMode::Logarithmic, FilterPoint::Tail, (1f32, 24000f32)),
+                            energy: energy.clone(),
+                            presence : presence.clone(),
+                            pan: 0f32,
+                        };
+
                         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
                         let dev_dir = "dev-audio/color-controls";
 
-                        let notebufs = color_line(cps, &line, &BaseOsc::Sine, energy.clone(), presence.clone(), &mut phr);
+                        let notebufs = color_line(cps, &line, &BaseOsc::Sine, &sound, &mut phr);
                         buffs.push(notebufs);
 
                         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
