@@ -130,7 +130,7 @@ fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
 } 
 
 /// additive synthesizer taking monic modulators in the shape of a "rhodes sine"
-fn mgen_sine(cps:f32, note:&Note, energy:Energy, presence:Presence, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+fn mgen_sine(cps:f32, note:&Note, ext:usize, energy:Energy, presence:Presence, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1).min(51);
@@ -154,7 +154,11 @@ fn mgen_sine(cps:f32, note:&Note, energy:Energy, presence:Presence, dir:Directio
         for j in 0..n_samples {
             phr.note.p = j as f32 / n_samples as f32;
             let coords = Coords { cps, k, i: j};
-            let ctx = Ctx { root:frequency, dur_seconds: time::dur(coords.cps, &note.0) };
+            let ctx = Ctx { 
+                root:frequency, 
+                dur_seconds: time::dur(coords.cps, &note.0), 
+                extension: ext 
+            };
             let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
             let f = frequency * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
             let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
@@ -209,10 +213,11 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, energy:Energy, presence:Pre
     let (duration, (_, (_,_, monic)), amp) = note;
     let d = time::dur(cps, duration);
     let adur:f32 = 0.002;
+    let ext:usize = 1;
 
     let mut buf = match osc {
         BaseOsc::Sine => {
-            mgen_sine(cps, note, energy, presence, dir, phr)
+            mgen_sine(cps, note, ext, energy, presence, dir, phr)
         },
         BaseOsc::Triangle => {
             ugen_triangle(cps, 0.5f32, note)
@@ -230,7 +235,7 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, energy:Energy, presence:Pre
 fn render_note(cps:f32, note:&Note) -> SampleBuffer {
     let (duration, (_, (_,_, monic)), amp) = note;
     let d = time::dur(cps, duration);
-    let adur:f32 = 0.002;
+    let adur:f32 = 2f32/1000f32;
     let breath = envelope::db_env_n(time::samples_of_cycles(cps, adur), -60f32, 0f32);
     let envelope = envelope::gen_env(cps, note, breath.len());
 
@@ -419,7 +424,7 @@ mod test {
 
         let dir = Direction::Constant;
 
-        let length = melody.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32/note.0.0 as f32);
+        let length = melody.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
 
         // this test has one noteevent
         // so use the same duration for all members

@@ -33,3 +33,6 @@ pub fn dur(cps: f32, ratio:&Ratio) -> f32 {
     (ratio.0 as f32 / ratio.1 as f32)/cps
 }
 
+pub fn duration_to_cycles((numerator, denominator):Ratio) -> f32 {
+    numerator as f32/denominator as f32
+}

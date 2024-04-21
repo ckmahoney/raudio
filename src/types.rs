@@ -36,7 +36,7 @@ pub mod synthesis {
         Mid, 
         Tail
     }
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub enum Direction {
         Constant,
         Rising,

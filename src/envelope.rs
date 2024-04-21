@@ -171,4 +171,107 @@ mod test_unit {
             }
         }
     }
+
+}
+
+
+#[cfg(test)]
+mod unit_test {
+    use crate::synth;
+    use crate::files;
+    use crate::render;
+    use crate::types::synthesis::{Duration, Note, Monae, Tone, Direction};
+    use crate::types::timbre::{Energy, Presence, BaseOsc, Timeframe, Phrasing};
+    use crate::engrave::color_line;
+    use crate::time;
+    
+    fn test_unders(register:i8) -> Vec<Note> {
+        let monics:Vec<i8> = vec![1, 3, 5, 7];
+        let rotations:Vec<i8> = vec![-2,-1,0,1,2];
+        let qs:Vec<i8> = vec![1];
+
+        const dur:Duration = (1,1);
+        const amp:f32 = 1.0;
+        let mut mel:Vec<Note> = Vec::new();
+        for r in &rotations {
+            for m in &monics {
+                for q in &qs {
+                    let monae:Monae = (*r,*q, *m);
+                    let tone:Tone = (register, monae);
+                    mel.push((dur, tone, amp));
+                }
+            }
+        }
+
+        mel
+    }
+
+    #[test]
+    fn test_enumerate_params() {
+        
+        let cps = 1.8f32;
+        // let registers:Vec<i8> = vec![4,5,6,7,8,9,10,11,12,13];
+        let registers:Vec<i8> = vec![7];
+        let directions:Vec<Direction> = vec![Direction::Constant];
+        let energies:Vec<Energy> = vec![Energy::Low, Energy::Medium, Energy::High];
+        let presences:Vec<Presence> = vec![Presence::Staccatto, Presence::Legato, Presence::Tenuto ];
+        
+        for register in &registers {
+            for direction in &directions {
+                for energy in &energies {
+                    for presence in &presences {
+                        // this test iterates over a range of rotations about 0
+                        // use each rotation as a new arc
+                        
+                        let line:Vec<Note> = test_unders(*register);
+                        let form_length = line.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
+
+                        let mut phr = Phrasing { 
+                            form: Timeframe {
+                                cycles: form_length,
+                                p: 0f32,
+                                instance: 0
+                            },
+                            arc: Timeframe {
+                                cycles: form_length,
+                                p: 0f32,
+                                instance: 0
+                            },
+                            line: Timeframe {
+                                cycles: form_length,
+                                p: 0f32,
+                                instance: 0
+                            },
+                            note: Timeframe {
+                                cycles: -1.0,
+                                p: 0f32,
+                                instance: 0
+                            }
+                        };
+
+                        let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+                        let dev_dir = "dev-audio/color-controls";
+
+                        let notebufs = color_line(cps, &line, &BaseOsc::Sine, energy.clone(), presence.clone(), &mut phr);
+                        buffs.push(notebufs);
+
+                        let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
+                            buff.into_iter().flatten().collect()
+                        ).collect();    
+
+                        files::with_dir(&dev_dir);
+                        let filename = format!("{}/test-register-{}-direction-{:?}-energy-{:?}-presence-{:?}", dev_dir, *register, *direction, *energy, *presence);
+                        match render::pad_and_mix_buffers(mixers) {
+                            Ok(signal) => {
+                                render::samples_f32(44100, &signal, &filename);
+                            },
+                            Err(err) => {
+                                println!("Problem rendering file {}. Message: {}", filename, err)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

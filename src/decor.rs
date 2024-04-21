@@ -14,7 +14,8 @@ pub struct Modulators {
 
 pub struct Ctx {
     pub dur_seconds: f32,
-    pub root: f32
+    pub root: f32,
+    pub extension: usize
 }
 
 pub struct Coords {
@@ -40,10 +41,10 @@ fn fmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32
 fn amod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> Range {
     let dur_scale_factor = match &snd.presence {
         timbre::Presence::Staccatto => {
-            0.2f32
+            0.1f32
         },
         timbre::Presence::Legato => {
-            0.9f32
+            0.8f32
         },
         timbre::Presence::Tenuto => {
             1.0f32
@@ -52,13 +53,13 @@ fn amod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> Ran
     //@art-choice currently applied as global min/max values; can scale with cps
     let min_max_dur_seconds = match snd.presence {
         timbre::Presence::Staccatto => {
-            (0.1f32, 0.5f32)
+            (0.05f32, 15f32)
         },
         timbre::Presence::Legato => {
-            (0.25f32, 100f32)
+            (0.1f32, 100f32)
         },
         timbre::Presence::Tenuto => {
-            (0.3f32, 120f32)
+            (0.2f32, 120f32)
         }
     };
 
@@ -74,7 +75,7 @@ fn amod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> Ran
     // @art-choice this model leaves headroom between each level 
     let min_max_db = match &snd.energy {
         timbre::Energy::Low => {
-            (-60f32, -50f32)
+            (-50f32, -40f32)
         },
         timbre::Energy::Medium => {
             (-40f32, -30f32)
@@ -85,25 +86,41 @@ fn amod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> Ran
     };
 
     // @art-choice amplitude scaling based on the monic
+    // @art-curr uses linearly fading monics with gain when under threshold, else exponentially fading 
     let amp_k = match &snd.energy {
         timbre::Energy::Low => {
             let k = xyz.k as f32;
-            if xyz.k > 3 { 
-                1f32/(k *k);
+            if xyz.k > 7 { 
+                let mul = 1.0;
+                mul * 1f32/(k *k) - (2f32*k);
             } else {
-                1.0/k;
+                let mul = 0.75;
+                mul * 1.0/k;
             }
         },
         timbre::Energy::Medium => {
-            1.0/xyz.k as f32;
+            let k = xyz.k as f32;
+            if xyz.k > 15 { 
+                let mul = 1.0;
+                mul * 1f32/(k *k) - (2f32*k);
+            } else {
+                let mul:f32  = 1.0;
+                (mul * 1.0/k).max(1.0);
+            }
         },
         timbre::Energy::High => {   
-            1.0f32;
+            let k = xyz.k as f32;
+            if xyz.k > 23 { 
+                let mul = 1.0;
+                mul * 1f32/(k *k) - (2f32*k);
+            } else {
+                let mul:f32  = 1.33;
+                (mul * 1.0/k).max(1.0);
+            }
         }
     };
-
     let dDecibel = (min_max_db.1 - min_max_db.0)/final_sample as f32;
-    let decibel = dDecibel * xyz.i as f32;
+    let decibel = min_max_db.0 + dDecibel * xyz.i as f32;
     db_to_amp(decibel)
 }
 
@@ -120,9 +137,3 @@ pub fn gen(cps:f32, note:&Note)->Modulators {
     }
 }
 
-
-#[test]
-fn test_Min_max() {
-    let x = 10f32.min(1000f32).max(1f32);
-    assert_eq!(x, 10f32)
-}
