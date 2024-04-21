@@ -63,7 +63,7 @@ fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     sig
 } 
 
-/// 8 / pi^2 * sum(cos ks / (k*k)) for odd k > 0
+/// (8 / pi^2) * sum(cos ks / (k*k)) for odd k > 0
 fn ugen_triangle(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     let freq = tone_to_freq(&note.1);
     let k = ((SR as f32 / freq) as usize).max(1).min(101);
@@ -99,7 +99,7 @@ fn ugen_sawtooth(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     for i in 1..=k {
         let f = cps * freq * i as f32;
         for j in 0..n_samples {
-            let sign = (-1f32).powi(i as i32);
+            let sign = (-1f32).powi(1i32 + i as i32);
             let phase = sign * 2.0 * PI * f * (j as f32 / SR as f32);
             sig[j] += amod * c * (phase.sin() / i as f32);
         }
@@ -115,7 +115,6 @@ fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
 
     let phase = 0f32;
-    let c = 4f32/pi;
 
     let mut sig:Vec<f32> = vec![0.0; n_samples];
     for k in (1..=ks).filter(|x| *x == 1usize ||  x % 2 == 0) {
@@ -129,7 +128,9 @@ fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
     sig
 } 
 
-fn filter_activation(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:usize) -> bool {
+
+/// activation function for bandpass filter. True indicates frequency is OK; false says to filter it out.
+fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:usize) -> bool {
     let min_frequency = filter.2.0;
     let max_frequency = filter.2.1;
     match filter.0 {
@@ -156,7 +157,7 @@ fn filter_activation(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n
 fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
-    let ks = ((SR as f32 / frequency) as usize).max(1).min(51);
+    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
     let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
@@ -165,7 +166,6 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
 
     //@art-choice Create modulators in a diferent way
     let m8s:decor::Modulators = decor::gen(cps, &note);
-
 
     phr.note.cycles = note.0.1  as f32 / note.0.0 as f32;        
     for k in (1..=ks).filter(|x| *x == 1usize ||  x % 2 == 0) {
@@ -177,13 +177,133 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
                 dur_seconds: time::dur(coords.cps, &note.0), 
                 extension: ext 
             };
-            let f = frequency * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
-            if filter_activation(&sound.bandpass, phr, f, j, k) {
+            let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
+            if bandpass_filter(&sound.bandpass, phr, f, j, k) {
+                let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += amp * phase.sin();
+            } else {
+                continue
+            }
+        }
+    }
+    normalize(&mut sig);
+    sig
+}
+
+fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+    let frequency = tone_to_freq(&note.1);
+    let ampl = &note.2;
+    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    
+    let mut sig:Vec<f32> = vec![0.0; n_samples];
+
+    let dir:Direction = Direction::Constant;
+
+    //@art-choice Create modulators in a diferent way
+    let m8s:decor::Modulators = decor::gen(cps, &note);
+
+    let c = 4f32/pi;
+
+    phr.note.cycles = note.0.1  as f32 / note.0.0 as f32;        
+    for k in (1..=ks).filter(|x| x % 2 == 1) {
+        for j in 0..n_samples {
+            phr.note.p = j as f32 / n_samples as f32;
+            let coords = Coords { cps, k, i: j};
+            let ctx = Ctx { 
+                root:frequency, 
+                dur_seconds: time::dur(coords.cps, &note.0), 
+                extension: ext 
+            };
+            let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
+            if bandpass_filter(&sound.bandpass, phr, f, j, k) {
+                let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += amp * phase.sin() / k as f32;
+            } else {
+                continue
+            }
+        }
+    }
+    normalize(&mut sig);
+    sig
+}
+
+fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+    let frequency = tone_to_freq(&note.1);
+    let ampl = &note.2;
+    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    
+    let mut sig:Vec<f32> = vec![0.0; n_samples];
+
+    let dir:Direction = Direction::Constant;
+
+    //@art-choice Create modulators in a diferent way
+    let m8s:decor::Modulators = decor::gen(cps, &note);
+
+    let c = 8f32/(pi *pi);
+    
+    phr.note.cycles = note.0.1  as f32 / note.0.0 as f32;        
+    for k in (1..=ks).filter(|x| x % 2 == 1) {
+        let sign = (-1f32).powi(1i32 + k as i32);
+
+        for j in 0..n_samples {
+            phr.note.p = j as f32 / n_samples as f32;
+            let coords = Coords { cps, k, i: j};
+            let ctx = Ctx { 
+                root:frequency, 
+                dur_seconds: time::dur(coords.cps, &note.0), 
+                extension: ext 
+            };
+            let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
+            if !bandpass_filter(&sound.bandpass, phr, f, j, k) {
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
                 let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
-                sig[j] += amp * phase.sin();
+                sig[j] += amp * phase.cos() / (k * k) as f32;
+            }
+        }
+    }
+    normalize(&mut sig);
+    sig
+}
+
+fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+    let frequency = tone_to_freq(&note.1);
+    let ampl = &note.2;
+    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    
+    let mut sig:Vec<f32> = vec![0.0; n_samples];
+
+    let dir:Direction = Direction::Constant;
+
+    //@art-choice Create modulators in a diferent way
+    let m8s:decor::Modulators = decor::gen(cps, &note);
+
+
+    let c = 2f32/pi;
+    for k in 1..=ks {
+        let sign = (-1f32).powi(1i32 + k as i32);
+
+        for j in 0..n_samples {
+            phr.note.p = j as f32 / n_samples as f32;
+            let coords = Coords { cps, k, i: j};
+            let ctx = Ctx { 
+                root:frequency, 
+                dur_seconds: time::dur(coords.cps, &note.0), 
+                extension: ext 
+            };
+            let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
+            if !bandpass_filter(&sound.bandpass, phr, f, j, k) {
+                continue
+            } else {
+                let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = c * f * sign * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += amp * phase.sin() / k as f32;
             }
         }
     }
@@ -240,13 +360,13 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
             mgen_sine(cps, note, ext, sound, dir, phr)
         },
         BaseOsc::Triangle => {
-            ugen_triangle(cps, 0.5f32, note)
+            mgen_triangle(cps, note, ext, sound, dir, phr)
         },
         BaseOsc::Square => {
-            ugen_square(cps, 1f32, note)
+            mgen_square(cps, note, ext, sound, dir, phr)
         },
         BaseOsc::Sawtooth => {
-            ugen_sawtooth(cps, 1f32, note)
+            mgen_sawtooth(cps, note, ext, sound, dir, phr)
         }
     };
     buf
