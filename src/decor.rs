@@ -115,15 +115,17 @@ fn fmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32
     let mul_glide:f32 = map_range_lin(min_f, max_f, min_factor, max_factor, x.sin());
     glide_mix * mul_glide * match &snd.energy {
         timbre::Energy::Low => {
-            0.05f32
+            0.001f32
         },
         timbre::Energy::Medium => {
-            0.33f32
+            0.01f32
         },
         timbre::Energy::High => {   
-            0.66f32
+            0.02f32
         }
-    }
+    };
+    // DISABLING frequency modulation; don't need it right now and it is hard to control
+    1f32
 }
 
 /// Generate a monic amplitude modulation curve by Presence and Energy
@@ -176,41 +178,41 @@ fn amod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> Ran
 
     // @art-choice amplitude scaling based on the monic
     // @art-curr uses linearly fading monics with gain when under threshold, else exponentially fading 
-    let amp_k = match &snd.energy {
+    let amp_k:f32 = match &snd.energy {
         timbre::Energy::Low => {
             let k = xyz.k as f32;
             if xyz.k > 7 { 
                 let mul = 1.0;
-                mul * 1f32/(k *k) - (2f32*k);
+                mul * 1f32/(k *k) - (2f32*k)
             } else {
                 let mul = 0.75;
-                mul * 1.0/k;
+                mul * 1.0/k
             }
         },
         timbre::Energy::Medium => {
             let k = xyz.k as f32;
             if xyz.k > 15 { 
                 let mul = 1.0;
-                mul * 1f32/(k *k) - (2f32*k);
+                mul * 1f32/(k *k) - (2f32*k)
             } else {
                 let mul:f32  = 1.0;
-                (mul * 1.0/k).max(1.0);
+                (mul * 1.0/k).max(1.0)
             }
         },
         timbre::Energy::High => {   
             let k = xyz.k as f32;
             if xyz.k > 23 { 
                 let mul = 1.0;
-                mul * 1f32/(k *k) - (2f32*k);
+                mul * 1f32/(k *k) - (2f32*k)
             } else {
                 let mul:f32  = 1.33;
-                (mul * 1.0/k).max(1.0);
+                (mul * 1.0/k).max(1.0)
             }
         }
     };
     let dDecibel = (min_max_db.1 - min_max_db.0)/final_sample as f32;
     let decibel = min_max_db.0 + dDecibel * xyz.i as f32;
-    db_to_amp(decibel)
+    amp_k * db_to_amp(decibel)
 }
 
 /// returns a value in [-pi, pi]

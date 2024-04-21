@@ -180,8 +180,8 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
             let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
             if bandpass_filter(&sound.bandpass, phr, f, j, k) {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
-                let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
-                sig[j] += amp * phase.sin();
+                let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += amp * phase.sin() / (k * k) as f32;
             } else {
                 continue
             }
@@ -219,8 +219,8 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
             let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
             if bandpass_filter(&sound.bandpass, phr, f, j, k) {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
-                let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
-                sig[j] += amp * phase.sin() / k as f32;
+                let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += c * amp * phase.sin() / k as f32;
             } else {
                 continue
             }
@@ -262,8 +262,8 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
-                let phase = f * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
-                sig[j] += amp * phase.cos() / (k * k) as f32;
+                let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += c * amp * phase.cos() / (k * k) as f32;
             }
         }
     }
@@ -302,8 +302,8 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
-                let phase = c * f * sign * cps * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
-                sig[j] += amp * phase.sin() / k as f32;
+                let phase = f * sign * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += c * amp * phase.sin() / k as f32;
             }
         }
     }

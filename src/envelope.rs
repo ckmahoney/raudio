@@ -249,7 +249,7 @@ mod unit_test {
                         };
 
                         let sound = Sound {
-                            bandpass: (FilterMode::Logarithmic, FilterPoint::Tail, (1f32, 24000f32)),
+                            bandpass: (FilterMode::Linear, FilterPoint::Constant, (1f32, 24000f32)),
                             energy: energy.clone(),
                             presence : presence.clone(),
                             pan: 0f32,
@@ -273,6 +273,84 @@ mod unit_test {
                             },
                             Err(err) => {
                                 println!("Problem rendering file {}. Message: {}", filename, err)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_enumerate_osc_shell() {
+        
+        let cps = 1.8f32;
+        let registers:Vec<i8> = vec![5,7,9,11,13];
+        let oscs:Vec<BaseOsc> = vec![BaseOsc::Square, BaseOsc::Sawtooth, BaseOsc::Triangle, BaseOsc::Sine];
+        let directions:Vec<Direction> = vec![Direction::Constant];
+        let energies:Vec<Energy> = vec![Energy::High, Energy::Low];
+        let presences:Vec<Presence> = vec![Presence::Legato];
+        
+        for osc in &oscs {
+            for register in &registers {
+                for direction in &directions {
+                    for energy in &energies {
+                        for presence in &presences {
+                            // this test iterates over a range of rotations about 0
+                            // use each rotation as a new arc
+                            
+                            let line:Vec<Note> = test_unders(*register);
+                            let form_length = line.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
+
+                            let mut phr = Phrasing { 
+                                form: Timeframe {
+                                    cycles: form_length,
+                                    p: 0f32,
+                                    instance: 0
+                                },
+                                arc: Timeframe {
+                                    cycles: form_length,
+                                    p: 0f32,
+                                    instance: 0
+                                },
+                                line: Timeframe {
+                                    cycles: form_length,
+                                    p: 0f32,
+                                    instance: 0
+                                },
+                                note: Timeframe {
+                                    cycles: -1.0,
+                                    p: 0f32,
+                                    instance: 0
+                                }
+                            };
+
+                            let sound = Sound {
+                                bandpass: (FilterMode::Linear, FilterPoint::Constant, (1f32, 24000f32)),
+                                energy: energy.clone(),
+                                presence : presence.clone(),
+                                pan: 0f32,
+                            };
+
+                            let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+                            let dev_dir = "dev-audio/osc-shell";
+
+                            let notebufs = color_line(cps, &line, &osc, &sound, &mut phr);
+                            buffs.push(notebufs);
+
+                            let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
+                                buff.into_iter().flatten().collect()
+                            ).collect();    
+
+                            files::with_dir(&dev_dir);
+                            let filename = format!("{}/test-osc-{:?}-register-{}-direction-{:?}-energy-{:?}-presence-{:?}", dev_dir, *osc, *register, *direction, *energy, *presence);
+                            match render::pad_and_mix_buffers(mixers) {
+                                Ok(signal) => {
+                                    render::samples_f32(44100, &signal, &filename);
+                                },
+                                Err(err) => {
+                                    println!("Problem rendering file {}. Message: {}", filename, err)
+                                }
                             }
                         }
                     }
