@@ -100,7 +100,6 @@ pub fn rnd_env(cps:f32, note:&Note, offset_start:usize) -> SampleBuffer {
 
 mod test_unit {
     use super::*;
-    use crate::engrave::transform_to_monic_buffers;
     use crate::synth;
     use crate::render;
     use crate::files;
@@ -147,29 +146,6 @@ mod test_unit {
         }
 
         mel
-    }
-
-    #[test]
-    fn test_constant_env() {
-        let cps = 1.8f32;
-        let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
-            let melody:Vec<Note> = test_overs(7);
-            let notebufs = transform_to_monic_buffers(cps, &melody);
-            buffs.push(notebufs);
-
-        let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
-            buff.into_iter().flatten().collect()
-        ).collect();
-
-        files::with_dir("dev-audio");
-        match render::pad_and_mix_buffers(mixers) {
-            Ok(signal) => {
-                render::samples_f32(44100, &signal, "dev-audio/test-constant-env.wav");
-            },
-            Err(err) => {
-                println!("Problem while mixing buffers. Message: {}", err)
-            }
-        }
     }
 
 }

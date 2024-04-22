@@ -343,6 +343,26 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
         BaseOsc::Sawtooth => {
             mgen_sawtooth(cps, note, ext, sound, dir, phr)
         },
+        BaseOsc::Poly => {
+            let (duration, (_, (_,_, monic)), amp) = note;
+            let d = time::dur(cps, duration);
+            let adur:f32 = 2f32/1000f32;
+
+            match monic {
+                1 => {
+                    mgen_sawtooth(cps, note, ext, sound, dir, phr)
+                },
+                3 => {
+                    mgen_sawtooth(cps, note, ext, sound, dir, phr)
+                },
+                5 => {
+                    mgen_sawtooth(cps, note, ext, sound, dir, phr)
+                },
+                _ => {
+                    mgen_sine(cps, note, ext, sound, dir, phr)
+                }
+            }
+        },
         _ => {
             panic!("Need to implement the matcher for osc type {:?}", osc)
         }
@@ -350,31 +370,6 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
     buf
 }
 
-fn render_note(cps:f32, note:&Note) -> SampleBuffer {
-    let (duration, (_, (_,_, monic)), amp) = note;
-    let d = time::dur(cps, duration);
-    let adur:f32 = 2f32/1000f32;
-    let breath = envelope::db_env_n(time::samples_of_cycles(cps, adur), -60f32, 0f32);
-    let envelope = envelope::gen_env(cps, note, breath.len());
-
-    let mut buf = match monic {
-        1 => {
-            ugen_square(cps, 1f32, note)
-        },
-        3 => {
-            ugen_square(cps, 0.5f32, note)
-        },
-        5 => {
-            ugen_sine(cps, 1f32, note)
-        },
-        _ => {
-            ugen_sine(cps, 0.5f32, note)
-        }
-    };
-    envelope::mix_envelope(&breath, &mut buf, 0);
-    envelope::mix_envelope(&envelope, &mut buf, breath.len());
-    buf
-}
 
 /// Given a list of score part, create a list of motes. 
 pub fn midi_entry_to_motes(cps:f32, entry:ScoreEntry<Midi>) -> Melody<Mote> {
@@ -405,11 +400,6 @@ pub fn process_note_parts(parts: Vec::<ScoreEntry<Note>>, cps: f32) -> Vec<Melod
     ).collect()
 }
 
-pub fn transform_to_monic_buffers(cps:f32, notes: &Vec<Note>) -> Vec<synth::SampleBuffer> {
-    notes.iter().map(|&note| {
-        render_note(cps, &note)
-    }).collect()
-}
 
 pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing) -> Vec<synth::SampleBuffer> {
     let dir = Direction::Constant;

@@ -118,10 +118,10 @@ fn fmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32
             1.0f32
         },
         timbre::Energy::Medium => {
-            0.001f32
+            1.005f32
         },
         timbre::Energy::High => {   
-            0.002f32
+            0.05f32
         }
     }
 }

@@ -129,13 +129,16 @@ fn contrib_to_bandpass(contrib:&Contrib) -> BandpassFilter {
 
 
 pub fn render_score(name:&str, score:Score) -> Result<String, core::fmt::Error> {
-    
+    use std::path::Path;
+    let path = Path::new(name);
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let filename = format!("{}/{}.wav", audio_dir, stem);
+    println!("Writing composition for file {}", filename);
     let lens:Vec::<f32> = (&score.parts).iter()
     .map(|(_, melody)| 
         melody[0].iter()
         .fold(0f32, |acc, note| acc + time::dur(score.conf.cps, &note.0)) 
     ).collect();
-    for l in &lens { println!("part has length {}", l )};
 
     let mut phr = Phrasing { 
         form: Timeframe {
@@ -171,7 +174,7 @@ pub fn render_score(name:&str, score:Score) -> Result<String, core::fmt::Error> 
         };
 
         for line in melody {
-            let mut line_buff:synth::SampleBuffer = engrave::color_line(score.conf.cps, &line, &BaseOsc::Sine, &sound, &mut phr)
+            let mut line_buff:synth::SampleBuffer = engrave::color_line(score.conf.cps, &line, &osc, &sound, &mut phr)
                 .into_iter()
                 .flatten()
                 .collect();
@@ -181,9 +184,10 @@ pub fn render_score(name:&str, score:Score) -> Result<String, core::fmt::Error> 
 
 
     files::with_dir(&audio_dir);
-    let filename = format!("{}/cli-composition.wav", audio_dir);
+    
     match render::pad_and_mix_buffers(pre_mix_buffs) {
         Ok(signal) => {
+
             render::samples_f32(44100, &signal, &filename);
             Ok(filename)
         },
