@@ -419,13 +419,6 @@ pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&m
         color_mod_note(cps, &note, &osc, &sound, dir, phr)
     }).collect()
 }
-
-pub fn render_score(score:Score) -> Result<(), core::fmt::Error> {
-    println!("Rendering score");
-    Ok(())
-}
-
-
 #[cfg(test)]
 mod test {
     use super::*;

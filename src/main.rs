@@ -35,6 +35,9 @@ pub mod synth;
 pub mod time;
 pub mod types;
 
+const audio_dir:&str = "renditions/early";
+
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -51,10 +54,15 @@ fn process_file(filepath: &str) {
     println!("Processing file: {}", filepath);
     match arg_parse::load_score_from_file(&filepath) {
         Ok(score) => {
-            for (contrib, melody) in &score.parts {
-                let filter:BandpassFilter = contrib_to_bandpass(&contrib);
-                let osc:BaseOsc = contrib_to_osc(&contrib);
-                println!("Generated filter {:?} and osc {:?} ", filter, osc)
+            let parts: Vec<&str> = filepath.split(".").collect();
+            let name = parts[0];
+            match render_score(name, score) {
+                Ok(filepath) => {
+                    println!("Completed writing audio to {}", filepath)
+                },
+                Err(msg) => {
+                    eprint!("Problem while writing {}", msg)
+                }
             }
         },
         Err(msg) => {
@@ -116,4 +124,71 @@ fn contrib_to_bandpass(contrib:&Contrib) -> BandpassFilter {
         }
     };
     (FilterMode::Linear, FilterPoint::Constant, min_max)
+}
+
+
+
+pub fn render_score(name:&str, score:Score) -> Result<String, core::fmt::Error> {
+    
+    let lens:Vec::<f32> = (&score.parts).iter()
+    .map(|(_, melody)| 
+        melody[0].iter()
+        .fold(0f32, |acc, note| acc + time::dur(score.conf.cps, &note.0)) 
+    ).collect();
+    for l in &lens { println!("part has length {}", l )};
+
+    let mut phr = Phrasing { 
+        form: Timeframe {
+            cycles: lens[0],
+            p: 0f32,
+            instance: 0
+        },
+        arc: Timeframe {
+            cycles: lens[0],
+            p: 0f32,
+            instance: 0
+        },
+        line: Timeframe {
+            cycles: lens[0],
+            p: 0f32,
+            instance: 0
+        },
+        note: Timeframe {
+            cycles: -1.0,
+            p: 0f32,
+            instance: 0
+        }
+    };
+
+    let mut pre_mix_buffs:Vec<synth::SampleBuffer> = Vec::new();
+    for (contrib, melody) in &score.parts {
+        let osc:BaseOsc = contrib_to_osc(&contrib);
+        let sound = Sound {
+            bandpass: contrib_to_bandpass(&contrib),
+            energy: contrib.energy,
+            presence : contrib.presence,
+            pan: 0f32,
+        };
+
+        for line in melody {
+            let mut line_buff:synth::SampleBuffer = engrave::color_line(score.conf.cps, &line, &BaseOsc::Sine, &sound, &mut phr)
+                .into_iter()
+                .flatten()
+                .collect();
+            pre_mix_buffs.push(line_buff)
+        }
+    }
+
+
+    files::with_dir(&audio_dir);
+    let filename = format!("{}/cli-composition.wav", audio_dir);
+    match render::pad_and_mix_buffers(pre_mix_buffs) {
+        Ok(signal) => {
+            render::samples_f32(44100, &signal, &filename);
+            Ok(filename)
+        },
+        Err(msg) => {
+            panic!("Failed to mix and render audio: {}", msg)
+        }
+    }
 }

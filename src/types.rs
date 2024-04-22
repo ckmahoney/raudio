@@ -153,6 +153,8 @@ pub mod timbre {
         pub register: u32,
         pub role: Role,
         pub visibility: Visibility,
+        pub energy: Energy,
+        pub presence: Presence
     }
 
     #[derive(Debug, Serialize)]

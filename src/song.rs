@@ -110,6 +110,9 @@ pub mod x_files {
                 register: 5,
                 mode: Mode::Melodic,
                 visibility: Visibility::Foreground,
+                energy:Energy::High,
+                presence:Presence::Tenuto,
+
             },
             vec![PIANO_LINE.to_vec()]
         );
@@ -120,6 +123,8 @@ pub mod x_files {
                 register: 8,
                 mode: Mode::Melodic,
                 visibility: Visibility::Visible,
+                energy: Energy::High,
+                presence: Presence::Legato
             },
             vec![FLUTE_LINE.to_vec()]
         );
@@ -207,6 +212,8 @@ pub mod happy_birthday {
                 register: 8,
                 mode: Mode::Melodic,
                 visibility: Visibility::Visible,
+                energy: Energy::High,
+                presence: Presence::Tenuto
             },
             lead
         );
