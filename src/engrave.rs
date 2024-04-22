@@ -323,31 +323,6 @@ fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
     (time::dur(cps,ratio), tone_to_freq(tone), *ampl)
 }
 
-fn color_note(cps:f32, note:&Note, osc:&BaseOsc) -> SampleBuffer {
-    let (duration, (_, (_,_, monic)), amp) = note;
-    let d = time::dur(cps, duration);
-    let adur:f32 = 0.002;
-    let breath = envelope::db_env_n(time::samples_of_cycles(cps, adur), -60f32, 0f32);
-    let envelope = envelope::gen_env(cps, note, breath.len());
-
-    let mut buf = match osc {
-        BaseOsc::Sine => {
-            ugen_sine(cps, 1f32, note)
-        },
-        BaseOsc::Triangle => {
-            ugen_triangle(cps, 0.5f32, note)
-        },
-        BaseOsc::Square => {
-            ugen_square(cps, 1f32, note)
-        },
-        BaseOsc::Sawtooth => {
-            ugen_sawtooth(cps, 1f32, note)
-        }
-    };
-    envelope::mix_envelope(&breath, &mut buf, 0);
-    envelope::mix_envelope(&envelope, &mut buf, breath.len());
-    buf
-}
 
 fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> SampleBuffer {
     let (duration, (_, (_,_, monic)), amp) = note;
@@ -367,6 +342,9 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
         },
         BaseOsc::Sawtooth => {
             mgen_sawtooth(cps, note, ext, sound, dir, phr)
+        },
+        _ => {
+            panic!("Need to implement the matcher for osc type {:?}", osc)
         }
     };
     buf
@@ -440,6 +418,11 @@ pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&m
     notes.iter().map(|&note| {
         color_mod_note(cps, &note, &osc, &sound, dir, phr)
     }).collect()
+}
+
+pub fn render_score(score:Score) -> Result<(), core::fmt::Error> {
+    println!("Rendering score");
+    Ok(())
 }
 
 

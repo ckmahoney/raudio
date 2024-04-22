@@ -1,12 +1,17 @@
+use serde::{Deserialize, Serialize, Deserializer};
+use serde::de::{self, Visitor};
+use std::fmt;
+ 
+use std::fs;
+use std::io;
+
+
 use crate::types::synthesis;
 use crate::types::synthesis::*;
 use crate::types::timbre;
 use crate::types::timbre::*;
 use crate::types::render::*;
 
-use serde::{Deserialize, Serialize, Deserializer};
-use serde::de::{self, Visitor};
-use std::fmt;
 
 
 impl<'de> Deserialize<'de> for timbre::BaseOsc {
@@ -284,65 +289,33 @@ impl<'de> Deserialize<'de> for timbre::Cube {
         deserializer.deserialize_str(CubeVisitor)
     }
 }
+pub fn load_score_from_file(filepath:&str) -> Result<Score, fmt::Error> {
+    match fs::read_to_string(&filepath) {
+        Ok(str) => {
+            let score:Score = serde_json::from_str(&str).expect("Bad parser");
+            Ok(score)
+        },
+        _ => Err(fmt::Error)
+    }
+}
+mod test_unit {
+    use super::*;
+    use crate::types::render::Score;
 
-// mod test_unit {
-//     use super::*;
-//     use std::fs;
-//     use std::io;
+    #[test]
+    fn test_parse_tin_pan_score() {
+        let score_path = "test-tin-pan-score.json";
 
-//     #[test]
-//     fn test_parse_template() {
-//         let motes:Vec<Mote> = vec![ (4.0, 220., 1.0), (2.0, 880., 0.5), (2.0, 440., 1.)];
-
-//         let sound = SCSound {
-//             osc_type: Some(BaseOsc::Sine),
-//             // filepath previously represented sample path
-//             filepath: Some(String::from("path/to/soundfile.wav")),
-//             min_freq: 440.0,
-//             max_freq: 880.0,
-//         };
-
-//         let part = TinPanContrib {
-//             sound,
-//             motes,
-//         };
-
-//         let conf = Conf {
-//             cps: 60.0,
-//             root: 440.0,
-//         };
-
-//         let expected = Template {
-//             conf,
-//             parts: vec![part],
-//         };
-
-//         match fs::read_to_string("test-score.json") {
-//             Ok(str) => {
-//                 let actual:Template = serde_json::from_str(&str).expect("Bad parser");
-//                 println!("parsed score: {:?}", actual);
-//             },
-//             Err(msg) => {
-//                 println!("Missing test score 'test-score.json'");
-//                 assert!(false);
-//             }
-//         };
-//     }
-
-//     #[test]
-//     fn test_parse_tin_pan_score() {
-//         let score_path = "test-tin-pan-score.json";
-
-//         match fs::read_to_string(&score_path) {
-//             Ok(str) => {
-//                 let actual:Template = serde_json::from_str(&str).expect("Bad parser");
-//                 println!("parsed score: {:?}", actual);
-//             },
-//             Err(msg) => {
-//                 println!("Missing test score 'test-score.json'");
-//                 assert!(false);
-//             }
-//         };
-//     }
-// }
+        match fs::read_to_string(&score_path) {
+            Ok(str) => {
+                let score:Score = serde_json::from_str(&str).expect("Bad parser");
+                assert!(true)
+            },
+            Err(msg) => {
+                println!("Missing test score 'test-score.json'");
+                assert!(false);
+            }
+        };
+    }
+}
 

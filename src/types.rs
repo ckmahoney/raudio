@@ -68,20 +68,18 @@ pub mod render {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
+    pub struct Score {
+        pub conf: Conf,
+        pub dimensions: Dimensions,
+        pub parts: Vec<ScoreEntry<synthesis::Note>>,
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
     pub struct Conf {
         pub cps: f32,
         pub root: f32,
         pub cube: timbre::Cube,
     }
-
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct Composition {
-        pub duration: f32,
-        pub dimensions: Dimensions,
-        pub parts: Vec<Part>,
-        // pub progression: Vec<Progression>
-    }
-
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Template {
         conf: Conf,
@@ -108,12 +106,15 @@ pub mod timbre {
         Logarithmic,
     }
 
-    #[derive(Debug, Serialize)] // requires custom serde Deserialize
+    #[derive(Debug, Serialize, Clone)] // requires custom serde Deserialize
     pub enum BaseOsc {
         Sine,
         Square,
         Sawtooth,
-        Triangle
+        Triangle,
+        Poly,
+        Bell,
+        Noise
     }
 
     pub type BandpassFilter =  (FilterMode, synthesis::FilterPoint, synthesis::Bandpass);
@@ -149,7 +150,7 @@ pub mod timbre {
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Contrib {
         pub mode: Mode,
-        pub register: i32,
+        pub register: u32,
         pub role: Role,
         pub visibility: Visibility,
     }

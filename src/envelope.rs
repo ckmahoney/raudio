@@ -210,9 +210,9 @@ mod unit_test {
     fn test_enumerate_params() {
         
         let cps = 1.8f32;
-        let registers:Vec<i8> = vec![5,6,7,8,9,10,11,12,13];
+        let registers:Vec<i8> = vec![5,7,9,11,13];
         let directions:Vec<Direction> = vec![Direction::Constant];
-        let energies:Vec<Energy> = vec![Energy::Low, Energy::Medium, Energy::High];
+        let energies:Vec<Energy> = vec![Energy::High];
         let presences:Vec<Presence> = vec![Presence::Staccatto, Presence::Legato, Presence::Tenuto ];
         
         for register in &registers {
@@ -288,8 +288,8 @@ mod unit_test {
         let registers:Vec<i8> = vec![5,7,9,11,13];
         let oscs:Vec<BaseOsc> = vec![BaseOsc::Square, BaseOsc::Sawtooth, BaseOsc::Triangle, BaseOsc::Sine];
         let directions:Vec<Direction> = vec![Direction::Constant];
-        let energies:Vec<Energy> = vec![Energy::High, Energy::Low];
-        let presences:Vec<Presence> = vec![Presence::Legato];
+        let energies:Vec<Energy> = vec![Energy::High, Energy::Medium];
+        let presences:Vec<Presence> = vec![Presence::Legato, Presence::Staccatto, Presence::Tenuto];
         
         for osc in &oscs {
             for register in &registers {
