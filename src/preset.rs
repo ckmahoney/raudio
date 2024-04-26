@@ -108,10 +108,10 @@ pub mod pluck {
     pub fn amod_one_over_x(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
         let dur_scale_factor = match &snd.presence {
             timbre::Presence::Staccatto => {
-                0.11f32
+                0.33f32
             },
             timbre::Presence::Legato => {
-                0.33f32
+                0.5
             },
             timbre::Presence::Tenuto => {
                 0.6632
@@ -120,17 +120,15 @@ pub mod pluck {
         //@art-choice currently applied as global min/max values; can scale with cps
         let min_max_dur_seconds = match snd.presence {
             timbre::Presence::Staccatto => {
-                (0.035f32, 1f32)
+                (0.06f32, 3f32)
             },
             timbre::Presence::Legato => {
-                (0.06f32, 3f32)
+                (0.08f32, 3f32)
             },
             timbre::Presence::Tenuto => {
                 (0.09f32, 5f32)
             }
         };
-        let dur_scale_factor:f32 = 1f32;
-        let min_max_dur_seconds = (0.5f32, 2f32);
 
         let dur_seconds = (ctx.dur_seconds * dur_scale_factor)
             .min(min_max_dur_seconds.1)
@@ -220,7 +218,7 @@ pub mod pluck {
         //@art-choice currently applied as global min/max values; can scale with cps
         let min_max_dur_seconds = match snd.presence {
             timbre::Presence::Staccatto => {
-                (0.05f32, 1f32)
+                (0.06f32, 1f32)
             },
             timbre::Presence::Legato => {
                 (0.08f32, 3f32)

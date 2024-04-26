@@ -188,9 +188,10 @@ mod unit_test {
         let register= 7i8;
         let direction = Direction::Constant;
         let energy = Energy::Medium;
-        // let energy = Energy::Low;
+        let energy = Energy::Low;
+        let presence = Presence::Staccatto;
         // let presence = Presence::Legato;
-        let presence = Presence::Tenuto;
+        // let presence = Presence::Tenuto;
         let name = "pluck";
 
         let line:Vec<Note> = test_unders(register);
@@ -237,7 +238,7 @@ mod unit_test {
         ).collect();    
 
         files::with_dir(&dev_dir);
-        let filename = format!("{}/test-tanh-preset-{}-register-{}-direction-{:?}-energy-{:?}-presence-{:?}", dev_dir, name, register, direction, energy, presence);
+        let filename = format!("{}/test-oox-preset-{}-register-{}-direction-{:?}-energy-{:?}-presence-{:?}", dev_dir, name, register, direction, energy, presence);
         match render::pad_and_mix_buffers(mixers) {
             Ok(signal) => {
                 render::samples_f32(44100, &signal, &filename);
