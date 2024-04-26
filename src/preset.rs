@@ -81,6 +81,235 @@ fn test_map_range_lin() {
     assert_eq!(expected, actual, "Expected to find {} but actually got {}", expected, actual);
 }
 
+pub mod none {
+    use super::*;
+
+    pub fn fmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
+        1f32
+    }
+
+    pub fn amod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
+        1f32
+    }
+
+    pub fn pmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
+        0f32
+    }
+}
+
+pub mod pluck {
+    use super::*;
+
+    /// Copy fmod and pmod from basic synth
+    pub use plain::fmod;
+    pub use plain::pmod;
+
+    /// Use a 1/x global decay modulator
+    pub fn amod_one_over_x(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
+        let dur_scale_factor = match &snd.presence {
+            timbre::Presence::Staccatto => {
+                0.11f32
+            },
+            timbre::Presence::Legato => {
+                0.33f32
+            },
+            timbre::Presence::Tenuto => {
+                0.6632
+            }
+        };
+        //@art-choice currently applied as global min/max values; can scale with cps
+        let min_max_dur_seconds = match snd.presence {
+            timbre::Presence::Staccatto => {
+                (0.035f32, 1f32)
+            },
+            timbre::Presence::Legato => {
+                (0.06f32, 3f32)
+            },
+            timbre::Presence::Tenuto => {
+                (0.09f32, 5f32)
+            }
+        };
+        let dur_scale_factor:f32 = 1f32;
+        let min_max_dur_seconds = (0.5f32, 2f32);
+
+        let dur_seconds = (ctx.dur_seconds * dur_scale_factor)
+            .min(min_max_dur_seconds.1)
+            .max(min_max_dur_seconds.0);
+
+        let final_sample = time::samples_from_dur(xyz.cps, dur_seconds);
+        if xyz.i > final_sample {
+            return 0f32
+        }
+
+        // @art-choice this model leaves headroom between each level 
+        let min_max_db = match &snd.energy {
+            timbre::Energy::Low => {
+                (-30f32, -20f32)
+            },
+            timbre::Energy::Medium => {
+                (-20f32, -10f32)
+            },
+            timbre::Energy::High => {   
+                (-5f32, -0f32)
+            }
+        };
+
+        let fs = final_sample as f32;
+        let ii = xyz.i as f32;
+        let p = 1f32 - (fs - ii)/fs;
+        let amp_t:f32 = if xyz.i == 0 { 1f32 } else {
+            let x = p + 1f32;
+            let coeff = 2f32/3f32;
+            coeff/(0.5f32 * x * x) - (1f32 - coeff)
+        }.min(1f32);
+
+        // @art-choice amplitude scaling based on the monic
+        // @art-curr uses exponentially decaying amplitude  
+        let amp_k:f32 = match &snd.energy {
+            timbre::Energy::Low => {
+                let k = xyz.k as f32;
+                if xyz.k > 7 { 
+                    let mul = 1.0;
+                    mul * 1f32/(k *k) - (2f32*k)
+                } else {
+                    let mul = 1.0;
+                    mul/k
+                }
+            },
+            timbre::Energy::Medium => {
+                let k = xyz.k as f32;
+                if xyz.k > 15 { 
+                    let mul = 1.0;
+                    mul * 1f32/(k *k) - (2f32*k)
+                } else {
+                    let mul:f32  = 1.0;
+                    mul/k
+                }
+            },
+            timbre::Energy::High => {   
+                let k = xyz.k as f32;
+                if xyz.k > 23 { 
+                    let mul = 1.0;
+                    mul * 1f32/(k *k) - (2f32*k)
+                } else {
+                    let mul:f32  = 1.0f32;
+                    1.0
+                }
+            }
+        };
+        let dDecibel = (min_max_db.1 - min_max_db.0)/final_sample as f32;
+        let decibel = min_max_db.0 + dDecibel * xyz.i as f32;
+        // println!("p {}, decible {},  db_to_amp {:?} amp_t {}", p, decibel, db_to_amp(decibel), amp_t);
+        amp_t 
+    }
+
+
+    /// Use a 1/x global decay modulator
+    pub fn amod_tanh(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
+        let dur_scale_factor = match &snd.presence {
+            timbre::Presence::Staccatto => {
+                0.33f32
+            },
+            timbre::Presence::Legato => {
+                0.5f32
+            },
+            timbre::Presence::Tenuto => {
+                0.6632
+            }
+        };
+        //@art-choice currently applied as global min/max values; can scale with cps
+        let min_max_dur_seconds = match snd.presence {
+            timbre::Presence::Staccatto => {
+                (0.05f32, 1f32)
+            },
+            timbre::Presence::Legato => {
+                (0.08f32, 3f32)
+            },
+            timbre::Presence::Tenuto => {
+                (0.09f32, 5f32)
+            }
+        };
+        // let dur_scale_factor:f32 = 1f32;
+        // let min_max_dur_seconds = (0.5f32, 2f32);
+
+        let dur_seconds = (ctx.dur_seconds * dur_scale_factor)
+            .min(min_max_dur_seconds.1)
+            .max(min_max_dur_seconds.0);
+
+        let final_sample = time::samples_from_dur(xyz.cps, dur_seconds);
+        if xyz.i > final_sample {
+            return 0f32
+        }
+
+        // @art-choice this model leaves headroom between each level 
+        let min_max_db = match &snd.energy {
+            timbre::Energy::Low => {
+                (-30f32, -20f32)
+            },
+            timbre::Energy::Medium => {
+                (-20f32, -10f32)
+            },
+            timbre::Energy::High => {   
+                (-5f32, -0f32)
+            }
+        };
+
+        let fs = final_sample as f32;
+        let ii = xyz.i as f32;
+        let p = 1f32 - (fs - ii)/fs;
+
+        let amp_t:f32 = if xyz.i == 0 { 1f32 } else {
+            let x = p;
+            let constant = -0.5f32;
+            let coeff = 0.5f32;
+            let fx = pi2 * x - 3f32;
+
+
+
+            let coeff = 2f32/3f32;
+            coeff * fx.tanh() + constant
+        }.min(1f32);
+
+        // @art-choice amplitude scaling based on the monic
+        // @art-curr uses exponentially decaying amplitude  
+        let amp_k:f32 = match &snd.energy {
+            timbre::Energy::Low => {
+                let k = xyz.k as f32;
+                if xyz.k < 7 { 
+                    let mul = 1.0;
+                    mul * 1f32/(k *k) - (2f32*k)
+                } else {
+                    let mul:f32  = 1f32 - (p * p* xyz.k.min(100usize) as f32);
+                    mul/k
+                }
+            },
+            timbre::Energy::Medium => {
+                let k = xyz.k as f32;
+                if xyz.k < 15 { 
+                    let mul = 1.0;
+                    mul * 1f32/(k *k) - (2f32*k)
+                } else {
+                    let mul:f32  = 1f32 - (p * xyz.k.min(100usize) as f32);
+                    mul/k
+                }
+            },
+            timbre::Energy::High => {   
+                let k = xyz.k as f32;
+                if xyz.k < 23 { 
+                    let mul = 1.0;
+                    mul * 1f32/(k *k) - (2f32*k)
+                } else {
+                    let mul:f32  = 1.0;
+                    mul/k
+                }
+            }
+        };
+        let dDecibel = (min_max_db.1 - min_max_db.0)/final_sample as f32;
+        let decibel = min_max_db.0 + dDecibel * xyz.i as f32;
+        amp_t * amp_k
+    }
+}
+
 
 pub mod plain {
     use super::*;

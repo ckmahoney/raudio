@@ -183,6 +183,73 @@ mod unit_test {
     }
 
     #[test]
+    fn test_one() {
+        let cps = 1.8f32;
+        let register= 7i8;
+        let direction = Direction::Constant;
+        let energy = Energy::Medium;
+        // let energy = Energy::Low;
+        // let presence = Presence::Legato;
+        let presence = Presence::Tenuto;
+        let name = "pluck";
+
+        let line:Vec<Note> = test_unders(register);
+        let form_length = line.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
+
+        let mut phr = Phrasing { 
+            form: Timeframe {
+                cycles: form_length,
+                p: 0f32,
+                instance: 0
+            },
+            arc: Timeframe {
+                cycles: form_length,
+                p: 0f32,
+                instance: 0
+            },
+            line: Timeframe {
+                cycles: form_length,
+                p: 0f32,
+                instance: 0
+            },
+            note: Timeframe {
+                cycles: -1.0,
+                p: 0f32,
+                instance: 0
+            }
+        };
+
+        let sound = Sound {
+            bandpass: (FilterMode::Linear, FilterPoint::Constant, (1f32, 24000f32)),
+            energy: energy.clone(),
+            presence : presence.clone(),
+            pan: 0f32,
+        };
+
+        let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+        let dev_dir = "dev-audio/preset";
+
+        let notebufs = color_line(cps, &line, &BaseOsc::Sine, &sound, &mut phr);
+        buffs.push(notebufs);
+
+        let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
+            buff.into_iter().flatten().collect()
+        ).collect();    
+
+        files::with_dir(&dev_dir);
+        let filename = format!("{}/test-tanh-preset-{}-register-{}-direction-{:?}-energy-{:?}-presence-{:?}", dev_dir, name, register, direction, energy, presence);
+        match render::pad_and_mix_buffers(mixers) {
+            Ok(signal) => {
+                render::samples_f32(44100, &signal, &filename);
+            },
+            Err(err) => {
+                println!("Problem rendering file {}. Message: {}", filename, err)
+            }
+        }
+        
+    }
+
+    #[test]
     fn test_enumerate_params() {
         
         let cps = 1.8f32;

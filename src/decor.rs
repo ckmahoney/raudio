@@ -10,9 +10,9 @@ use rand::Rng;
 pub fn gen(cps:f32, note:&Note)-> preset::Modulators {
     let (dur, tone, ampl) = note;
     preset::Modulators {
-        amp:preset::plain::amod,
+        amp:preset::pluck::amod_tanh,
         freq:preset::plain::fmod,
-        phase:preset::plain::pmod,
+        phase:preset::none::pmod,
     }
 }
 
