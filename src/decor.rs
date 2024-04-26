@@ -99,31 +99,23 @@ fn fmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32
     let final_sample = time::samples_from_dur(xyz.cps, dur_seconds);
     if xyz.i > final_sample {
         return 1.0f32
-    }
+    } else {
+        return    1f32;
+    };
 
-    let glide_mix = (final_sample - xyz.i) as f32 / final_sample as f32;
-    let glide_rate_cycles = xyz.cps / 0.25;
-    let j = time::samples_from_dur(xyz.cps, 0.5) as f32;
-    let p = (xyz.i as f32%j)/j;
-    let x = glide_rate_cycles * p;
+    // let glide_mix = (final_sample - xyz.i) as f32 / final_sample as f32;
+    // let glide_rate_cycles = xyz.cps / 0.25;
+    // let j = time::samples_from_dur(xyz.cps, 0.5) as f32;
+    // let p = (xyz.i as f32%j)/j;
+    // let x = glide_rate_cycles * p;
 
-    let min_factor = 2f32.powf(-0.66f32/12f32);
-    let max_factor = 2f32.powf(0.33f32/12f32);
+    // let min_factor = glide_mix * 2f32.powf(-0.66f32/12f32);
+    // let max_factor = glide_mix * 2f32.powf(0.33f32/12f32);
 
-    let min_f = -1f32;
-    let max_f = 1f32;
-    let mul_glide:f32 = map_range_lin(min_f, max_f, min_factor, max_factor, x.sin());
-    mul_glide * match &snd.energy {
-        timbre::Energy::Low => {
-            1.0f32
-        },
-        timbre::Energy::Medium => {
-            1.005f32
-        },
-        timbre::Energy::High => {   
-            1.05f32
-        }
-    }
+    // let min_f = -1f32;
+    // let max_f = 1f32;
+    // let mul_glide:f32 = map_range_lin(min_f, max_f, min_factor, max_factor, x.sin());
+    // mul_glide;
 }
 
 /// Generate a monic amplitude modulation curve by Presence and Energy
