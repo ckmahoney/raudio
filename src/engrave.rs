@@ -3,8 +3,9 @@ use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, 
 use crate::types::render::*;
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 
-use crate::decor::{Modulators, Ctx, Coords};
+use crate::preset::{Modulators, Ctx, Coords};
 use crate::decor;
+use crate::preset;
 use crate::envelope;
 use crate::song;
 use crate::midi;
@@ -165,7 +166,7 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
     let dir:Direction = Direction::Constant;
 
     //@art-choice Create modulators in a diferent way
-    let m8s:decor::Modulators = decor::gen(cps, &note);
+    let m8s:preset::Modulators = decor::gen(cps, &note);
 
     phr.note.cycles = note.0.1  as f32 / note.0.0 as f32;        
     for k in (1..=ks).filter(|x| *x == 1usize ||  x % 2 == 0) {
@@ -202,7 +203,7 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
     let dir:Direction = Direction::Constant;
 
     //@art-choice Create modulators in a diferent way
-    let m8s:decor::Modulators = decor::gen(cps, &note);
+    let m8s:preset::Modulators = decor::gen(cps, &note);
 
     let c = 4f32/pi;
 
@@ -241,7 +242,7 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     let dir:Direction = Direction::Constant;
 
     //@art-choice Create modulators in a diferent way
-    let m8s:decor::Modulators = decor::gen(cps, &note);
+    let m8s:preset::Modulators = decor::gen(cps, &note);
 
     let c = 8f32/(pi *pi);
     
@@ -282,7 +283,7 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     let dir:Direction = Direction::Constant;
 
     //@art-choice Create modulators in a diferent way
-    let m8s:decor::Modulators = decor::gen(cps, &note);
+    let m8s:preset::Modulators = decor::gen(cps, &note);
 
 
     let c = 2f32/pi;
