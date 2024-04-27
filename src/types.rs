@@ -164,6 +164,8 @@ pub mod timbre {
         Flutter,
     }
 
+    pub type Ampex = (AmpLifespan, AmpContour);
+
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Contrib {

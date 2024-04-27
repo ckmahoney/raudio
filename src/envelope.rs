@@ -159,6 +159,7 @@ mod unit_test {
     use crate::types::synthesis::{Duration, Note, Monae, Tone, Direction, FilterPoint};
     use crate::types::timbre::{Energy, Presence, Sound, FilterMode, BaseOsc, Timeframe, Phrasing};
     use crate::engrave::color_line;
+    use crate::preset;
     use crate::time;
     
     fn test_unders(register:i8) -> Vec<Note> {
@@ -230,7 +231,12 @@ mod unit_test {
         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
         let dev_dir = "dev-audio/preset";
 
-        let notebufs = color_line(cps, &line, &BaseOsc::Sine, &sound, &mut phr);
+        let mbs = preset::SomeModulators {
+            amp: None,
+            freq: None,
+            phase: None,
+        };
+        let notebufs = color_line(cps, &line, &BaseOsc::Sine, &sound, &mut phr, &mbs);
         buffs.push(notebufs);
 
         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
@@ -302,7 +308,12 @@ mod unit_test {
                         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
                         let dev_dir = "dev-audio/color-controls";
 
-                        let notebufs = color_line(cps, &line, &BaseOsc::Sine, &sound, &mut phr);
+                        let mbs = preset::SomeModulators {
+                            amp: None,
+                            freq: None,
+                            phase: None,
+                        };
+                        let notebufs = color_line(cps, &line, &BaseOsc::Sine, &sound, &mut phr, &mbs);
                         buffs.push(notebufs);
 
                         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
@@ -379,7 +390,12 @@ mod unit_test {
                             let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
                             let dev_dir = "dev-audio/osc-shell";
 
-                            let notebufs = color_line(cps, &line, &osc, &sound, &mut phr);
+                            let mbs = preset::SomeModulators {
+                                amp: None,
+                                freq: None,
+                                phase: None,
+                            };
+                            let notebufs = color_line(cps, &line, &osc, &sound, &mut phr, &mbs);
                             buffs.push(notebufs);
 
                             let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
@@ -455,7 +471,12 @@ mod unit_test {
                         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
                         let dev_dir = "dev-audio/bandpass";
 
-                        let notebufs = color_line(cps, &line, &BaseOsc::Sine, &sound, &mut phr);
+                        let mbs = preset::SomeModulators {
+                            amp: None,
+                            freq: None,
+                            phase: None,
+                        };
+                        let notebufs = color_line(cps, &line, &BaseOsc::Sine, &sound, &mut phr, &mbs);
                         buffs.push(notebufs);
 
                         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|

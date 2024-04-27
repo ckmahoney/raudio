@@ -1,10 +1,10 @@
 use crate::synth::SampleBuffer;
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::*;
-use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
+use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
 
 use crate::preset::{Modulators, Ctx, Coords};
-use crate::decor;
+use crate::{decor, AmpLifespan};
 use crate::preset;
 use crate::envelope;
 use crate::song;
@@ -155,7 +155,7 @@ fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:u
 }
 
 /// additive synthesizer taking monic modulators in the shape of a "rhodes sine"
-fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
@@ -165,8 +165,8 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
 
     let dir:Direction = Direction::Constant;
 
-    //@art-choice Create modulators in a diferent way
-    let m8s:preset::Modulators = decor::gen(cps, &note);
+    
+    let m8s:preset::Modulators = decor::gen_from(cps, &note, mbs);
 
     phr.note.cycles = note.0.1  as f32 / note.0.0 as f32;        
     for k in (1..=ks).filter(|x| *x == 1usize ||  x % 2 == 0) {
@@ -192,7 +192,7 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
     sig
 }
 
-fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
@@ -202,8 +202,7 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
 
     let dir:Direction = Direction::Constant;
 
-    //@art-choice Create modulators in a diferent way
-    let m8s:preset::Modulators = decor::gen(cps, &note);
+    let m8s:preset::Modulators = decor::gen_from(cps, &note, mbs);
 
     let c = 4f32/pi;
 
@@ -231,7 +230,7 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
     sig
 }
 
-fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
@@ -241,8 +240,7 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
 
     let dir:Direction = Direction::Constant;
 
-    //@art-choice Create modulators in a diferent way
-    let m8s:preset::Modulators = decor::gen(cps, &note);
+    let m8s:preset::Modulators = decor::gen_from(cps, &note, mbs);
 
     let c = 8f32/(pi *pi);
     
@@ -272,7 +270,7 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     sig
 }
 
-fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> synth::SampleBuffer {
+fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
@@ -282,8 +280,7 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
 
     let dir:Direction = Direction::Constant;
 
-    //@art-choice Create modulators in a diferent way
-    let m8s:preset::Modulators = decor::gen(cps, &note);
+    let m8s:preset::Modulators = decor::gen_from(cps, &note, mbs);
 
 
     let c = 2f32/pi;
@@ -325,7 +322,7 @@ fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
 }
 
 
-fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction, phr:&mut Phrasing) -> SampleBuffer {
+fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> SampleBuffer {
     let (duration, (_, (_,_, monic)), amp) = note;
     let d = time::dur(cps, duration);
     let adur:f32 = 0.002;
@@ -333,16 +330,16 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
 
     let mut buf = match osc {
         BaseOsc::Sine => {
-            mgen_sine(cps, note, ext, sound, dir, phr)
+            mgen_sine(cps, note, ext, sound, dir, phr, mbs)
         },
         BaseOsc::Triangle => {
-            mgen_triangle(cps, note, ext, sound, dir, phr)
+            mgen_triangle(cps, note, ext, sound, dir, phr, mbs)
         },
         BaseOsc::Square => {
-            mgen_square(cps, note, ext, sound, dir, phr)
+            mgen_square(cps, note, ext, sound, dir, phr, mbs)
         },
         BaseOsc::Sawtooth => {
-            mgen_sawtooth(cps, note, ext, sound, dir, phr)
+            mgen_sawtooth(cps, note, ext, sound, dir, phr, mbs)
         },
         BaseOsc::Poly => {
             let (duration, (_, (_,_, monic)), amp) = note;
@@ -351,16 +348,16 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
 
             match monic {
                 1 => {
-                    mgen_sawtooth(cps, note, ext, sound, dir, phr)
+                    mgen_sawtooth(cps, note, ext, sound, dir, phr, mbs)
                 },
                 3 => {
-                    mgen_sawtooth(cps, note, ext, sound, dir, phr)
+                    mgen_sawtooth(cps, note, ext, sound, dir, phr, mbs)
                 },
                 5 => {
-                    mgen_sawtooth(cps, note, ext, sound, dir, phr)
+                    mgen_sawtooth(cps, note, ext, sound, dir, phr, mbs)
                 },
                 _ => {
-                    mgen_sine(cps, note, ext, sound, dir, phr)
+                    mgen_sine(cps, note, ext, sound, dir, phr, mbs)
                 }
             }
         },
@@ -402,12 +399,12 @@ pub fn process_note_parts(parts: Vec::<ScoreEntry<Note>>, cps: f32) -> Vec<Melod
 }
 
 
-pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing) -> Vec<synth::SampleBuffer> {
+pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> Vec<synth::SampleBuffer> {
     let dir = Direction::Constant;
     phr.line.cycles = notes.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32 / note.0.0 as f32 );
 
     notes.iter().map(|&note| {
-        color_mod_note(cps, &note, &osc, &sound, dir, phr)
+        color_mod_note(cps, &note, &osc, &sound, dir, phr, mbs)
     }).collect()
 }
 #[cfg(test)]
@@ -500,6 +497,11 @@ mod test {
                 instance: 0
             }
         };
+        let mbs = preset::SomeModulators {
+            amp: None,
+            freq: None,
+            phase: None,
+        };
         
         for (contrib, mels_notes) in track.parts {
             // iterate over the stack of lines
@@ -510,7 +512,7 @@ mod test {
                     presence : Presence::Legato,
                     pan: 0f32,
                 };
-                buffs.push(color_line(cps, &mel_notes, &BaseOsc::Sine, &sound, &mut phr));
+                buffs.push(color_line(cps, &mel_notes, &BaseOsc::Sine, &sound, &mut phr, &mbs));
             }
         }
 
@@ -538,6 +540,12 @@ mod test {
         let dir = Direction::Constant;
 
         let length = melody.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
+
+        let mbs = preset::SomeModulators {
+            amp: None,
+            freq: None,
+            phase: None,
+        };
 
         // this test has one noteevent
         // so use the same duration for all members
@@ -571,7 +579,7 @@ mod test {
             pan: 0f32,
         };
 
-        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, &sound, &mut phr);
+        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, &sound, &mut phr, &mbs);
         buffs.push(notebufs);
 
         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|

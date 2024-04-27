@@ -128,6 +128,24 @@ fn contrib_to_bandpass(contrib:&Contrib) -> BandpassFilter {
     (FilterMode::Linear, FilterPoint::Constant, min_max)
 }
 
+fn contrib_to_amod(contrib:&Contrib) -> preset::AmpMod {
+    let amod: preset::AmpMod = match &contrib.ampex {
+        (AmpLifespan::Pluck, AmpContour::Fade) => {
+            preset::pluck::amod_tanh
+        },
+        (AmpLifespan::Drone, AmpContour::Fade) => {
+            preset::drone::amod
+        },  
+        (a, AmpContour::Fade) => {
+            panic!("Uimplemented amex for {:#?}", a)
+        },
+        (a, b) => {
+            panic!("Completely unimplemented amex for {:#?} {:#?}", a, b)
+        }
+    };
+    amod
+}
+
 
 
 pub fn render_score(filename:&str, score:Score) -> Result<(), core::fmt::Error> {
@@ -170,9 +188,24 @@ pub fn render_score(filename:&str, score:Score) -> Result<(), core::fmt::Error> 
             presence : contrib.presence,
             pan: 0f32,
         };
-
+        //@art-choice Create modulators in a diferent way
+        let mbs:preset::SomeModulators = preset::SomeModulators {
+            amp: Some(match contrib.ampex.0 {
+                AmpLifespan::Drone => {
+                    preset::drone::amod
+                },
+                AmpLifespan::Pluck => {
+                    preset::pluck::amod_tanh
+                },
+                _ => {
+                    preset::none::amod
+                }   
+            }),
+            freq: None,
+            phase: None,
+        };
         for line in melody {
-            let mut line_buff:synth::SampleBuffer = engrave::color_line(score.conf.cps, &line, &osc, &sound, &mut phr)
+            let mut line_buff:synth::SampleBuffer = engrave::color_line(score.conf.cps, &line, &osc, &sound, &mut phr, &mbs)
                 .into_iter()
                 .flatten()
                 .collect();

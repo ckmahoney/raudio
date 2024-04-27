@@ -25,6 +25,12 @@ pub struct Modulators {
     pub phase: PhaseMod,
 }
 
+pub struct SomeModulators {
+    pub amp: Option<AmpMod>,
+    pub freq: Option<FreqMod>,
+    pub phase: Option<PhaseMod>,
+}
+
 pub struct Coords {
     pub cps: Freq,
     pub k: usize,
@@ -98,8 +104,8 @@ pub mod pluck {
     use super::*;
 
     /// Copy fmod and pmod from basic synth
-    pub use plain::fmod;
-    pub use plain::pmod;
+    pub use drone::fmod;
+    pub use drone::pmod;
 
     /// Use a 1/x global decay modulator
     pub fn amod_one_over_x(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) -> f32 {
@@ -306,7 +312,7 @@ pub mod pluck {
 }
 
 
-pub mod plain {
+pub mod drone {
     use super::*;
     /// @art-choice Frequency modualtor providing time, glide, and sweep effects parametrized by extension
     /// @art-curr Has a vibrato effect at the entry portion of the note. 

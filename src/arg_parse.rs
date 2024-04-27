@@ -199,6 +199,69 @@ impl<'de> Deserialize<'de> for timbre::Role {
     }
 }
 
+impl<'de> Deserialize<'de> for AmpLifespan {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct AmpLifespanVisitor;
+
+        impl<'de> Visitor<'de> for AmpLifespanVisitor {
+            type Value = AmpLifespan;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("`snap`, `pluck`, `bloom`, `pad`, or `drone`")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<AmpLifespan, E>
+            where
+                E: de::Error,
+            {
+                match value.to_lowercase().as_str() {
+                    "snap" => Ok(AmpLifespan::Snap),
+                    "pluck" => Ok(AmpLifespan::Pluck),
+                    "bloom" => Ok(AmpLifespan::Bloom),
+                    "pad" => Ok(AmpLifespan::Pad),
+                    "drone" => Ok(AmpLifespan::Drone),
+                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `snap`, `pluck`, `bloom`, `pad`, or `drone`", value))),
+                }
+            }
+        }
+        deserializer.deserialize_str(AmpLifespanVisitor)
+    }
+}
+
+impl<'de> Deserialize<'de> for AmpContour {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct AmpContourVisitor;
+
+        impl<'de> Visitor<'de> for AmpContourVisitor {
+            type Value = AmpContour;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("`fade`, `throb`, `surge`, `chops`, or `flutter`")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<AmpContour, E>
+            where
+                E: de::Error,
+            {
+                match value.to_lowercase().as_str() {
+                    "fade" => Ok(AmpContour::Fade),
+                    "throb" => Ok(AmpContour::Throb),
+                    "surge" => Ok(AmpContour::Surge),
+                    "chops" => Ok(AmpContour::Chops),
+                    "flutter" => Ok(AmpContour::Flutter),
+                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `fade`, `throb`, `surge`, `chops`, or `flutter`", value))),
+                }
+            }
+        }
+        deserializer.deserialize_str(AmpContourVisitor)
+    }
+}
 
 impl<'de> Deserialize<'de> for timbre::Energy {
     fn deserialize<D>(deserializer: D) -> Result<Energy, D::Error>
