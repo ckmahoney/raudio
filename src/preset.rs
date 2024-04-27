@@ -43,6 +43,20 @@ pub type AmpMod = Modulator<Range>;
 pub type PhaseMod = Modulator<Radian>;
 pub type FreqMod = Modulator<Freq>;
 
+fn default_db(energy:&Energy) -> (f32, f32) {
+    match energy {
+        timbre::Energy::Low => {
+            (-9f32, -6f32)
+        },
+        timbre::Energy::Medium => {
+            (-6f32, -3f32)
+        },
+        timbre::Energy::High => {   
+            (-3f32, -0f32)
+        }
+    }
+}
+
 
 /// for function f(x) with range in [a, b]
 /// returns g(x) for a given value y representing f(x).
@@ -143,17 +157,7 @@ pub mod pluck {
         }
 
         // @art-choice this model leaves headroom between each level 
-        let min_max_db = match &snd.energy {
-            timbre::Energy::Low => {
-                (-30f32, -20f32)
-            },
-            timbre::Energy::Medium => {
-                (-20f32, -10f32)
-            },
-            timbre::Energy::High => {   
-                (-5f32, -0f32)
-            }
-        };
+        let min_max_db = default_db(&snd.energy);
 
         let fs = final_sample as f32;
         let ii = xyz.i as f32;
@@ -243,17 +247,7 @@ pub mod pluck {
         }
 
         // @art-choice this model leaves headroom between each level 
-        let min_max_db = match &snd.energy {
-            timbre::Energy::Low => {
-                (-30f32, -20f32)
-            },
-            timbre::Energy::Medium => {
-                (-20f32, -10f32)
-            },
-            timbre::Energy::High => {   
-                (-5f32, -0f32)
-            }
-        };
+        let min_max_db = default_db(&snd.energy);
 
         let fs = final_sample as f32;
         let ii = xyz.i as f32;
@@ -394,17 +388,7 @@ pub mod drone {
         }
 
         // @art-choice this model leaves headroom between each level 
-        let min_max_db = match &snd.energy {
-            timbre::Energy::Low => {
-                (-50f32, -40f32)
-            },
-            timbre::Energy::Medium => {
-                (-40f32, -30f32)
-            },
-            timbre::Energy::High => {   
-                (-20f32, -10f32)
-            }
-        };
+        let min_max_db = default_db(&snd.energy);
 
         // @art-choice amplitude scaling based on the monic
         // @art-curr uses linearly fading monics with gain when under threshold, else exponentially fading 
