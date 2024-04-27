@@ -42,24 +42,25 @@ const audio_dir:&str = "renditions/early";
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() < 2 {
-        eprintln!("Usage: {} <file_path>", args[0]);
+    if args.len() < 3 {
+        eprintln!(r#"Usage: raudio "/abs/to/playbook.json" "/abs/to/audio.wav""#);
         process::exit(1);
     }
 
     let file_path = &args[1];
-    process_file(file_path);
+    let out_path = &args[2];
+    render_playbook(out_path, file_path);
 }
 
-fn process_file(filepath: &str) {
-    println!("Processing file: {}", filepath);
-    match arg_parse::load_score_from_file(&filepath) {
+fn render_playbook(out_path: &str, playbook_path: &str) {
+    use std::path::Path;
+    use std::fs;
+
+    match arg_parse::load_score_from_file(&playbook_path) {
         Ok(score) => {
-            let parts: Vec<&str> = filepath.split(".").collect();
-            let name = parts[0];
-            match render_score(name, score) {
-                Ok(filepath) => {
-                    println!("Completed writing audio to {}", filepath)
+            match render_score(out_path, score) {
+                Ok(_) => {
+                    println!("{}", out_path)
                 },
                 Err(msg) => {
                     eprint!("Problem while writing {}", msg)
@@ -109,11 +110,11 @@ fn contrib_to_bandpass(contrib:&Contrib) -> BandpassFilter {
     let min_max = match contrib.visibility {
         Visibility::Hidden => {
             // strict bandfiltering 
-            (2f32.powi(contrib.register as i32), 2f32.powi((contrib.register + 1u32) as i32))
+            (2f32.powi(contrib.register as i32), 2f32.powi((contrib.register + 2u32) as i32))
         },
         Visibility::Background => {
             // loose bandfiltering 
-            (2f32.powi(contrib.register as i32 - 1i32), 2f32.powi((contrib.register + 2u32) as i32))
+            (2f32.powi(contrib.register as i32 - 1i32), 2f32.powi((contrib.register + 3u32) as i32))
         },
         Visibility::Foreground => {
             // some bandfiltering 
@@ -129,12 +130,8 @@ fn contrib_to_bandpass(contrib:&Contrib) -> BandpassFilter {
 
 
 
-pub fn render_score(name:&str, score:Score) -> Result<String, core::fmt::Error> {
-    use std::path::Path;
-    let path = Path::new(name);
-    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
-    let filename = format!("{}/{}.wav", audio_dir, stem);
-    println!("Writing composition for file {}", filename);
+pub fn render_score(filename:&str, score:Score) -> Result<(), core::fmt::Error> {
+    files::with_dir(filename);
     let lens:Vec::<f32> = (&score.parts).iter()
     .map(|(_, melody)| 
         melody[0].iter()
@@ -183,14 +180,10 @@ pub fn render_score(name:&str, score:Score) -> Result<String, core::fmt::Error> 
         }
     }
 
-
-    files::with_dir(&audio_dir);
-    
     match render::pad_and_mix_buffers(pre_mix_buffs) {
         Ok(signal) => {
-
             render::samples_f32(44100, &signal, &filename);
-            Ok(filename)
+            Ok(())
         },
         Err(msg) => {
             panic!("Failed to mix and render audio: {}", msg)

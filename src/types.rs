@@ -146,6 +146,24 @@ pub mod timbre {
         pub note: Timeframe
     }
 
+    #[derive(Debug, Serialize)]
+    pub enum AmpLifespan {
+        Snap,
+        Pluck,
+        Bloom,
+        Pad,
+        Drone,
+    }
+    
+    #[derive(Debug, Serialize)]
+    pub enum AmpContour {
+        Fade,
+        Throb,
+        Surge,
+        Chops,
+        Flutter,
+    }
+
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Contrib {
@@ -154,7 +172,8 @@ pub mod timbre {
         pub role: Role,
         pub visibility: Visibility,
         pub energy: Energy,
-        pub presence: Presence
+        pub presence: Presence,
+        pub ampex: (AmpLifespan, AmpContour),
     }
 
     #[derive(Debug, Serialize)]

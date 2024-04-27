@@ -13,14 +13,11 @@ use crate::types::timbre::{Sound, Energy, Presence, Phrasing};
 static pi:f32 = std::f32::consts::PI;
 static pi2:f32 = pi*2f32;
 
-
 pub struct Ctx {
     pub dur_seconds: f32,
     pub root: f32,
     pub extension: usize
 }
-
-
 
 pub struct Modulators {
     pub amp: AmpMod,

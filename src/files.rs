@@ -8,16 +8,17 @@ pub fn exists(file_name:&str) -> Option<&str> {
     return Some(file_name)
 }
 
-pub fn ensure_directory_exists(dir: &str) {
-    let path = Path::new(dir);
-    if !path.exists() {
-        fs::create_dir_all(path).expect("Failed to create directory");
-    }
-}
+pub fn with_dir(path: &str) {
+    let path = Path::new(path);
 
-pub fn with_dir(dir: &str) {
-    let path = Path::new(dir);
-    if !path.exists() {
-        fs::create_dir_all(path).expect("Failed to create directory");
+    // Check if the path's final component is likely a file (by checking for an extension)
+    let dir = if path.extension().is_some() {
+        path.parent().unwrap_or_else(|| Path::new("/"))
+    } else {
+        path
+    };
+
+    if !dir.exists() {
+        fs::create_dir_all(dir).expect("Failed to create directory");
     }
 }
