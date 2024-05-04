@@ -154,6 +154,7 @@ fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:u
     }
 }
 
+#[inline]
 /// additive synthesizer taking monic modulators in the shape of a "rhodes sine"
 fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
@@ -192,6 +193,7 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
     sig
 }
 
+#[inline]
 fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
@@ -230,6 +232,7 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
     sig
 }
 
+#[inline]
 fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
@@ -270,6 +273,7 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     sig
 }
 
+#[inline]
 fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
@@ -299,9 +303,47 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
             if !bandpass_filter(&sound.bandpass, phr, f, j, k) {
                 continue
             } else {
-                let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
+                let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr) / k as f32;
                 let phase = f * sign * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
-                sig[j] += c * amp * phase.sin() / k as f32;
+                sig[j] += c * amp * phase.sin();
+            }
+        }
+    }
+    normalize(&mut sig);
+    sig
+}
+
+
+#[inline]
+fn mgen_all(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
+    let frequency = tone_to_freq(&note.1);
+    let ampl = &note.2;
+    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    
+    let mut sig:Vec<f32> = vec![0.0; n_samples];
+
+    let dir:Direction = Direction::Constant;
+
+    let m8s:preset::Modulators = decor::gen_from(cps, &note, mbs);
+
+
+    for k in 1..=ks {
+        for j in 0..n_samples {
+            phr.note.p = j as f32 / n_samples as f32;
+            let coords = Coords { cps, k, i: j};
+            let ctx = Ctx { 
+                root:frequency, 
+                dur_seconds: time::dur(coords.cps, &note.0), 
+                extension: ext 
+            };
+            let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
+            if !bandpass_filter(&sound.bandpass, phr, f, j, k) {
+                continue
+            } else {
+                let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                sig[j] += amp * phase.sin();
             }
         }
     }
@@ -322,6 +364,7 @@ fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
 }
 
 
+#[inline]
 fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> SampleBuffer {
     let (duration, (_, (_,_, monic)), amp) = note;
     let d = time::dur(cps, duration);
@@ -361,12 +404,17 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
                 }
             }
         },
-        _ => {
+        BaseOsc::All => {
+            mgen_all(cps, note, ext, sound, dir, phr, mbs)
+
+        },
+            _ => {
             panic!("Need to implement the matcher for osc type {:?}", osc)
         }
     };
     buf
 }
+
 
 
 /// Given a list of score part, create a list of motes. 
@@ -398,6 +446,14 @@ pub fn process_note_parts(parts: Vec::<ScoreEntry<Note>>, cps: f32) -> Vec<Melod
     ).collect()
 }
 
+pub fn render_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing, preset: &preset::SomeModulators) -> Vec<synth::SampleBuffer> {
+    let dir = Direction::Constant;
+    phr.line.cycles = notes.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32 / note.0.0 as f32 );
+
+    notes.iter().map(|&note| {
+        color_mod_note(cps, &note, &osc, &sound, dir, phr, preset)
+    }).collect()
+}
 
 pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> Vec<synth::SampleBuffer> {
     let dir = Direction::Constant;
@@ -524,6 +580,75 @@ mod test {
         match render::pad_and_mix_buffers(mixers) {
             Ok(signal) => {
                 render::samples_f32(44100, &signal, "dev-audio/happy_birthday.wav");
+            },
+            Err(err) => {
+                println!("Problem while mixing buffers. Message: {}", err)
+            }
+        }
+    }
+
+    #[test]
+    fn test_song_happy_birthday_percs() {
+        use crate::presets;
+
+        let mbs:preset::SomeModulators = preset::SomeModulators {
+            amp: Some(presets::kick::amod),
+            freq: Some(presets::kick::fmod),
+            phase: Some(presets::kick::pmod),
+        };
+        let track = happy_birthday::get_track();
+        let cps = track.conf.cps;
+        let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+        let dir = Direction::Constant;
+        let osc = &BaseOsc::All;
+
+        // this test has one arc containing one line
+        // so use the same duration for each of form/arc/line
+        let mut phr = Phrasing {
+            form: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            arc: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            line: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            // needs to be set in the ugen controller
+            note: Timeframe {
+                cycles: 0f32,
+                p: 0f32,
+                instance: 0
+            }
+        };
+        
+        for (contrib, mels_notes) in track.parts {
+            // iterate over the stack of lines
+            for mel_notes in mels_notes {
+                let sound = Sound {
+                    bandpass: (FilterMode::Linear, FilterPoint::Tail, (1f32, 24000f32)),
+                    energy: Energy::Low,
+                    presence : Presence::Legato,
+                    pan: 0f32,
+                };
+                buffs.push(render_line(cps, &mel_notes, &osc, &sound, &mut phr, &mbs));
+            }
+        }
+
+        let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
+            buff.into_iter().flatten().collect()
+        ).collect();
+
+        files::with_dir("dev-audio");
+        match render::pad_and_mix_buffers(mixers) {
+            Ok(signal) => {
+                render::samples_f32(44100, &signal, "dev-audio/happy_birthday-kick.wav");
             },
             Err(err) => {
                 println!("Problem while mixing buffers. Message: {}", err)

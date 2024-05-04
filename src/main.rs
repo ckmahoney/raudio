@@ -29,6 +29,7 @@ pub mod mix;
 pub mod modulate;
 pub mod monic_theory;
 pub mod preset;
+pub mod presets;
 pub mod render;
 pub mod sequence;
 pub mod song;

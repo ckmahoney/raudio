@@ -9,9 +9,8 @@ use crate::types::{Range, Radian};
 use crate::types::timbre;
 use crate::types::timbre::{Sound, Energy, Presence, Phrasing};
 
-
-static pi:f32 = std::f32::consts::PI;
-static pi2:f32 = pi*2f32;
+pub static pi:f32 = std::f32::consts::PI;
+pub static pi2:f32 = pi*2f32;
 
 pub struct Ctx {
     pub dur_seconds: f32,
@@ -175,7 +174,7 @@ pub mod pluck {
                 let k = xyz.k as f32;
                 if xyz.k > 7 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul = 1.0;
                     mul/k
@@ -185,7 +184,7 @@ pub mod pluck {
                 let k = xyz.k as f32;
                 if xyz.k > 15 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul:f32  = 1.0;
                     mul/k
@@ -195,7 +194,7 @@ pub mod pluck {
                 let k = xyz.k as f32;
                 if xyz.k > 23 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul:f32  = 1.0f32;
                     1.0
@@ -272,7 +271,7 @@ pub mod pluck {
                 let k = xyz.k as f32;
                 if xyz.k < 7 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul:f32  = 1f32 - (p * p* xyz.k.min(100usize) as f32);
                     mul/k
@@ -282,7 +281,7 @@ pub mod pluck {
                 let k = xyz.k as f32;
                 if xyz.k < 15 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul:f32  = 1f32 - (p * xyz.k.min(100usize) as f32);
                     mul/k
@@ -292,7 +291,7 @@ pub mod pluck {
                 let k = xyz.k as f32;
                 if xyz.k < 23 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul:f32  = 1.0;
                     mul/k
@@ -397,7 +396,7 @@ pub mod drone {
                 let k = xyz.k as f32;
                 if xyz.k > 7 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul = 1.0;
                     mul/k
@@ -407,7 +406,7 @@ pub mod drone {
                 let k = xyz.k as f32;
                 if xyz.k > 15 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul:f32  = 1.0;
                     mul/k
@@ -417,7 +416,7 @@ pub mod drone {
                 let k = xyz.k as f32;
                 if xyz.k > 23 { 
                     let mul = 1.0;
-                    mul * 1f32/(k *k) - (2f32*k)
+                    mul * 1f32/(k *k) 
                 } else {
                     let mul:f32  = 1.0f32;
                     1.0

@@ -114,7 +114,8 @@ pub mod timbre {
         Triangle,
         Poly,
         Bell,
-        Noise
+        Noise,
+        All
     }
 
     pub type BandpassFilter =  (FilterMode, synthesis::FilterPoint, synthesis::Bandpass);
