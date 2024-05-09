@@ -21,9 +21,6 @@ impl Renderable {
         }
     }
 }
-// sample_rate, sample_num, frequency
-pub type Ugen = fn(usize, usize, f32) -> f32;
-
 
 /// Sample values in -1 to 1
 pub type SampleBuffer = Vec<f32>;

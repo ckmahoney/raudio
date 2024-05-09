@@ -19,11 +19,6 @@ use crate::synth::SR;
 pub static pi2:f32 = PI*2.;
 pub static pi:f32 = PI;
 
-pub enum Ugen {
-    Sine,
-    Square
-}
-
 fn normalize(signal: &mut Vec<f32>) {
     let max_amplitude = signal.iter().map(|&sample| sample.abs()).fold(0.0, f32::max);
     if max_amplitude != 0.0 && max_amplitude > 1.0 {
@@ -40,94 +35,6 @@ fn fit(a:f32, b:f32) -> f32 {
         return fit (a, b/2.0)
     }
 }
-
-
-/// 4/pi * sum(sin(kx)/k for odd k > 0)
-fn ugen_square(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
-    let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).max(1).min(101);
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
-
-    let phase = 0f32;
-
-    let mut sig:Vec<f32> = vec![0.0; n_samples];
-
-    let c = 4f32/pi;
-    for i in (1..=k).filter(|x| x % 2 == 1) {
-        let f = cps * freq * i as f32;
-        for j in 0..n_samples {
-            let phase = 2.0 * PI * f * (j as f32 / SR as f32);
-            sig[j] += amod * c * (phase.sin() / i as f32);
-        }
-    }
-    normalize(&mut sig);
-    sig
-} 
-
-/// (8 / pi^2) * sum(cos ks / (k*k)) for odd k > 0
-fn ugen_triangle(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
-    let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).max(1).min(101);
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
-
-    let phase = 0f32;
-
-    let mut sig:Vec<f32> = vec![0.0; n_samples];
-
-    let c = 8f32/(pi *pi);
-    for i in (1..=k).filter(|x| x % 2 == 1) {
-        let f = cps * freq * i as f32;
-        for j in 0..n_samples {
-            let phase = 2.0 * PI * f * (j as f32 / SR as f32);
-            sig[j] += amod * c * (phase.cos() / (i*i) as f32);
-        }
-    }
-    normalize(&mut sig);
-    sig
-}
-
-/// 2/pi * sum((-1f32).powi(k) * sin(kf) / k) for k > 0
-fn ugen_sawtooth(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
-    let freq = tone_to_freq(&note.1);
-    let k = ((SR as f32 / freq) as usize).max(1).min(51);
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
-
-    let phase = 0f32;
-
-    let mut sig:Vec<f32> = vec![0.0; n_samples];
-
-    let c = 2f32/pi;
-    for i in 1..=k {
-        let f = cps * freq * i as f32;
-        for j in 0..n_samples {
-            let sign = (-1f32).powi(1i32 + i as i32);
-            let phase = sign * 2.0 * PI * f * (j as f32 / SR as f32);
-            sig[j] += amod * c * (phase.sin() / i as f32);
-        }
-    }
-    normalize(&mut sig);
-    sig
-}
-
-/// sin(kx)/k for even k > 0 
-fn ugen_sine(cps:f32, amod:f32, note:&Note) -> synth::SampleBuffer {
-    let freq = tone_to_freq(&note.1);
-    let ks = ((SR as f32 / freq) as usize).max(1).min(51);
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
-
-    let phase = 0f32;
-
-    let mut sig:Vec<f32> = vec![0.0; n_samples];
-    for k in (1..=ks).filter(|x| *x == 1usize ||  x % 2 == 0) {
-        let f = cps * freq * 1.0001f32.powi(k as i32) * k as f32;
-        for j in 0..n_samples {
-            let phase = 2.0 * PI * f * (j as f32 / SR as f32);
-            sig[j] += amod * phase.sin() / (k) as f32;
-        }
-    }
-    normalize(&mut sig);
-    sig
-} 
 
 
 /// activation function for bandpass filter. True indicates frequency is OK; false says to filter it out.
@@ -559,7 +466,6 @@ mod test {
                 p: 0f32,
                 instance: 0
             },
-            // needs to be set in the ugen controller
             note: Timeframe {
                 cycles: 0f32,
                 p: 0f32,
@@ -633,7 +539,6 @@ mod test {
                 p: 0f32,
                 instance: 0
             },
-            // needs to be set in the ugen controller
             note: Timeframe {
                 cycles: 0f32,
                 p: 0f32,
