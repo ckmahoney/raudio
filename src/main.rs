@@ -18,6 +18,7 @@ use crate::types::timbre::*;
 use crate::types::render::*;
 
 mod arg_parse;
+pub mod analysis;
 pub mod synth_config;
 pub mod convolve;
 pub mod decor;
@@ -89,10 +90,10 @@ fn contrib_to_osc(contrib:&Contrib) -> timbre::BaseOsc {
             vec![Bell, Noise]
         },
         Role::Bass => {
-            vec![Sawtooth, Square]
+            vec![Sawtooth, Square, Sine]
         },
         Role::Chords => {
-            vec![Poly]
+            vec![Poly, Square, Sine]
         },
         Role::Lead => {
             vec![Triangle, Square, Sine]

@@ -160,7 +160,8 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    // let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
 
@@ -199,6 +200,7 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
     let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
 
@@ -238,6 +240,7 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
     let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
 
@@ -279,6 +282,7 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
     let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
 
@@ -363,6 +367,11 @@ fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
     (time::dur(cps,ratio), tone_to_freq(tone), *ampl)
 }
 
+fn fill_zeros(cps:f32, n_cycles:f32) -> SampleBuffer {
+    let n_samples = (time::samples_per_cycle(cps) as f32 * n_cycles) as usize;
+    vec![0f32; n_samples]
+    
+}
 
 #[inline]
 fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> SampleBuffer {
@@ -370,6 +379,10 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
     let d = time::dur(cps, duration);
     let adur:f32 = 0.002;
     let ext:usize = 1;
+
+    if *amp == 0f32 {
+        return fill_zeros(cps, d)
+    }
 
     let mut buf = match osc {
         BaseOsc::Sine => {

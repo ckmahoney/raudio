@@ -25,7 +25,6 @@ pub mod synthesis {
     pub type Note = (Duration, Tone, Ampl);
     pub type Progression = Vec<(Duration, Place)>;
     
-    
     type Radian = f32;
     type Range = f32;
 
@@ -211,7 +210,6 @@ pub mod timbre {
         Chords,
         Lead
     }
-
 
     #[derive(Debug, Serialize, Copy, Clone)]
     pub enum Energy {
