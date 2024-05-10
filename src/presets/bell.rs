@@ -67,12 +67,12 @@ impl Mgen {
         
         fn amp_fundamental(p:f32) -> f32 {
             // preset that looked good in desmos
-            (p - 1f32).powi(8)
+            (-1f32 * (p - 1f32).powi(6)) + 1f32
         }
 
         fn amp_strike(p:f32) -> f32 {
             // preset that looked good in desmos
-            (-1f32 * (p - 1f32).powi(6)) + 1f32
+            (p - 1f32).powi(8)
 
         }
 
@@ -93,12 +93,12 @@ impl Mgen {
                         let t = j as f32 / NF as f32;
                         phr.note.p = j as f32 / n_samples as f32;
 
-                        let amp_k = if index == 0 {
-                            amp_fundamental(phr.note.p)
-                        } else if index == 1 {
+                        let amp_k = if index == 0 || index == 1 {
+                            amp_fundamental(phr.note.p) / (2 - index) as f32
+                        } else if index == 2 {
                             amp_strike(phr.note.p)
                         } else {
-                            amp_partial(phr.note.p) / k as f32
+                            amp_partial(phr.note.p) / (k*k) as f32
                         };
     
 
@@ -147,8 +147,8 @@ mod test {
         let coeffs:Vec<(f32,f32)> = vec![
             (0.00055, 0.25),
             (0.0013, 0.5),
-            (0.02, 1.0),
-            (0.04, 2.11),
+            (0.005, 1.0),
+            (0.02, 2.11),
             (0.023, 2.7),
             (0.012, 4.2),
             (0.0071, 5.1)
