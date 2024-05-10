@@ -198,7 +198,8 @@ mod unit_test {
         let line:Vec<Note> = test_unders(register);
         let form_length = line.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
 
-        let mut phr = Phrasing { 
+        let mut phr = Phrasing {
+            cps, 
             form: Timeframe {
                 cycles: form_length,
                 p: 0f32,
@@ -276,6 +277,7 @@ mod unit_test {
                         let form_length = line.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
 
                         let mut phr = Phrasing { 
+                            cps, 
                             form: Timeframe {
                                 cycles: form_length,
                                 p: 0f32,
@@ -358,6 +360,7 @@ mod unit_test {
                             let form_length = line.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
 
                             let mut phr = Phrasing { 
+                                cps,
                                 form: Timeframe {
                                     cycles: form_length,
                                     p: 0f32,
@@ -438,7 +441,8 @@ mod unit_test {
                         let line:Vec<Note> = test_unders(*register);
                         let form_length = line.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
 
-                        let mut phr = Phrasing { 
+                        let mut phr = Phrasing {
+                            cps, 
                             form: Timeframe {
                                 cycles: form_length,
                                 p: 0f32,

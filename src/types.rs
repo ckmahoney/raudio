@@ -136,6 +136,7 @@ pub mod timbre {
 
     #[derive(Debug)]
     pub struct Phrasing {
+        pub cps: f32,
         /// Current position wrt the complete Composition
         pub form: Timeframe,
         /// Current position wrt the current Arc

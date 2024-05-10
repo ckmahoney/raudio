@@ -106,7 +106,6 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
     let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
@@ -146,7 +145,6 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
     let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
@@ -188,7 +186,6 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
     let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
@@ -230,7 +227,7 @@ fn mgen_all(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mu
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
-    let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
+    let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
 
@@ -304,6 +301,8 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
         BaseOsc::Sawtooth => {
             mgen_sawtooth(cps, note, ext, sound, dir, phr, mbs)
         },
+        // @art-choice Use a different waveform based on monic
+        // @art-curr Select richist waveforms for lowest monics and purest for highest
         BaseOsc::Poly => {
             let (duration, (_, (_,_, monic)), amp) = note;
             let d = time::dur(cps, duration);
@@ -314,10 +313,10 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
                     mgen_sawtooth(cps, note, ext, sound, dir, phr, mbs)
                 },
                 3 => {
-                    mgen_sawtooth(cps, note, ext, sound, dir, phr, mbs)
+                    mgen_square(cps, note, ext, sound, dir, phr, mbs)
                 },
                 5 => {
-                    mgen_sawtooth(cps, note, ext, sound, dir, phr, mbs)
+                    mgen_triangle(cps, note, ext, sound, dir, phr, mbs)
                 },
                 _ => {
                     mgen_sine(cps, note, ext, sound, dir, phr, mbs)
@@ -326,15 +325,13 @@ fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction
         },
         BaseOsc::All => {
             mgen_all(cps, note, ext, sound, dir, phr, mbs)
-
         },
-            _ => {
+        _ => {
             panic!("Need to implement the matcher for osc type {:?}", osc)
         }
     };
     buf
 }
-
 
 
 /// Given a list of score part, create a list of motes. 
@@ -451,6 +448,7 @@ mod test {
         // this test has one arc containing one line
         // so use the same duration for each of form/arc/line
         let mut phr = Phrasing {
+            cps, 
             form: Timeframe {
                 cycles: track.duration,
                 p: 0f32,
@@ -524,6 +522,7 @@ mod test {
         // this test has one arc containing one line
         // so use the same duration for each of form/arc/line
         let mut phr = Phrasing {
+            cps, 
             form: Timeframe {
                 cycles: track.duration,
                 p: 0f32,
@@ -593,6 +592,7 @@ mod test {
         // this test has one noteevent
         // so use the same duration for all members
         let mut phr = Phrasing { 
+            cps, 
             form: Timeframe {
                 cycles: length,
                 p: 0f32,

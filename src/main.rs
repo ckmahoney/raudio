@@ -159,6 +159,7 @@ pub fn render_score(filename:&str, score:Score) -> Result<(), core::fmt::Error> 
     ).collect();
 
     let mut phr = Phrasing { 
+        cps: score.conf.cps,
         form: Timeframe {
             cycles: lens[0],
             p: 0f32,

@@ -1,8 +1,12 @@
 use crate::render;
 use crate::types::*;
 
+pub static pi:f32 = std::f32::consts::PI;
+pub static pi2:f32 = pi*2f32;
+
 
 pub static SR:usize = 44100;
+pub static NF:usize = SR/2;
 
 pub struct Renderable {
     pub composition_id: i32,
@@ -24,7 +28,6 @@ impl Renderable {
 
 /// Sample values in -1 to 1
 pub type SampleBuffer = Vec<f32>;
-
 
 /// Sample values in 0 to 1 
 pub type RangeBuffer = Vec<f32>; 
