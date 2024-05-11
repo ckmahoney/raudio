@@ -62,25 +62,25 @@ fn gen_fundamental(fund:f32) -> BellPartial {
 }
 
 fn gen_strike(fund:f32) -> BellPartial {
-    let weight = gen_float(0.005, 0.01);
+    let weight = gen_float(0.005, 0.02);
     let fmod = gen_float(1.98, 2.10);
     (weight, fmod)
 }
 
 fn gen_tierce(fund:f32) -> BellPartial {
-    let weight = gen_float(0.01, 0.1);
+    let weight = gen_float(0.001, 0.01);
     let fmod = gen_float(2.5, 2.8);
     (weight, fmod)
 }
 
 fn gen_quint(fund:f32) -> BellPartial {
-    let weight = gen_float(0.1, 0.5);
+    let weight = gen_float(0.001, 0.005);
     let fmod = gen_float(3.95, 4.56);
     (weight, fmod)
 }
 
 fn gen_nominal(fund:f32) -> BellPartial {
-    let weight = gen_float(0.01, 0.1);
+    let weight = gen_float(0.0001, 0.001);
     let fmod = gen_float(5f32, 12f32);
     (weight, fmod)
 }
