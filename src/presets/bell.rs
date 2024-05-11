@@ -5,6 +5,9 @@ use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, Fil
 use crate::monic_theory::tone_to_freq;
 use crate::time;
 
+use rand;
+use rand::Rng;
+
 /// activation function for bandpass filter. True indicates frequency is OK; false says to filter it out.
 fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:usize) -> bool {
     let min_frequency = filter.2.0;
@@ -27,6 +30,71 @@ fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:u
             panic!("No implementation for a logarithmic mixer yet")
         }
     }
+}
+
+
+type BellPartial = (f32, f32);
+
+
+fn gen_float(min:f32, max:f32) -> f32 {
+    let mut rng = rand::thread_rng();
+    rng.gen_range(min..max)
+}
+
+/// A soft but present sub x2 octave
+fn gen_sub(fund:f32) -> BellPartial {
+    let weight = gen_float(0.0001, 0.001);
+    let fmod = fund/4f32;
+    (weight, fmod)
+}
+
+/// A soft but present sub octave
+fn gen_bass(fund:f32) -> BellPartial {
+    let weight = gen_float(0.001, 0.01);
+    let fmod = fund/2f32;
+    (weight, fmod)
+}
+
+/// wide variety of amplitude presence
+fn gen_fundamental(fund:f32) -> BellPartial {
+    let weight = gen_float(0.000001, 0.001);
+    (weight, fund)
+}
+
+fn gen_strike(fund:f32) -> BellPartial {
+    let weight = gen_float(0.005, 0.01);
+    let fmod = gen_float(1.98, 2.10);
+    (weight, fmod)
+}
+
+fn gen_tierce(fund:f32) -> BellPartial {
+    let weight = gen_float(0.01, 0.1);
+    let fmod = gen_float(2.5, 2.8);
+    (weight, fmod)
+}
+
+fn gen_quint(fund:f32) -> BellPartial {
+    let weight = gen_float(0.1, 0.5);
+    let fmod = gen_float(3.95, 4.56);
+    (weight, fmod)
+}
+
+fn gen_nominal(fund:f32) -> BellPartial {
+    let weight = gen_float(0.01, 0.1);
+    let fmod = gen_float(5f32, 12f32);
+    (weight, fmod)
+}
+
+fn gen_coefficients(fund:f32,) -> Vec<BellPartial> {
+    vec![
+        gen_sub(fund),
+        gen_bass(fund),
+        gen_strike(fund),
+        gen_tierce(fund),
+        gen_quint(fund),
+        gen_nominal(fund),
+        gen_nominal(fund),
+    ]
 }
 
 pub struct Mgen {
@@ -64,7 +132,7 @@ impl Mgen {
             }
         }.min(max_coeff_k);
 
-        
+        // modulators for the three distinct components
         fn amp_fundamental(p:f32) -> f32 {
             // preset that looked good in desmos
             (-1f32 * (p - 1f32).powi(6)) + 1f32
@@ -191,12 +259,66 @@ mod test {
             sound
         };
         let samples = mgen.inflect_bell(&coeffs, &note, &mut phr);
+
         println!("Created samples {:#?}", &samples[0..10]);
 
         files::with_dir("dev-audio/presets");
 
         render::samples_f32(44100, &samples, "dev-audio/presets/test_bell.wav");
+    }
+
+    #[test]
+    fn test_some_generated_bells() {
+        let n_cycles = 4f32;
+        let n_bells = 16;
+        let cps = 1f32;
+        let mut buff:SampleBuffer = Vec::new();
+
+        let mut phr = Phrasing {
+            cps, 
+            form: Timeframe {
+                cycles: n_cycles,
+                p: 0f32,
+                instance: 0
+            },
+            arc: Timeframe {
+                cycles: n_cycles,
+                p: 0f32,
+                instance: 0
+            },
+            line: Timeframe {
+                cycles: n_cycles,
+                p: 0f32,
+                instance: 0
+            },
+            note: Timeframe {
+                cycles:n_cycles,
+                p: 0f32,
+                instance: 0
+            }
+        };
+
+        let sound = Sound {
+            bandpass: (FilterMode::Linear, FilterPoint::Tail, (1f32, 24000f32)),
+            energy: Energy::High,
+            presence : Presence::Legato,
+            pan: 0f32,
+        };
+
+        let note:Note = ( (n_cycles as i32, 1), (7, (0i8, 0i8, 1i8)), 1f32);
+        let mgen = Mgen {
+            osc:BaseOsc::Bell,
+            sound
+        };
+
+        for i in 0..n_bells {
+            let coeffs = gen_coefficients(1.0);
+            buff.append(&mut mgen.inflect_bell(&coeffs, &note, &mut phr))
+        }
 
 
+        files::with_dir("dev-audio/presets");
+
+        render::samples_f32(44100, &buff, "dev-audio/presets/test_gen_bells.wav");
     }
 }
