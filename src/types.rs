@@ -32,7 +32,7 @@ pub mod synthesis {
     #[derive(Debug)]
     pub enum FilterPoint {
         Constant,
-        Mid, 
+        Head, 
         Tail
     }
     #[derive(Clone, Copy, Debug)]

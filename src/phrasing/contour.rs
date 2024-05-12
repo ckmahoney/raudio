@@ -2,6 +2,7 @@ use crate::phrasing::AmpModulation;
 use crate::synth::{pi,pi2,SampleBuffer};
 use crate::types::timbre::AmpContour;
 
+const x:AmpContour =AmpContour::Fade;
 
 /// Given an index i in a sample buffer representing n_cycles,
 /// Produce amplitude modulation for a long form lifespan 
@@ -54,6 +55,11 @@ pub fn gen_contour(n_samples:usize, n_cycles:f32, contour:&AmpContour, reverse:b
     };
 
     modulator
+}
+
+pub fn sample(contour:&AmpModulation, p:f32) -> f32 {
+    let index = (p * contour.len() as f32) as usize;
+    contour[index]
 }
 
 

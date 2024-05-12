@@ -9,9 +9,7 @@ use crate::phrasing::bandpass_filter;
 use rand;
 use rand::Rng;
 
-
-
-
+/** (weight, fmod) pair intended to be used in a small set of BellPartial. */
 type BellPartial = (f32, f32);
 
 
@@ -136,9 +134,9 @@ impl Mgen {
 
                 for j in 0..n_samples {
                     phr.note.p = j as f32 / n_samples as f32;
-                    
                     let f = frequency * fmod;
-                    if bandpass_filter(&self.sound.bandpass, phr, f, j, f as usize) {
+                    
+                    if bandpass_filter(&self.sound.bandpass, f, phr.note.p) {
 
                         let t = j as f32 / NF as f32;
                         phr.note.p = j as f32 / n_samples as f32;

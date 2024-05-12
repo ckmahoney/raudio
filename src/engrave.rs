@@ -47,7 +47,7 @@ fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:u
                 FilterPoint::Constant => {
                     return freq > min_frequency && freq < max_frequency;
                 },
-                FilterPoint::Mid => {
+                FilterPoint::Head => {
                     true
                 },
                 FilterPoint::Tail => {
