@@ -29,7 +29,7 @@ pub mod synthesis {
     type Range = f32;
 
     /// When in the melody does the filter activate
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub enum FilterPoint {
         Constant,
         Head, 
@@ -99,7 +99,7 @@ pub mod timbre {
 
 
     /// How the filter goes from point A to point B
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub enum FilterMode {
         Linear,
         Logarithmic,

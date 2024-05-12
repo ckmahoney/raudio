@@ -12,19 +12,30 @@ pub mod lifespan;
 use crate::synth::SR;
 use once_cell::sync::Lazy;
 
-static UNIT_FADE_FORWARD: Lazy<AmpModulation> = Lazy::new(|| {
+pub static filter_points:[FilterPoint; 3] = [
+    FilterPoint::Constant,
+    FilterPoint::Head,
+    FilterPoint::Tail,
+];
+
+pub static filter_modes:[FilterMode; 2] = [
+    FilterMode::Linear,
+    FilterMode::Logarithmic,
+];
+
+pub static UNIT_FADE_FORWARD: Lazy<AmpModulation> = Lazy::new(|| {
     contour::gen_contour(SR, 1f32, &AmpContour::Fade, false)
 });
 
-static UNIT_FADE_REVERSE: Lazy<AmpModulation> = Lazy::new(|| {
+pub static UNIT_FADE_REVERSE: Lazy<AmpModulation> = Lazy::new(|| {
     contour::gen_contour(SR, 1f32, &AmpContour::Fade, true)
 });
 
-static UNIT_SURGE_FORWARD: Lazy<AmpModulation> = Lazy::new(|| {
+pub static UNIT_SURGE_FORWARD: Lazy<AmpModulation> = Lazy::new(|| {
     contour::gen_contour(SR, 1f32, &AmpContour::Surge, false)
 });
 
-static UNIT_SURGE_REVERSE: Lazy<AmpModulation> = Lazy::new(|| {
+pub static UNIT_SURGE_REVERSE: Lazy<AmpModulation> = Lazy::new(|| {
     contour::gen_contour(SR, 1f32, &AmpContour::Surge, true)
 });
 
@@ -83,9 +94,9 @@ pub fn bandpass_filter(filter:&BandpassFilter, freq:f32, p:f32) -> bool {
             }
         }
     };
-    
-    let y = df * contour::sample(&ref_mod, p);
-    return freq >= (min_frequency + y)
+    let y = min_frequency + 2f32.powf(p * df.log2());
+    let ok = freq >= min_frequency + y;
+    return ok
 }
 
 /// Given a vector that might be an amplitude modulator,

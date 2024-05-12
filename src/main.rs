@@ -321,4 +321,62 @@ mod test_integration {
             render::samples_f32(44100, &buff_wet, &format!("{}/test_contour_wet_{}_sample.wav", test_dir, test_name));
         }
     }
+
+    #[test]
+    fn test_enumerate_bells() {
+        let n_cycles = 4f32;
+        let n_bells = 16;
+        let cps = 1f32;
+        let coeffs = bell::gen_coefficients(1.0);
+        files::with_dir(test_dir);
+
+        for filter_point in &phrasing::filter_points {
+            for filter_mode in &phrasing::filter_modes {
+                let test_name = format!("bell-contour-{:#?}-point-{:#?}-mode",filter_point, filter_mode);
+                let mut buff:SampleBuffer = Vec::new();
+
+                let mut phr = Phrasing {
+                    cps, 
+                    form: Timeframe {
+                        cycles: n_cycles,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    arc: Timeframe {
+                        cycles: n_cycles,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    line: Timeframe {
+                        cycles: n_cycles,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    note: Timeframe {
+                        cycles:n_cycles,
+                        p: 0f32,
+                        instance: 0
+                    }
+                };
+
+                let sound = Sound {
+                    bandpass: (*filter_mode, *filter_point, (1f32, 24000f32)),
+                    energy: Energy::High,
+                    presence : Presence::Legato,
+                    pan: 0f32,
+                };
+
+                let note:Note = ( (n_cycles as i32, 1), (7, (0i8, 0i8, 1i8)), 1f32);
+                let mgen = bell::Mgen::new(BaseOsc::Bell, sound);
+                
+                for i in 0..n_bells {
+                    phr.line.p = i as f32 / n_bells as f32;
+                    buff.append(&mut mgen.inflect_bell(&coeffs, &note, &mut phr))
+                }
+
+
+                render::samples_f32(44100, &buff, &format!("{}/test-bell-{}.wav", test_dir, test_name));
+            }
+        }
+    }
 }

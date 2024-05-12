@@ -79,6 +79,7 @@ pub struct Mgen {
     sound: Sound
 }
 
+
 impl Mgen {
     pub fn new(osc:BaseOsc, sound:Sound) -> Self {
         Mgen { osc, sound }
@@ -135,9 +136,10 @@ impl Mgen {
                 for j in 0..n_samples {
                     phr.note.p = j as f32 / n_samples as f32;
                     let f = frequency * fmod;
-                    
-                    if bandpass_filter(&self.sound.bandpass, f, phr.note.p) {
-
+                    if j % 1000 == 0 {
+                        // println!("Applying {:#?}  {:#?} p {}", &self.sound.bandpass, f, phr.line.p)
+                    };
+                    if bandpass_filter(&self.sound.bandpass, f, phr.line.p) {
                         let t = j as f32 / NF as f32;
                         phr.note.p = j as f32 / n_samples as f32;
 
@@ -279,7 +281,7 @@ mod test {
         };
 
         let sound = Sound {
-            bandpass: (FilterMode::Linear, FilterPoint::Tail, (1f32, 24000f32)),
+            bandpass: (FilterMode::Linear, FilterPoint::Head, (1f32, 24000f32)),
             energy: Energy::High,
             presence : Presence::Legato,
             pan: 0f32,
@@ -292,6 +294,8 @@ mod test {
         };
 
         for i in 0..n_bells {
+            phr.line.p = i as f32 / n_bells as f32;
+            println!("Before bandpass p {}", phr.line.p);
             let coeffs = gen_coefficients(1.0);
             buff.append(&mut mgen.inflect_bell(&coeffs, &note, &mut phr))
         }
