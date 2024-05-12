@@ -85,7 +85,7 @@ fn gen_nominal(fund:f32) -> BellPartial {
     (weight, fmod)
 }
 
-fn gen_coefficients(fund:f32,) -> Vec<BellPartial> {
+fn gen_coefficients(fund:f32) -> Vec<BellPartial> {
     vec![
         gen_sub(fund),
         gen_bass(fund),
