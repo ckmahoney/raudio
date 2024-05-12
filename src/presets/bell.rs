@@ -5,32 +5,11 @@ use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, Fil
 use crate::monic_theory::tone_to_freq;
 use crate::time;
 
+use crate::phrasing::bandpass_filter;
 use rand;
 use rand::Rng;
 
-/// activation function for bandpass filter. True indicates frequency is OK; false says to filter it out.
-fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:usize) -> bool {
-    let min_frequency = filter.2.0;
-    let max_frequency = filter.2.1;
-    match filter.0 {
-        FilterMode::Linear => {
-            match filter.1 {
-                FilterPoint::Constant => {
-                    return freq > min_frequency && freq < max_frequency;
-                },
-                FilterPoint::Mid => {
-                    true
-                },
-                FilterPoint::Tail => {
-                    true
-                }
-            }
-        },
-        FilterMode::Logarithmic => {
-            panic!("No implementation for a logarithmic mixer yet")
-        }
-    }
-}
+
 
 
 type BellPartial = (f32, f32);
