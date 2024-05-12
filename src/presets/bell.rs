@@ -85,7 +85,7 @@ fn gen_nominal(fund:f32) -> BellPartial {
     (weight, fmod)
 }
 
-fn gen_coefficients(fund:f32) -> Vec<BellPartial> {
+pub fn gen_coefficients(fund:f32) -> Vec<BellPartial> {
     vec![
         gen_sub(fund),
         gen_bass(fund),
@@ -103,6 +103,9 @@ pub struct Mgen {
 }
 
 impl Mgen {
+    pub fn new(osc:BaseOsc, sound:Sound) -> Self {
+        Mgen { osc, sound }
+    }
 
     /// Given a note and an opinionated synthesizer,
     /// And vec of (weight, coefficient) pairs,

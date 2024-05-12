@@ -59,7 +59,7 @@ pub fn gen_contour(n_samples:usize, n_cycles:f32, contour:&AmpContour, reverse:b
 
 /// Given an audio signal and an amplitude modulation signal,
 /// Adjust the amplitude of the signal by the given shape.
-fn apply_contour(signal: &mut SampleBuffer, contour:&AmpModulation) {
+pub fn apply_contour(signal: &mut SampleBuffer, contour:&AmpModulation) {
     let l = signal.len() as f32;
     let l2 = contour.len() as f32;
     for i in 0..signal.len() {

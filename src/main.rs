@@ -227,3 +227,98 @@ pub fn render_score(filename:&str, score:Score) -> Result<(), core::fmt::Error> 
         }
     }
 }
+
+
+
+
+#[cfg(test)]
+mod test_integration {
+    static test_dir:&str = "dev-audio/integration";
+
+    use crate::{synth, presets, phrasing, files, render};
+    use crate::synth::SampleBuffer;
+    use crate::presets::bell;
+    use crate::phrasing::contour;
+    use crate::types::timbre::{AmpContour, BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
+    use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
+
+    static contours:[AmpContour; 2] = [
+        AmpContour::Fade, 
+        AmpContour::Surge
+    ];
+    static energies:[Energy; 3] = [
+        Energy::Low, 
+        Energy::Medium, 
+        Energy::High
+    ];
+    static presences:[Presence; 3] = [
+        Presence::Staccatto, 
+        Presence::Legato, 
+        Presence::Tenuto
+    ];
+
+    #[test]
+    // Generate 16 samples of the same bell signal, contoured by the inspected contour.
+    // 
+    fn test_contour_bells() {
+        let n_cycles = 4f32;
+        let n_bells = 16;
+        let cps = 1f32;
+        let mut buff_dry:SampleBuffer = Vec::new();
+
+        let mut phr = Phrasing {
+            cps, 
+            form: Timeframe {
+                cycles: n_cycles,
+                p: 0f32,
+                instance: 0
+            },
+            arc: Timeframe {
+                cycles: n_cycles,
+                p: 0f32,
+                instance: 0
+            },
+            line: Timeframe {
+                cycles: n_cycles,
+                p: 0f32,
+                instance: 0
+            },
+            note: Timeframe {
+                cycles:n_cycles,
+                p: 0f32,
+                instance: 0
+            }
+        };
+
+        let sound = Sound {
+            bandpass: (FilterMode::Linear, FilterPoint::Tail, (1f32, 24000f32)),
+            energy: Energy::High,
+            presence : Presence::Legato,
+            pan: 0f32,
+        };
+
+        let note:Note = ( (n_cycles as i32, 1), (7, (0i8, 0i8, 1i8)), 1f32);
+        let mgen = bell::Mgen::new(BaseOsc::Bell, sound);
+        let coeffs = bell::gen_coefficients(1.0);
+        let samples = mgen.inflect_bell(&coeffs, &note, &mut phr);
+        for i in 0..n_bells {
+            buff_dry.extend(&samples)
+        }
+
+        files::with_dir(test_dir);
+        render::samples_f32(44100, &buff_dry, &format!("{}/test_contour_dry_bell_sample.wav", test_dir));
+        for c in &contours {
+            let test_name = format!("bell-contour-{:#?}-forward",c);
+            let mut buff_wet = buff_dry.clone();
+            let mod_amp = contour::gen_contour(buff_wet.len(), n_cycles, &c, false);
+            contour::apply_contour(&mut buff_wet, &mod_amp);
+            render::samples_f32(44100, &buff_wet, &format!("{}/test_contour_wet_{}_sample.wav", test_dir, test_name));
+
+            let test_name = format!("bell-contour-{:#?}-reverse",c);
+            let mut buff_wet = buff_dry.clone();
+            let mod_amp = contour::gen_contour(buff_wet.len(), n_cycles, &c, true);
+            contour::apply_contour(&mut buff_wet, &mod_amp);
+            render::samples_f32(44100, &buff_wet, &format!("{}/test_contour_wet_{}_sample.wav", test_dir, test_name));
+        }
+    }
+}
