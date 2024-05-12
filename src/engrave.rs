@@ -221,6 +221,18 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
     sig
 }
 
+/**
+ * todo
+ * 
+ * mgen_all is the only integer based mgen I should be using.
+ * The "square", "triangle", "sawtooth", and "sine" harmonic selection can all be replaced by a respective amod.
+ * 
+ * Since A = infinite product (amods)
+ * 
+ * we can easily choose an amplitude modulation to enable or disable the monic.
+ * In fact, since these are constant values, 
+ * we could even pre-compute the weights at a reference frequency of 1Hertz as our basis for each. 
+ */
 
 #[inline]
 fn mgen_all(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
