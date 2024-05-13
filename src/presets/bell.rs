@@ -20,26 +20,26 @@ fn gen_float(min:f32, max:f32) -> f32 {
 
 /// A soft but present sub x2 octave
 fn gen_sub(fund:f32) -> BellPartial {
-    let weight = gen_float(0.0001, 0.001);
+    let weight = gen_float(0.001, 0.01);
     let fmod = fund/4f32;
     (weight, fmod)
 }
 
 /// A soft but present sub octave
 fn gen_bass(fund:f32) -> BellPartial {
-    let weight = gen_float(0.001, 0.01);
+    let weight = gen_float(0.005, 0.01);
     let fmod = fund/2f32;
     (weight, fmod)
 }
 
 /// wide variety of amplitude presence
 fn gen_fundamental(fund:f32) -> BellPartial {
-    let weight = gen_float(0.000001, 0.001);
+    let weight = gen_float(0.0001, 0.001);
     (weight, fund)
 }
 
 fn gen_strike(fund:f32) -> BellPartial {
-    let weight = gen_float(0.005, 0.02);
+    let weight = gen_float(0.005, 0.01);
     let fmod = gen_float(1.98, 2.10);
     (weight, fmod)
 }
@@ -51,13 +51,13 @@ fn gen_tierce(fund:f32) -> BellPartial {
 }
 
 fn gen_quint(fund:f32) -> BellPartial {
-    let weight = gen_float(0.001, 0.005);
+    let weight = gen_float(0.001, 0.02);
     let fmod = gen_float(3.95, 4.56);
     (weight, fmod)
 }
 
 fn gen_nominal(fund:f32) -> BellPartial {
-    let weight = gen_float(0.0001, 0.001);
+    let weight = gen_float(0.001, 0.02);
     let fmod = gen_float(5f32, 12f32);
     (weight, fmod)
 }
@@ -114,13 +114,11 @@ impl Mgen {
         }.min(max_coeff_k);
 
         // modulators for the three distinct components
-        fn amp_fundamental(p:f32) -> f32 {
-            // preset that looked good in desmos
-            (-1f32 * (p - 1f32).powi(6)) + 1f32
+        fn amp_hum(p:f32) -> f32 {
+            (-1f32 * (p).powi(4)) + 1f32
         }
 
         fn amp_strike(p:f32) -> f32 {
-            // preset that looked good in desmos
             (p - 1f32).powi(8)
 
         }
@@ -129,24 +127,20 @@ impl Mgen {
             1f32 - p
         }
 
-        println!("Using {} for energy {:#?}", max_monic, self.sound.energy);
         for (index, (weight, fmod)) in coeffs.iter().enumerate() {
             for k in 1..=max_monic {
-
                 for j in 0..n_samples {
                     phr.note.p = j as f32 / n_samples as f32;
-                    let f = frequency * fmod;
-                    if j % 1000 == 0 {
-                        // println!("Applying {:#?}  {:#?} p {}", &self.sound.bandpass, f, phr.line.p)
-                    };
+                    let f = frequency * fmod * k as f32;
+                    
                     if bandpass_filter(&self.sound.bandpass, f, phr.line.p) {
                         let t = j as f32 / NF as f32;
                         phr.note.p = j as f32 / n_samples as f32;
 
                         let amp_k = if index == 0 || index == 1 {
-                            amp_fundamental(phr.note.p) / (2 - index) as f32
+                            amp_hum(phr.note.p)/ (k.pow(3) * (2 - index)) as f32
                         } else if index == 2 {
-                            amp_strike(phr.note.p)
+                            amp_strike(phr.note.p) / k as f32
                         } else {
                             amp_partial(phr.note.p) / (k*k) as f32
                         };
