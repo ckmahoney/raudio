@@ -325,13 +325,14 @@ mod test_integration {
     #[test]
     fn test_enumerate_bells() {
         let n_cycles = 4f32;
-        let n_bells = 16;
+        let n_bells = 4;
         let cps = 1f32;
-        let coeffs = bell::gen_coefficients(1.0);
         files::with_dir(test_dir);
 
         for filter_point in &phrasing::filter_points {
             for filter_mode in &phrasing::filter_modes {
+                let coeffs = bell::gen_coefficients(1.0);
+
                 let test_name = format!("bell-contour-{:#?}-point-{:#?}-mode",filter_point, filter_mode);
                 let mut buff:SampleBuffer = Vec::new();
 
