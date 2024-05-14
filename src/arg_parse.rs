@@ -210,7 +210,7 @@ impl<'de> Deserialize<'de> for AmpLifespan {
             type Value = AmpLifespan;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("`snap`, `pluck`, `bloom`, `pad`, or `drone`")
+                formatter.write_str("`spring`, `pluck`, `bloom`, `pad`, or `drone`")
             }
 
             fn visit_str<E>(self, value: &str) -> Result<AmpLifespan, E>
@@ -218,12 +218,12 @@ impl<'de> Deserialize<'de> for AmpLifespan {
                 E: de::Error,
             {
                 match value.to_lowercase().as_str() {
-                    "snap" => Ok(AmpLifespan::Snap),
+                    "spring" => Ok(AmpLifespan::Spring),
                     "pluck" => Ok(AmpLifespan::Pluck),
                     "bloom" => Ok(AmpLifespan::Bloom),
                     "pad" => Ok(AmpLifespan::Pad),
                     "drone" => Ok(AmpLifespan::Drone),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `snap`, `pluck`, `bloom`, `pad`, or `drone`", value))),
+                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `spring`, `pluck`, `bloom`, `pad`, or `drone`", value))),
                 }
             }
         }

@@ -10,7 +10,7 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan) -> Amp
     let mut modulator:AmpModulation = vec![0f32; n_samples];
 
     match lifespan {
-        Snap => {
+        Spring => {
             for (i, sample) in modulator.iter_mut().enumerate() {
                 let k:f32 = 1f32;
                 let p:f32 = i as f32 / n_samples as f32;
@@ -56,7 +56,7 @@ mod test {
         let n_samples = 48000 * 90usize;
         let n_cycles = 64f32;
         let lifespans:Vec<AmpLifespan> = vec![
-            Snap
+            Spring
         ];  
 
         for lifespan in lifespans {
@@ -81,7 +81,7 @@ mod test {
             let n_samples = index * 4800;
             let n_cycles = 1f32;
             let lifespans:Vec<AmpLifespan> = vec![
-                Snap
+                Spring
             ];  
 
             for lifespan in lifespans {
