@@ -45,7 +45,7 @@ pub static UNIT_SURGE_REVERSE: Lazy<AmpModulation> = Lazy::new(|| {
 /// 
 /// Returns boolan, true says frequency is OK and false says to filter it out.
 /// static @art-curr Use a static lowpass filter from the given max_freq
-/// @art-curr And a dynamic highpass filter updated by FilterMode
+/// @art-curr A dynamic highpass filter configured by FilterMode
 pub fn bandpass_filter(filter:&BandpassFilter, freq:f32, p:f32) -> bool {
     let (mode, direction, (min_f, max_f)) = filter;
     let min_frequency = *min_f;
@@ -94,7 +94,18 @@ pub fn bandpass_filter(filter:&BandpassFilter, freq:f32, p:f32) -> bool {
             }
         }
     };
-    let y = min_frequency + 2f32.powf(p * df.log2());
+
+    let yi = ref_mod[(p * ref_mod.len() as f32) as usize];
+    let r = df.log2();
+    let d_cap = freq - 2f32.powf(r.floor());
+
+    // increase the two components:
+    // primary power which increases the min frequency logarithmically 
+    // additional contribution incrementing min frequency linearly (to reduce loss)
+    // when p == 0 the min allowed value is min_frequency
+    // when p == 1 the min allowed value is min_frequency + frequency
+    
+    let y = min_frequency + 2f32.powf(yi * r) + (yi * d_cap);
     let ok = freq >= min_frequency + y;
     return ok
 }
