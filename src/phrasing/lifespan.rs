@@ -57,15 +57,37 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
             }
         },
         Pad => {
-            // sin(x)
+            let stable_amp = 0.9;
+            let g = d.max(0.001) * kf.powf(1.5f32);
 
-            // if a.is_nan() { panic!("a is nan")    }
-            // if b.is_nan() { println!("c {} t {} y {}", c, t, y);panic!("b is nan")    }
-            // if y.is_nan() { println!("c {} t {} y {}", c, t, y);panic!("y is nan")    }
-            
+            for (i, sample) in modulator.iter_mut().enumerate() {
+                let t:f32 = i as f32 / n_samples as f32;
+
+                // @art-choice: Use the first five primes as basis waves
+                let adds:Vec<f32> = vec![
+                    t,
+                    t.powf(one/3f32),
+                    t.powf(one/7f32),
+                    t.powf(one/11f32),
+                    t.powf(one/13f32)
+                ];
+
+                let v:f32 = (one/adds.len() as f32)*adds.iter().map(|x| (pi2 * g * x).sin()).sum::<f32>();
+                let y = stable_amp + (one-stable_amp) * v;
+                let a= (n_cycles.powi(2i32) * pi2 * t).tanh();
+                let b = -(n_cycles * pi2 * (t-one)).tanh();
+                *sample = a * y * b
+            }
         },
         Drone => {
-            // k
+            for (i, sample) in modulator.iter_mut().enumerate() {
+                let t:f32 = i as f32 / n_samples as f32;
+
+                let y:f32 =(4f32*(n_cycles+one)* t).tanh();
+                let a:f32 = one;
+                let b:f32 = -(pi2*(t-one)*(2f32+n_cycles).sqrt()).tanh();
+                *sample = a * y * b
+            }
         },
     };
     modulator
@@ -84,9 +106,11 @@ mod test {
     static max_allowed_mod:f32 = 0f32;
 
     static lifespans:[AmpLifespan; 1] = [
+        // AmpLifespan::Pad,
         // AmpLifespan::Spring,
         // AmpLifespan::Pluck,
-        AmpLifespan::Bloom
+        // AmpLifespan::Bloom,
+        AmpLifespan::Drone,
     ];
 
     fn assert_lifespan_mod(lifespan:&AmpLifespan,mod_signal:&Vec<f32>) {
