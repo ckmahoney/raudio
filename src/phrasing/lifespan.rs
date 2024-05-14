@@ -1,3 +1,5 @@
+use rustfft::num_complex::Complex;
+
 use crate::phrasing::AmpModulation;
 use crate::types::timbre::AmpLifespan;
 use crate::synth::{pi,pi2,SampleBuffer};
@@ -14,6 +16,7 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
 
     // Set an approximated limit for maximum monic value, for use in (dk/K)
     let K = 80f32; 
+    let one = 1f32;
     match lifespan {
         Spring => {
             for (i, sample) in modulator.iter_mut().enumerate() {
@@ -38,10 +41,28 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
             }
         },
         Bloom => {
-            // t.pow(k)
+            let six = 6f32;
+            let three = 3f32;
+            for (i, sample) in modulator.iter_mut().enumerate() {
+                let t:f32 = i as f32 / n_samples as f32;
+                let y:f32 = (t / three) + (t.powi(3i32) /three) + (one/six) + (one/six)*((kf/16f32)*pi2*t+(pi2*d)).sin();
+                let c = (one+n_cycles).powf(0.33333333);
+                let a:f32 =  (c * pi2 * t.powf(1.5f32)).tanh();
+
+                let base = Complex::new(t-one, 0f32);
+
+                let b:f32 = -(c * pi2 * base.powf(0.6).re).tanh();
+
+                *sample = a * y * b
+            }
         },
         Pad => {
             // sin(x)
+
+            // if a.is_nan() { panic!("a is nan")    }
+            // if b.is_nan() { println!("c {} t {} y {}", c, t, y);panic!("b is nan")    }
+            // if y.is_nan() { println!("c {} t {} y {}", c, t, y);panic!("y is nan")    }
+            
         },
         Drone => {
             // k
@@ -50,7 +71,10 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
     modulator
 }
 
-
+#[test]
+fn do_test() {
+    println!("(-0.5f32).powf(0.6) {}", (-2f32).powf(2.3f32))
+}
 
 #[cfg(test)]
 mod test {
@@ -59,9 +83,10 @@ mod test {
     static min_allowed_mod:f32 = 0f32;
     static max_allowed_mod:f32 = 0f32;
 
-    static lifespans:[AmpLifespan; 2] = [
-        AmpLifespan::Spring,
-        AmpLifespan::Pluck
+    static lifespans:[AmpLifespan; 1] = [
+        // AmpLifespan::Spring,
+        // AmpLifespan::Pluck,
+        AmpLifespan::Bloom
     ];
 
     fn assert_lifespan_mod(lifespan:&AmpLifespan,mod_signal:&Vec<f32>) {
