@@ -4,6 +4,16 @@ use crate::phrasing::AmpModulation;
 use crate::types::timbre::AmpLifespan;
 use crate::synth::{pi,pi2,SampleBuffer};
 
+
+pub static lifespans:[AmpLifespan; 5] = [
+    AmpLifespan::Pad,
+    AmpLifespan::Spring,
+    AmpLifespan::Pluck,
+    AmpLifespan::Bloom,
+    AmpLifespan::Drone,
+];
+
+
 /// Given an index i in a sample buffer representing n_cycles,
 /// Produce amplitude modulation for a short form lifespan 
 /// May have local min/max, but always starts and ends near 0.
@@ -33,8 +43,10 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
         Pluck => {
             for (i, sample) in modulator.iter_mut().enumerate() {
                 let t:f32 = i as f32 / n_samples as f32;
-                let y:f32 = 0.5f32 - (3f32 * (t - 0.5f32)).tanh()/2f32;
-                let a:f32 = (1f32/kf) * (kf - 1f32 - (6f32 * (K-kf) * pi * (t - (1f32/kf)) )).tanh();
+                let y1:f32 = 0.5f32 - (3f32 * (t - 0.5f32)).tanh()/2f32;
+                let y2:f32 = one / (kf.powf(one/n_cycles) * std::f32::consts::E.powf(pi2*t));
+                let y:f32 = (y1 * y2).sqrt();
+                let a:f32 = one;
                 let b:f32 = 2f32.powf(-1f32 * t * (kf * t / n_cycles.log2().max(1f32)).sqrt()) * -1f32 * (n_cycles * pi2 * (t-1f32)).tanh();
 
                 *sample = a * y * b
@@ -105,13 +117,6 @@ mod test {
     static min_allowed_mod:f32 = 0f32;
     static max_allowed_mod:f32 = 0f32;
 
-    static lifespans:[AmpLifespan; 1] = [
-        // AmpLifespan::Pad,
-        // AmpLifespan::Spring,
-        // AmpLifespan::Pluck,
-        // AmpLifespan::Bloom,
-        AmpLifespan::Drone,
-    ];
 
     fn assert_lifespan_mod(lifespan:&AmpLifespan,mod_signal:&Vec<f32>) {
         for (i, y) in mod_signal.iter().enumerate() {
@@ -120,7 +125,6 @@ mod test {
             assert!(*y >= 0f32, "Modulation lifecycle {:#?} must not produce any values below 0. Found {} at {}", lifespan, y, i);
         }
         
-
         let rms = analysis::volume::rms(&mod_signal);
         assert!(rms < 1f32, "Modulation lifecycle {:#?} must produce an RMS value less than 1. Got {}", lifespan, rms);
         assert!(rms > 0f32, "Modulation lifecycle {:#?} must produce an RMS value greater than 0. Got {}", lifespan, rms);
