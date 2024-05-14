@@ -62,6 +62,23 @@ pub fn duration_to_cycles((numerator, denominator):Ratio) -> f32 {
     numerator as f32/denominator as f32
 }
 
+use std::time::{Instant};
+
+/// Measures the execution time of a function.
+///
+/// # Arguments
+///
+/// * `f` - A closure to execute for which the execution time is measured.
+///
+/// # Returns
+///
+/// A tuple containing the result of the function and the duration it took to execute.
+pub fn measure<T, F: FnOnce() -> T>(f: F) -> (T, std::time::Duration) {
+    let start = Instant::now(); // Start timing before the function is called.
+    let result = f(); // Call the function and store the result.
+    let duration = start.elapsed(); // Calculate how long it took to call the function.
+    (result, duration) // Return the result and the duration.
+}
 
 /// Given a duration in seconds and select constraints,
 /// Return the cps and size required to produce a track of length n_seconds
@@ -142,3 +159,4 @@ mod test {
         }
     }
 }
+

@@ -382,6 +382,23 @@ mod test_integration {
     }
 }
 
+use std::time::{Instant, Duration};
+
+/// Measures the execution time of a function.
+///
+/// # Arguments
+///
+/// * `f` - A closure to execute for which the execution time is measured.
+///
+/// # Returns
+///
+/// A tuple containing the result of the function and the duration it took to execute.
+fn measure_time<T, F: FnOnce() -> T>(f: F) -> (T, Duration) {
+    let start = Instant::now(); // Start timing before the function is called.
+    let result = f(); // Call the function and store the result.
+    let duration = start.elapsed(); // Calculate how long it took to call the function.
+    (result, duration) // Return the result and the duration.
+}
 
 struct SineCache {
     samples:Vec<f32>,
@@ -389,6 +406,7 @@ struct SineCache {
 }
 use crate::synth::{SR,pi2};
 
+// benchmark shows this implementation is 2x slower than std implementation
 impl SineCache {
     /// Create a sample bank at 1Hertz for cached lookups
     pub fn new(resolution:usize) -> Self {
@@ -404,7 +422,6 @@ impl SineCache {
         }
     }
 
-        
     pub fn get(&self, frequency: f32, phase: f32) -> f32 {
         let period_samples = self.samples.len() as f32;
     
@@ -430,29 +447,80 @@ impl SineCache {
 #[cfg(test)]
 mod test_sine_cache {
     use super::SineCache;
+    use once_cell::sync::Lazy;
     use super::*;
     static test_dir:&str = "dev-audio/benchmark";
+
+    static TEST_FREQS: Lazy<Vec<f32>> = Lazy::new(|| {
+        vec![
+            60f32,
+            245f32,
+            555f32,
+            1288f32,
+            4001f32,
+            9999f32
+        ]
+    });
+
+    static TEST_DURS: Lazy<Vec<usize>> = Lazy::new(|| {
+        vec![
+            SR/4,
+            SR,
+            SR*3,
+            SR*12,
+            SR*60,
+        ]
+    });
 
     #[test]
     fn test_get_sine() {
         let resolution = 4usize;
         let cache = SineCache::new(resolution);
 
-        let n_samples = SR * 4;
         let sr = SR  as f32;
-        let n = n_samples as f32;
-        let freq:f32 = 440f32;
-        let samples:Vec<f32> = (0..n_samples).map(|t|
-            cache.get(freq, freq * (t as f32 / sr))
-        ).collect();
-        files::with_dir(test_dir);
-        let filename = format!("{}/test-cached-sine-{}.wav", test_dir, freq);
-        match render::pad_and_mix_buffers(vec![samples]) {
-            Ok(signal) => {
-                render::samples_f32(44100, &signal, &filename);
-            },
-            Err(msg) => {
-                panic!("Failed to mix and render audio: {}", msg)
+
+        for &n_samples in TEST_DURS.iter() {
+            let n = n_samples as f32;
+            for &freq in TEST_FREQS.iter() {
+                fn get_bad(freq:f32, n_samples:usize) -> Vec<f32> {
+                    let sr = SR  as f32;
+                    (0..n_samples).map(|t|
+                        (pi2 * freq * (t as f32 / sr)).sin()
+                    ).collect()
+                }
+                    
+                fn get_cached(cache:&SineCache, freq:f32, n_samples:usize) -> Vec<f32> {
+                    let sr = SR  as f32;
+                    (0..n_samples).map(|t|
+                        cache.get(freq, freq * (t as f32 / sr))
+                    ).collect()
+                }
+
+                let (samples, duration) = measure_time(|| get_bad(freq, n_samples));
+                println!("Result of get std: {}, Time taken: {:?}", n_samples, duration);
+
+                files::with_dir(test_dir);
+                let filename = format!("{}/test-std-n_samples-{}-sine-{}-cost-{:#?}.wav", test_dir,n_samples, freq,duration);
+                match render::pad_and_mix_buffers(vec![samples]) {
+                    Ok(signal) => {
+                        render::samples_f32(44100, &signal, &filename);
+                    },
+                    Err(msg) => {
+                        panic!("Failed to mix and render audio: {}", msg)
+                    }
+                }
+
+                let (samples, duration) = measure_time(|| get_cached(&cache, freq, n_samples));
+                println!("Result of get cached: {}, Time taken: {:?}", n_samples, duration);
+                let filename = format!("{}/test-cached-n_samples-{}-sine-{}-cost-{:#?}.wav", test_dir,n_samples, freq,duration);
+                match render::pad_and_mix_buffers(vec![samples]) {
+                    Ok(signal) => {
+                        render::samples_f32(44100, &signal, &filename);
+                    },
+                    Err(msg) => {
+                        panic!("Failed to mix and render audio: {}", msg)
+                    }
+                }
             }
         }
     

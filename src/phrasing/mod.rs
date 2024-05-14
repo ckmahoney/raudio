@@ -9,7 +9,7 @@ use crate::synthesis::FilterPoint;
 pub mod contour;
 pub mod lifespan;
 
-use crate::synth::SR;
+use crate::synth::{pi2, SR};
 use once_cell::sync::Lazy;
 
 pub static filter_points:[FilterPoint; 3] = [

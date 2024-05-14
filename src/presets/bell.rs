@@ -1,4 +1,4 @@
-use crate::synth::{pi, pi2, NF, SampleBuffer};
+use crate::synth::{pi, pi2, SR, NF, SampleBuffer};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::*;
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
@@ -93,9 +93,10 @@ impl Mgen {
     /// A bellgen has a centroid higher than the fundamental in the frequency domain.
     /// It also takes a list of partials, whose union is the fundamental for the synthesizer. 
     pub fn inflect_bell(&self, coeffs:&Vec<(f32, f32)>, note:&Note, phr:&mut Phrasing) -> SampleBuffer {
+        let dur = time::duration_to_cycles(note.0);
         let frequency = tone_to_freq(&note.1);
         let ampl = &note.2;
-        let n_samples = time::samples_per_cycle(phr.cps) as usize;
+        let n_samples = (dur  * time::samples_per_cycle(phr.cps) as f32) as usize;
         let max_partial = coeffs.iter().fold(0f32, |max, (_, f)| if *f > max { *f } else { max } ).ceil();
         /* Each enharmonic partial has harmonics. This is the maximum allowed partial multiplier */
         let max_coeff_k = NF / (max_partial * frequency) as usize;
@@ -134,8 +135,7 @@ impl Mgen {
                     let f = frequency * fmod * k as f32;
                     
                     if bandpass_filter(&self.sound.bandpass, f, phr.line.p) {
-                        let t = j as f32 / NF as f32;
-                        phr.note.p = j as f32 / n_samples as f32;
+                        let t = j as f32 / SR as f32;
 
                         let amp_k = if index == 0 || index == 1 {
                             amp_hum(phr.note.p)/ (k.pow(3) * (2 - index)) as f32
