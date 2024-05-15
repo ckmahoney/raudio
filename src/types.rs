@@ -106,6 +106,15 @@ pub mod timbre {
     }
 
     #[derive(Debug, Serialize, Clone)] // requires custom serde Deserialize
+    pub enum MelodicOsc {
+        Sine,
+        Square,
+        Sawtooth,
+        Triangle,
+        All
+    }
+
+    #[derive(Debug, Serialize, Clone)] // requires custom serde Deserialize
     pub enum BaseOsc {
         Sine,
         Square,
