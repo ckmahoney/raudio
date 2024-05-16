@@ -394,12 +394,17 @@ pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&m
 }
 #[cfg(test)]
 mod test {
+    use rustfft::Length;
+
     use super::*;
     use crate::song::x_files;
     use crate::song::happy_birthday;
 
     use crate::render; 
     use crate::files;
+
+    static test_dir:&str = "dev-audio/presets/kick";
+
     // #[test]
     // fn test_song_x_files() {
     //     let track = x_files::get_track();
@@ -429,24 +434,20 @@ mod test {
     // }
 
     /// iterate early monics over sequential rotations in alternating spaces
-    fn test_tone(register:i8) -> Vec<Note> {
-        let monics:Vec<i8> = vec![1];
-        let rotations:Vec<i8> = vec![0];
+    fn test_tone(d:i32, register:i8, n:usize) -> Vec<Note> {
+        let monic:i8 = 1;
+        let rotation:i8 =0;
+        let dur:Duration = (d, 1i32);
+        
         let qs:Vec<i8> = vec![0];
-
-        const dur:Duration = (8,1);
-        const amp:f32 = 1.0;
-        let mut mel:Vec<Note> = Vec::new();
-        for r in &rotations {
-            for m in &monics {
-                for q in &qs {
-                    let monae:Monae = (*r,*q, *m);
-                    let tone:Tone = (register, monae);
-                    mel.push((dur, tone, amp));
-                }
-            }
+        let mut mel:Vec<Note> = Vec::with_capacity(n);
+        let q = 0;
+        let monic = 1;
+        let monae:Monae = (rotation,q, monic);
+        let tone:Tone = (register, monae);
+        for i in 0..n {
+            mel.push((dur, tone, 1f32));
         }
-
         mel
     }
     
@@ -505,10 +506,10 @@ mod test {
             buff.into_iter().flatten().collect()
         ).collect();
 
-        files::with_dir("dev-audio");
+        files::with_dir(test_dir);
         match render::pad_and_mix_buffers(mixers) {
             Ok(signal) => {
-                render::samples_f32(44100, &signal, "dev-audio/happy_birthday.wav");
+                render::samples_f32(44100, &signal, &format!("{}/happy_birthday.wav", test_dir));
             },
             Err(err) => {
                 println!("Problem while mixing buffers. Message: {}", err)
@@ -574,10 +575,10 @@ mod test {
             buff.into_iter().flatten().collect()
         ).collect();
 
-        files::with_dir("dev-audio");
+        files::with_dir(test_dir);
         match render::pad_and_mix_buffers(mixers) {
             Ok(signal) => {
-                render::samples_f32(44100, &signal, "dev-audio/happy_birthday-kick.wav");
+                render::samples_f32(44100, &signal, &format!("{}/happy_birthday-kick.wav", test_dir));
             },
             Err(err) => {
                 println!("Problem while mixing buffers. Message: {}", err)
@@ -585,11 +586,86 @@ mod test {
         }
     }
 
+
+    #[test]
+    fn test_tone_kick() {
+        use crate::presets;
+
+        let mbs:preset::SomeModulators = preset::SomeModulators {
+            amp: Some(presets::kick::amod),
+            freq: Some(presets::kick::fmod),
+            phase: Some(presets::kick::pmod),
+        };
+        let track = happy_birthday::get_track();
+        let cps = track.conf.cps;
+        let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+        let dir = Direction::Constant;
+        let osc = &BaseOsc::All;
+
+        // this test has one arc containing one line
+        // so use the same duration for each of form/arc/line
+        let mut phr = Phrasing {
+            cps, 
+            form: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            arc: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            line: Timeframe {
+                cycles: track.duration,
+                p: 0f32,
+                instance: 0
+            },
+            note: Timeframe {
+                cycles: 0f32,
+                p: 0f32,
+                instance: 0
+            }
+        };
+        
+    
+        let sound = Sound {
+            bandpass: (FilterMode::Linear, FilterPoint::Constant, (1f32, 24000f32)),
+            energy: Energy::Medium,
+            presence : Presence::Staccatto,
+            pan: 0f32,
+        };
+
+        let register= 6i8;
+        let n_cycles = 8;
+        let melody = test_tone(1i32, register, n_cycles);
+
+        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, &sound, &mut phr, &mbs);
+        buffs.push(notebufs);
+
+        let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
+            buff.into_iter().flatten().collect()
+        ).collect();
+
+        files::with_dir(test_dir);
+        match render::pad_and_mix_buffers(mixers) {
+            Ok(signal) => {
+                render::samples_f32(44100, &signal, &format!("{}/test-tone-freq-{}-n-{}.wav", test_dir, register, n_cycles));
+            },
+            Err(err) => {
+                println!("Problem while mixing buffers. Message: {}", err)
+            }
+        }
+    }
+
+
     #[test]
     fn test_test_tone() {
+        let n_cycles = 4;
         let cps = 1.8f32;
         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
-        let melody:Vec<Note> = test_tone(7);
+        let register = 6;
+        let melody:Vec<Note> = test_tone(1i32, register, n_cycles);
 
         let dir = Direction::Constant;
 
@@ -628,9 +704,9 @@ mod test {
         };
 
         let sound = Sound {
-            bandpass: (FilterMode::Logarithmic, FilterPoint::Tail, (1f32, 24000f32)),
+            bandpass: (FilterMode::Linear, FilterPoint::Constant, (1f32, 24000f32)),
             energy: Energy::Medium,
-            presence : Presence::Legato,
+            presence : Presence::Staccatto,
             pan: 0f32,
         };
 
@@ -641,10 +717,10 @@ mod test {
             buff.into_iter().flatten().collect()
         ).collect();
 
-        files::with_dir("dev-audio");
+        files::with_dir(test_dir);
         match render::pad_and_mix_buffers(mixers) {
             Ok(signal) => {
-                render::samples_f32(44100, &signal, "dev-audio/test-tone.wav");
+                render::samples_f32(44100, &signal, &format!("{}/test-tone-freq-{}-n-{}.wav", test_dir, register, n_cycles));
             },
             Err(err) => {
                 println!("Problem while mixing buffers. Message: {}", err)
