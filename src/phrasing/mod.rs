@@ -95,7 +95,11 @@ pub fn bandpass_filter(filter:&BandpassFilter, freq:f32, p:f32) -> bool {
         }
     };
 
-    let yi = ref_mod[(p * ref_mod.len() as f32) as usize];
+    let mut ind = (p * ref_mod.len() as f32) as usize;
+    if ind == ref_mod.len() {
+        ind = ind - 1;
+    }
+    let yi = ref_mod[ind];
     let r = df.log2();
     let d_cap = freq - 2f32.powf(r.floor());
 

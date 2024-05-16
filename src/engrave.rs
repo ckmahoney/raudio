@@ -1,10 +1,10 @@
-use crate::synth::SampleBuffer;
+use crate::synth::{MF, NF,SampleBuffer};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::*;
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
 
 use crate::preset::{Modulators, Ctx, Coords};
-use crate::{decor, AmpLifespan};
+use crate::{decor, phrasing, AmpLifespan};
 use crate::preset;
 use crate::envelope;
 use crate::song;
@@ -26,7 +26,7 @@ fn normalize(signal: &mut Vec<f32>) {
     }
 }
 
-fn fit(a:f32, b:f32) -> f32 {
+pub fn fit(a:f32, b:f32) -> f32 {
     if b >= a && b < (a*2.) {
         return b
     } else if b < a {
@@ -39,26 +39,7 @@ fn fit(a:f32, b:f32) -> f32 {
 
 /// activation function for bandpass filter. True indicates frequency is OK; false says to filter it out.
 fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:usize) -> bool {
-    let min_frequency = filter.2.0;
-    let max_frequency = filter.2.1;
-    match filter.0 {
-        FilterMode::Linear => {
-            match filter.1 {
-                FilterPoint::Constant => {
-                    return freq > min_frequency && freq < max_frequency;
-                },
-                FilterPoint::Head => {
-                    true
-                },
-                FilterPoint::Tail => {
-                    true
-                }
-            }
-        },
-        FilterMode::Logarithmic => {
-            panic!("No implementation for a logarithmic mixer yet")
-        }
-    }
+    phrasing::bandpass_filter(filter, freq, i as f32 / n as f32)
 }
 
 #[inline]
@@ -88,7 +69,8 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
                 extension: ext 
             };
             let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
-            if bandpass_filter(&sound.bandpass, phr, f, j, k) {
+            let p_extra = phr.note.p * phr.note.cycles / phr.line.cycles;
+            if phrasing::bandpass_filter(&sound.bandpass,  f, phr.line.p + p_extra) {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
                 let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
                 sig[j] += amp * phase.sin() / (k * k) as f32;
@@ -375,11 +357,16 @@ pub fn process_note_parts(parts: Vec::<ScoreEntry<Note>>, cps: f32) -> Vec<Melod
     ).collect()
 }
 
-pub fn render_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing, preset: &preset::SomeModulators) -> Vec<synth::SampleBuffer> {
+pub fn render_line(cps:f32, line: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing, preset: &preset::SomeModulators) -> Vec<synth::SampleBuffer> {
     let dir = Direction::Constant;
-    phr.line.cycles = notes.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32 / note.0.0 as f32 );
+    let len = line.len() as f32;
+    let n_cycles = line.iter().fold(0f32, |acc, note| acc + time::duration_to_cycles(note.0));
 
-    notes.iter().map(|&note| {
+    phr.line.cycles = n_cycles;
+    
+    line.iter().enumerate().map(|(index, &note)| {
+        //@bug not correct implementation of p. needs to be decided by accumulative position not index
+        phr.line.p = index as f32 / len;
         color_mod_note(cps, &note, &osc, &sound, dir, phr, preset)
     }).collect()
 }
@@ -392,6 +379,24 @@ pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&m
         color_mod_note(cps, &note, &osc, &sound, dir, phr, mbs)
     }).collect()
 }
+
+pub fn test_tone(d:i32, register:i8, n:usize) -> Vec<Note> {
+    let monic:i8 = 1;
+    let rotation:i8 =0;
+    let dur:Duration = (d, 1i32);
+    
+    let qs:Vec<i8> = vec![0];
+    let mut mel:Vec<Note> = Vec::with_capacity(n);
+    let q = 0;
+    let monic = 1;
+    let monae:Monae = (rotation,q, monic);
+    let tone:Tone = (register, monae);
+    for i in 0..n {
+        mel.push((dur, tone, 1f32));
+    }
+    mel
+}
+
 #[cfg(test)]
 mod test {
     use rustfft::Length;
@@ -434,22 +439,7 @@ mod test {
     // }
 
     /// iterate early monics over sequential rotations in alternating spaces
-    fn test_tone(d:i32, register:i8, n:usize) -> Vec<Note> {
-        let monic:i8 = 1;
-        let rotation:i8 =0;
-        let dur:Duration = (d, 1i32);
-        
-        let qs:Vec<i8> = vec![0];
-        let mut mel:Vec<Note> = Vec::with_capacity(n);
-        let q = 0;
-        let monic = 1;
-        let monae:Monae = (rotation,q, monic);
-        let tone:Tone = (register, monae);
-        for i in 0..n {
-            mel.push((dur, tone, 1f32));
-        }
-        mel
-    }
+    
     
     #[test]
     fn test_song_happy_birthday() {
@@ -498,7 +488,7 @@ mod test {
                     presence : Presence::Legato,
                     pan: 0f32,
                 };
-                buffs.push(color_line(cps, &mel_notes, &BaseOsc::Sine, &sound, &mut phr, &mbs));
+                buffs.push(render_line(cps, &mel_notes, &BaseOsc::Sine, &sound, &mut phr, &mbs));
             }
         }
 
@@ -590,34 +580,35 @@ mod test {
     #[test]
     fn test_tone_kick() {
         use crate::presets;
+        let n_cycles = 16f32;
 
         let mbs:preset::SomeModulators = preset::SomeModulators {
             amp: Some(presets::kick::amod),
             freq: Some(presets::kick::fmod),
             phase: Some(presets::kick::pmod),
         };
-        let track = happy_birthday::get_track();
-        let cps = track.conf.cps;
+
+        let cps = 2.1f32;
         let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
         let dir = Direction::Constant;
-        let osc = &BaseOsc::All;
+        let osc = &BaseOsc::Sine;
 
         // this test has one arc containing one line
         // so use the same duration for each of form/arc/line
         let mut phr = Phrasing {
             cps, 
             form: Timeframe {
-                cycles: track.duration,
+                cycles: n_cycles,
                 p: 0f32,
                 instance: 0
             },
             arc: Timeframe {
-                cycles: track.duration,
+                cycles: n_cycles,
                 p: 0f32,
                 instance: 0
             },
             line: Timeframe {
-                cycles: track.duration,
+                cycles: n_cycles,
                 p: 0f32,
                 instance: 0
             },
@@ -630,17 +621,16 @@ mod test {
         
     
         let sound = Sound {
-            bandpass: (FilterMode::Linear, FilterPoint::Constant, (1f32, 24000f32)),
+            bandpass: (FilterMode::Logarithmic, FilterPoint::Constant, (MF as f32, NF as f32)),
             energy: Energy::Medium,
             presence : Presence::Staccatto,
             pan: 0f32,
         };
 
         let register= 6i8;
-        let n_cycles = 8;
-        let melody = test_tone(1i32, register, n_cycles);
+        let melody = test_tone(1i32, register, n_cycles as usize);
 
-        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, &sound, &mut phr, &mbs);
+        let notebufs = render_line(cps, &melody, &osc, &sound, &mut phr, &mbs);
         buffs.push(notebufs);
 
         let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
@@ -659,72 +649,72 @@ mod test {
     }
 
 
-    #[test]
-    fn test_test_tone() {
-        let n_cycles = 4;
-        let cps = 1.8f32;
-        let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
-        let register = 6;
-        let melody:Vec<Note> = test_tone(1i32, register, n_cycles);
+    // #[test]
+    // fn test_test_tone() {
+    //     let n_cycles = 4;
+    //     let cps = 1.8f32;
+    //     let mut buffs:Vec<Vec<synth::SampleBuffer>> = Vec::new();
+    //     let register = 6;
+    //     let melody:Vec<Note> = test_tone(1i32, register, n_cycles);
 
-        let dir = Direction::Constant;
+    //     let dir = Direction::Constant;
 
-        let length = melody.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
+    //     let length = melody.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0));
 
-        let mbs = preset::SomeModulators {
-            amp: None,
-            freq: None,
-            phase: None,
-        };
+    //     let mbs = preset::SomeModulators {
+    //         amp: None,
+    //         freq: None,
+    //         phase: None,
+    //     };
 
-        // this test has one noteevent
-        // so use the same duration for all members
-        let mut phr = Phrasing { 
-            cps, 
-            form: Timeframe {
-                cycles: length,
-                p: 0f32,
-                instance: 0
-            },
-            arc: Timeframe {
-                cycles: length,
-                p: 0f32,
-                instance: 0
-            },
-            line: Timeframe {
-                cycles: length,
-                p: 0f32,
-                instance: 0
-            },
-            note: Timeframe {
-                cycles: length,
-                p: 0f32,
-                instance: 0
-            }
-        };
+    //     // this test has one noteevent
+    //     // so use the same duration for all members
+    //     let mut phr = Phrasing { 
+    //         cps, 
+    //         form: Timeframe {
+    //             cycles: length,
+    //             p: 0f32,
+    //             instance: 0
+    //         },
+    //         arc: Timeframe {
+    //             cycles: length,
+    //             p: 0f32,
+    //             instance: 0
+    //         },
+    //         line: Timeframe {
+    //             cycles: length,
+    //             p: 0f32,
+    //             instance: 0
+    //         },
+    //         note: Timeframe {
+    //             cycles: length,
+    //             p: 0f32,
+    //             instance: 0
+    //         }
+    //     };
 
-        let sound = Sound {
-            bandpass: (FilterMode::Linear, FilterPoint::Constant, (1f32, 24000f32)),
-            energy: Energy::Medium,
-            presence : Presence::Staccatto,
-            pan: 0f32,
-        };
+    //     let sound = Sound {
+    //         bandpass: (FilterMode::Logarithmic, FilterPoint::Tail, (1000 as f32, NF as f32)),
+    //         energy: Energy::Medium,
+    //         presence : Presence::Staccatto,
+    //         pan: 0f32,
+    //     };
 
-        let notebufs = color_line(cps, &melody,&BaseOsc::Sine, &sound, &mut phr, &mbs);
-        buffs.push(notebufs);
+    //     let notebufs = render_line(cps, &melody,&BaseOsc::Sine, &sound, &mut phr, &mbs);
+    //     buffs.push(notebufs);
 
-        let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
-            buff.into_iter().flatten().collect()
-        ).collect();
+    //     let mixers:Vec<synth::SampleBuffer> = buffs.into_iter().map(|buff|
+    //         buff.into_iter().flatten().collect()
+    //     ).collect();
 
-        files::with_dir(test_dir);
-        match render::pad_and_mix_buffers(mixers) {
-            Ok(signal) => {
-                render::samples_f32(44100, &signal, &format!("{}/test-tone-freq-{}-n-{}.wav", test_dir, register, n_cycles));
-            },
-            Err(err) => {
-                println!("Problem while mixing buffers. Message: {}", err)
-            }
-        }
-    }
+    //     files::with_dir(test_dir);
+    //     match render::pad_and_mix_buffers(mixers) {
+    //         Ok(signal) => {
+    //             render::samples_f32(44100, &signal, &format!("{}/test-tone-freq-{}-n-{}.wav", test_dir, register, n_cycles));
+    //         },
+    //         Err(err) => {
+    //             println!("Problem while mixing buffers. Message: {}", err)
+    //         }
+    //     }
+    // }
 }

@@ -280,6 +280,18 @@ fn gen_samples(amp:f32, fund:f32, shell_overs:&Vec<f32>, shell_unders:&Vec<f32>,
     }).collect()
 }
 
+pub fn gen_pad(cps:f32, amp:f32, harmonic_basis:f32, freq:f32, depth:usize, m:usize, n_cycles:f32) -> SampleBuffer { 
+    let neighbors:Vec<Neighbor> = (0..depth).map(|i|(1f32, i as i32)).collect();
+    let over_shells = harmonic_shell(true,m);
+    let under_shells = harmonic_shell(false,m);
+
+    let unit_o:Space =  (neighbors.to_owned(), &over_shells);
+    let unit_u:Space = (neighbors.to_owned(), &under_shells);
+    let mut samples = gen_samples_poly(harmonic_basis, freq, unit_o, unit_u, time::samples_of_cycles(cps, n_cycles));        
+    render::norm_scale(&mut samples, amp);
+    samples
+}
+
 
 #[cfg(test)]
 mod test {

@@ -341,6 +341,7 @@ fn render_line(mgen:&Mgen, line:&Vec<Note>, color:&NoiseColor, phr:&mut Phrasing
 
     phr.line.cycles = n_cycles;
     for (index, note) in line.iter().enumerate() {
+        //@bug not correct implementation of p. needs to be decided by accumulative position not index
         phr.line.p = index as f32 / len;
         samples.append(&mut mgen.inflect_noise_degraded_modulated(&color, &note, phr))
     }
