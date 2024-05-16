@@ -219,23 +219,37 @@ pub fn harmonic_shell(overtones: bool, max_monic:usize) -> SampleBuffer {
     amps
 }
 
-fn gen_samples(fund:f32, shell_overs:&Vec<f32>, shell_unders:&Vec<f32>, n_samples:usize) -> SampleBuffer {
+/* Mix component for a monic coefficient vector. Applied as (weight, rotation) */
+type Neighbor = (f32, i32);
+type Space<'amps> = (Vec<Neighbor>, &'amps Vec<f32>);
+
+fn gen_samples_poly(basis:f32, fund:f32, overs:Space, unders:Space, n_samples:usize) -> SampleBuffer {
+    let mut buffs:Vec<SampleBuffer> = Vec::with_capacity(overs.0.len() + unders.0.len());    
+    for (weight, rot) in overs.0 {
+        let empty = vec![0f32; overs.1.len()];
+        let f = fund * basis.powi(rot);
+        buffs.push(gen_samples(weight, f, &overs.1, &empty, n_samples))
+
+    }
+
+    for (weight, rot) in unders.0 {
+        let empty = vec![0f32; unders.1.len()];
+        let f = fund * basis.powi(rot);
+        buffs.push(gen_samples(weight, f, &empty, &unders.1, n_samples))
+
+    }
+
+    match render::mix_and_normalize_buffers(buffs) {
+        Ok(sig) => sig,
+        Err(msg) => panic!("render error {}",msg)
+    }
+}
+
+fn gen_samples(amp:f32, fund:f32, shell_overs:&Vec<f32>, shell_unders:&Vec<f32>, n_samples:usize) -> SampleBuffer {
     let max_k = (NF as f32 / fund) as usize;
     let overtones = &shell_overs[0..max_k];
     let undertones = &shell_unders[0..max_k];
 
-    for (index, a) in shell_overs[0..100].iter().enumerate() {
-        if *a > 0f32 {
-            // println!("activated overtone {} amp {} ", index+1,a)
-        }
-        if shell_unders[index] > 0f32 {
-            println!("activated undertone {} amp {} ", index+1,shell_unders[index])
-        }
-
-        if shell_unders.iter().all(|x| *x == 0f32) {
-            println!("Received empty under shells")
-        }
-    }
     let sr = SR as f32;
     (0..n_samples).map(|j| {  
         (1..=max_k).map(|k| {  
@@ -260,7 +274,7 @@ fn gen_samples(fund:f32, shell_overs:&Vec<f32>, shell_unders:&Vec<f32>, n_sample
                         coef_under * (pi2 * f * j as f32 / sr as f32).sin()
                     }
                 } else { 0f32 };
-                a + b 
+                amp * (a + b)
             }
         }).sum()
     }).collect()
@@ -314,25 +328,25 @@ mod test {
         let filename = format!("{}/test-shell-sine.wav", test_dir);
         let l =&stash.sine.len();
         let empty = vec![0f32; *l];
-        let mut samples = gen_samples(fundamental, &stash.sine, &empty, SR * 2);        
+        let mut samples = gen_samples(1.0f32, fundamental, &stash.sine, &empty, SR * 2);        
         render::normalize(&mut samples);
         render::samples_f32(SR, &samples, &filename);
 
 
         let filename = format!("{}/test-shell-square.wav", test_dir);
-        let mut samples = gen_samples(fundamental, &stash.square, &empty, SR * 2);        
+        let mut samples = gen_samples(1.0f32, fundamental, &stash.square, &empty, SR * 2);        
         render::normalize(&mut samples);
         render::samples_f32(SR, &samples, &filename);
 
 
         let filename = format!("{}/test-shell-triangle.wav", test_dir);
-        let mut samples = gen_samples(fundamental, &stash.triangle, &empty, SR * 2);        
+        let mut samples = gen_samples(1.0f32, fundamental, &stash.triangle, &empty, SR * 2);        
         render::normalize(&mut samples);
         render::samples_f32(SR, &samples, &filename);
 
 
         let filename = format!("{}/test-shell-sawtooth.wav", test_dir);
-        let mut samples = gen_samples(fundamental, &stash.sawtooth, &empty, SR * 2);        
+        let mut samples = gen_samples(1.0f32, fundamental, &stash.sawtooth, &empty, SR * 2);        
         render::normalize(&mut samples);
         render::samples_f32(SR, &samples, &filename);
     }
@@ -341,91 +355,72 @@ mod test {
     #[test]
     fn test_harmonic_shells() {
         let stash = BaseOsc::harmonic_shells();
-    
-        let mut phr = Phrasing {
-            cps:1f32, 
-            form: Timeframe {
-                cycles: 5f32,
-                p: 0f32,
-                instance: 0
-            },
-            arc: Timeframe {
-                cycles: 5f32,
-                p: 0f32,
-                instance: 0
-            },
-            line: Timeframe {
-                cycles: 5f32,
-                p: 0f32,
-                instance: 0
-            },
-            note: Timeframe {
-                cycles:0f32,
-                p: 0f32,
-                instance: 0
-            }
-        };
-
-        let sound = Sound {
-            bandpass: (FilterMode::Linear, FilterPoint::Constant, (MF as f32, NF as f32)),
-            energy: Energy::High,
-            presence : Presence::Legato,
-            pan: 0f32,
-        };
         files::with_dir(test_dir);
 
         let l =&stash.u1m1.len();
         let empty = vec![0f32; *l];
 
         let fundamental = 54.687554f32;
-        // let filename = format!("{}/test-shell-o1m1.wav", test_dir);
-        // let mut samples = gen_samples(fundamental, &stash.o1m1, &empty, SR * 4);        
-        // render::normalize(&mut samples);
-        // render::samples_f32(SR, &samples, &filename);
+        let filename = format!("{}/test-shell-o1m1.wav", test_dir);
+        let mut samples = gen_samples(1.0f32, fundamental, &stash.o1m1, &empty, SR * 4);        
+        render::normalize(&mut samples);
+        render::samples_f32(SR, &samples, &filename);
 
-        // let filename = format!("{}/test-shell-o1m3.wav", test_dir);
-        // let mut samples = gen_samples(fundamental, &stash.o1m3, &empty, SR * 4);        
-        // render::normalize(&mut samples);
-        // render::samples_f32(SR, &samples, &filename);
-
-
-        // let filename = format!("{}/test-shell-o1m5.wav", test_dir);
-        // let mut samples = gen_samples(fundamental, &stash.o1m5, &empty, SR * 4);        
-        // render::normalize(&mut samples);
-        // render::samples_f32(SR, &samples, &filename);
+        let filename = format!("{}/test-shell-o1m3.wav", test_dir);
+        let mut samples = gen_samples(1.0f32, fundamental, &stash.o1m3, &empty, SR * 4);        
+        render::normalize(&mut samples);
+        render::samples_f32(SR, &samples, &filename);
 
 
-        // let filename = format!("{}/test-shell-o1m7.wav", test_dir);
-        // let mut samples = gen_samples(fundamental, &stash.o1m7, &empty, SR * 4);        
-        // render::normalize(&mut samples);
-        // render::samples_f32(SR, &samples, &filename);
+        let filename = format!("{}/test-shell-o1m5.wav", test_dir);
+        let mut samples = gen_samples(1.0f32, fundamental, &stash.o1m5, &empty, SR * 4);        
+        render::normalize(&mut samples);
+        render::samples_f32(SR, &samples, &filename);
 
 
-        // let fundamental = 7000 as f32;
-        // let fundamental = 0.25f32 * 2000 as f32;
-        // let filename = format!("{}/test-shell-u1m1.wav", test_dir);
-        // let under_shells = harmonic_shell(false, 1);
-        // let mut samples = gen_samples(fundamental, &empty, &under_shells, SR * 4);        
-        // render::normalize(&mut samples);
-        // render::samples_f32(SR, &samples, &filename);
+        let filename = format!("{}/test-shell-o1m7.wav", test_dir);
+        let mut samples = gen_samples(1.0f32, fundamental, &stash.o1m7, &empty, SR * 4);        
+        render::normalize(&mut samples);
+        render::samples_f32(SR, &samples, &filename);
 
-        // let filename = format!("{}/test-shell-u1m3.wav", test_dir);
-        // let under_shells = harmonic_shell(false, 3);
-        // let mut samples = gen_samples(fundamental, &empty,  &under_shells, SR * 4);        
-        // render::normalize(&mut samples);
-        // render::samples_f32(SR, &samples, &filename);
 
-        // let filename = format!("{}/test-shell-u1m5.wav", test_dir);
-        // let under_shells = harmonic_shell(false, 5);
-        // let mut samples = gen_samples(fundamental, &empty,  &under_shells, SR * 4);        
-        // render::normalize(&mut samples);
-        // render::samples_f32(SR, &samples, &filename);
+        let fundamental = 7000 as f32;
+        let fundamental = 0.25f32 * 2000 as f32;
+        let filename = format!("{}/test-shell-u1m1.wav", test_dir);
+        let under_shells = harmonic_shell(false, 1);
+        let mut samples = gen_samples(1.0f32, fundamental, &empty, &under_shells, SR * 4);        
+        render::normalize(&mut samples);
+        render::samples_f32(SR, &samples, &filename);
 
-        // let filename = format!("{}/test-shell-u1m7.wav", test_dir);
-        // let under_shells = harmonic_shell(false, 7);
-        // let mut samples = gen_samples(fundamental, &empty,  &under_shells, SR * 4);        
-        // render::normalize(&mut samples);
-        // render::samples_f32(SR, &samples, &filename);
+        let filename = format!("{}/test-shell-u1m3.wav", test_dir);
+        let under_shells = harmonic_shell(false, 3);
+        let mut samples = gen_samples(1.0f32, fundamental, &empty,  &under_shells, SR * 4);        
+        render::normalize(&mut samples);
+        render::samples_f32(SR, &samples, &filename);
+
+        let filename = format!("{}/test-shell-u1m5.wav", test_dir);
+        let under_shells = harmonic_shell(false, 5);
+        let mut samples = gen_samples(1.0f32, fundamental, &empty,  &under_shells, SR * 4);        
+        render::normalize(&mut samples);
+        render::samples_f32(SR, &samples, &filename);
+
+    }
+
+    fn test_bi_q(){ 
+        let stash = BaseOsc::harmonic_shells();
+    
+        files::with_dir(test_dir);
+
+        let l =&stash.u1m1.len();
+        let empty = vec![0f32; *l];
+
+
+        let fundamental = 64f32;
+        let filename = format!("{}/test-shell-u1m7.wav", test_dir);
+        let under_shells = harmonic_shell(false, 7);
+        let mut samples = gen_samples(1.0f32, fundamental, &empty,  &under_shells, SR * 4);        
+        render::normalize(&mut samples);
+        render::samples_f32(SR, &samples, &filename);
 
 
         let over_shells = harmonic_shell(true, 5);
@@ -433,12 +428,57 @@ mod test {
         for freq in (0i32..8i32).map(|x| 2f32.powi(x) * fundamental) {
             let filename = format!("{}/test-shell-o1m5-u1m5-{}.wav", test_dir, freq);
             
-            let mut samples = gen_samples(freq, &over_shells,  &under_shells, SR * 4);        
+            let mut samples = gen_samples(1.0f32, freq, &over_shells,  &under_shells, SR * 4);        
             render::normalize(&mut samples);
             render::samples_f32(SR, &samples, &filename);
         }
 
 
+    }
+
+    #[test]
+    fn test_poly_q(){ 
+        let stash = BaseOsc::harmonic_shells();
+        files::with_dir(test_dir);
+
+        let l =&stash.u1m1.len();
+        let empty = vec![0f32; *l];
+
+        let fundamental = 64f32;
+        let harmonic_basis = 1.5f32;
+
+        for freq in (0i32..8i32).map(|x| 2f32.powi(x) * fundamental) {
+            for n in [2,3] {
+                let neighbors:Vec<Neighbor> = (0..n).map(|i|(1f32, i as i32)).collect();
+                for m in [1,3,5] {
+                    let over_shells = harmonic_shell(true,m);
+                    let under_shells = harmonic_shell(false,m);
+
+                    // let filename = format!("{}/test-shell-freq-{}-poly-o{}m{}.wav", test_dir, freq, n, m);
+                    // let unit_o:Space = (neighbors.to_owned(), &over_shells);
+                    // let unit_u:Space = (vec![], &empty);
+                    // let mut samples = gen_samples_poly(harmonic_basis, freq, unit_o, unit_u, SR * 4);        
+                    // render::normalize(&mut samples);
+                    // render::samples_f32(SR, &samples, &filename);
+
+
+                    // let filename = format!("{}/test-shell-freq-{}-poly-u{}m{}.wav", test_dir, freq, n, m);
+                    // let unit_o:Space =  (vec![], &empty);
+                    // let unit_u:Space = (neighbors.to_owned(), &under_shells);
+                    // let mut samples = gen_samples_poly(harmonic_basis, freq, unit_o, unit_u, SR * 4);        
+                    // render::normalize(&mut samples);
+                    // render::samples_f32(SR, &samples, &filename);
+
+
+                    let filename = format!("{}/test-shell-freq-{}-poly-o{}m{}-u{}m{}.wav", test_dir, freq, n, m, n, m);
+                    let unit_o:Space =  (neighbors.to_owned(), &over_shells);
+                    let unit_u:Space = (neighbors.to_owned(), &under_shells);
+                    let mut samples = gen_samples_poly(harmonic_basis, freq, unit_o, unit_u, SR * 4);        
+                    render::normalize(&mut samples);
+                    render::samples_f32(SR, &samples, &filename);
+                }
+            }
+        }
     }
 }
 
