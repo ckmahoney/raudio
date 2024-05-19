@@ -1,7 +1,7 @@
 /// A synth snare from three components
 use crate::synth::{pi, pi2, SampleBuffer};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
-use crate::presets::{Ctx, Coords, AmpMod, PhaseMod,FreqMod, none, bell};
+use crate::presets::{Ctx, Coords, AmpMod, PhaseMod,FreqMod, none, bell,noise};
 use crate::types::{Range, Radian};
 use crate::types::timbre::{Sound2, BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
 use crate::time;
@@ -51,6 +51,32 @@ pub fn amod_noise(xyz:&Coords, ctx:&Ctx, snd:&Sound2,phr:&Phrasing) -> Range {
     y - one
 }
 
+use rand;
+use rand::Rng;
+
+/// Create a bell tone contribution for this noteevent
+pub fn freq_component_noise(note:&Note, energy:&Energy, snd:&Sound2, phr:&mut Phrasing, coeffs:&Vec<bell::BellPartial>) -> SampleBuffer {
+    let signal:Vec<f32> = Vec::new();
+    let n_cycles = time::duration_to_cycles(note.0);
+   
+
+    let sound = Sound {
+        bandpass: snd.bandpass,
+        energy:energy.to_owned(),
+        presence : Presence::Staccatto,
+        pan: 0f32,
+    };
+
+    let mgen = noise::Mgen {
+        osc:BaseOsc::Noise,
+        sound
+    };
+    let mut rng = rand::thread_rng();
+
+    mgen.inflect_noise_shortened(&mut rng, &noise::NoiseColor::Pink, &note, phr)
+}
+
+
 /// Create a bell tone contribution for this noteevent
 pub fn freq_component_enharmonic(note:&Note, energy:&Energy, snd:&Sound2, phr:&mut Phrasing, coeffs:&Vec<bell::BellPartial>) -> SampleBuffer {
     let signal:Vec<f32> = Vec::new();
@@ -83,7 +109,6 @@ pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasi
     
     let mut buff:SampleBuffer = Vec::new();
 
-
     let coeffs:Vec<bell::BellPartial> = vec![
         (0.00055, 0.25),
         (0.0013, 0.5),
@@ -102,8 +127,10 @@ pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasi
         phr.line.p = render::realize::dur_to(&line, index) / n_cycles;
 
         let mut enharmonic = freq_component_enharmonic(&note, energy, snd, phr, &coeffs);
+        let mut noise = freq_component_noise(&note, energy, snd, phr, &coeffs);
 
-        buff.append(&mut enharmonic)
+        buff.append(&mut enharmonic);
+        buff.append(&mut noise);
     }
     buff
 }

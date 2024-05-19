@@ -161,7 +161,7 @@ fn gen_signal_composite(cps:f32, sound:&Sound2, melody:&Melody<Note>, m8s:&DModu
     };
 
     let mut voices:Vec<SampleBuffer> = Vec::new();
-    let snare_energy = Energy::High;
+    let snare_energy = Energy::Medium;
     
     for line in melody.iter() {
         let mut channels = vec![

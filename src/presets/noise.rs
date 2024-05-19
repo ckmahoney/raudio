@@ -30,6 +30,7 @@ extern crate rand;
 use rand::Rng;
 use rand::seq::SliceRandom;
 use std::f32::consts::PI;
+use rand::rngs::ThreadRng;
 
 use crate::synth::{pi, pi2, SR, MF, NF, SampleBuffer};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
@@ -44,8 +45,8 @@ use crate::phrasing::bandpass_filter;
 
 
 pub struct Mgen {
-    osc: BaseOsc,
-    sound: Sound
+    pub osc: BaseOsc,
+    pub     sound: Sound
 }
 
 
@@ -118,31 +119,30 @@ impl Mgen {
         buffs
     }   
 
-    pub fn inflect_noise_shortened(&self, color:&NoiseColor, note:&Note, phr:&mut Phrasing) -> SampleBuffer {
+    pub fn inflect_noise_shortened(&self, rng:&mut ThreadRng, color:&NoiseColor, note:&Note, phr:&mut Phrasing) -> SampleBuffer {
         let dur = time::duration_to_cycles(note.0);
         let frequency = tone_to_freq(&note.1);
         let ampl = &note.2;
-        let n_samples = (dur  * time::samples_per_cycle(phr.cps) as f32) as usize;
+        let n_samples = time::samples_of_duration(phr.cps, &note.0);
         let max_added_freq = NF - frequency as usize;
         
         
         // should probably scale with the current octave
         let n_freqs:usize = frequency as usize + match self.sound.energy {
             Energy::Low => {
-                100
+                20
             },
             Energy::Medium => {
-                400
+                50
             },
             Energy::High => {   
                 max_added_freq
             }
-        }.min(1000).max(max_added_freq);
+        }.min(100).max(max_added_freq);
 
         let mut phases = vec![0.0; n_freqs];
         let mut amplitudes = vec![0.0; n_freqs];
         let mut sig = vec![0f32; n_samples];
-        let mut rng = rand::thread_rng();
 
         phr.note.cycles = dur;
 
