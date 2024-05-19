@@ -47,7 +47,7 @@ fn test_note(duration:Duration, register:i8, amp:f32, overs:bool) -> Note {
 
 /// Produces the (kick, perc, hats) tuple 
 fn make_melodies() -> [Melody<Note>; 3] {
-    let tala_hats:Vec<Duration> = vec![(1i32, 16i32); 16];
+    let tala_hats:Vec<Duration> = vec![(1i32, 4i32); 16];
     let tala_perc:Vec<Duration> = vec![
         (1i32,1i32), // rest
         (3i32,4i32),

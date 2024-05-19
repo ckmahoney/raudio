@@ -47,20 +47,22 @@ fn mgen_overs(note:&Note, sound:&Sound2, phr:&mut Phrasing, m8s: &DModulators) -
     let fund = tone_to_freq(&note.1);
     let ampl = &note.2;
     let ks = ((SR as f32 / fund) as usize).max(1);
-    let n_samples = time::samples_per_cycle(phr.cps) as usize;
+    let n_samples = time::samples_of_duration(phr.cps, dur);
     let mut sig:Vec<f32> = vec![0.0; n_samples];
 
     let fmod = m8s.freq.as_ref().unwrap();
-
+    let ctx = Ctx { 
+        root: fund, 
+        dur_seconds: time::dur(phr.cps, dur), 
+        extension: sound.extension 
+    };
+    
+    println!("Rendering {} samples for duration {:#?}", n_samples, dur);
     for j in 0..n_samples {
         phr.note.p = j as f32 / n_samples as f32;
         for k in 1..=ks {
             let coords = Coords { cps:phr.cps, k, i: j};
-            let ctx = Ctx { 
-                root: fund, 
-                dur_seconds: time::dur(coords.cps, dur), 
-                extension: sound.extension 
-            };
+            
             let freq = if m8s.freq.is_some() {
                 fund * k as f32 * (m8s.freq.as_ref().unwrap())(&coords, &ctx, &sound, &phr)
             } else {
@@ -89,6 +91,22 @@ fn mgen_overs(note:&Note, sound:&Sound2, phr:&mut Phrasing, m8s: &DModulators) -
     sig
 }
 
+/// Allow zero padding buffers to some degree, 
+/// Oer error if over the given threshold. 
+pub fn massage_buffers_or_die(buffs:&mut Vec<Vec<f32>>, err_thresh:usize) -> Result<(), &'static str>  {
+    let lens = (&buffs).iter().map(|b| b.len());
+    let max = lens.clone().fold(0, usize::max);
+    if max - lens.fold(1000, usize::min) > err_thresh {
+        return Err("Buffers do not have the same length and exceed allowed length difference");
+    };
+    for buff in buffs.iter_mut() {
+        if buff.len() != max {
+            buff.append(&mut vec![0f32; max - buff.len()])
+        }
+    };
+    Ok(())
+}
+
 /// Given a group of same-length SampleBuffers,
 /// Sum their signals and apply normalization if necessary.
 pub fn mix_buffers(buffs: &mut Vec<Vec<f32>>) -> Result<Vec<f32>, &'static str> {
@@ -96,12 +114,9 @@ pub fn mix_buffers(buffs: &mut Vec<Vec<f32>>) -> Result<Vec<f32>, &'static str> 
         return Ok(Vec::new());
     }
 
-    let buffer_length = buffs.first().unwrap().len();
-    if buffs.iter().any(|b| b.len() != buffer_length) {
-        return Err("Buffers do not have the same length");
-    }
+    let max_length = (&buffs).iter().map(|channel| channel.len()).max().unwrap_or(0);
     normalize_channels(buffs);
-    let mut mixed_buffer:Vec<f32> = vec![0.0; buffer_length];
+    let mut mixed_buffer:Vec<f32> = vec![0.0; max_length];
     for buffer in buffs {
         for (i, sample) in buffer.into_iter().enumerate() {
             mixed_buffer[i] += *sample;
@@ -142,12 +157,14 @@ fn calculate_normalization_factor(channels: &[Vec<f32>]) -> f32 {
         return 1.0;
     }
 
-    let length = channels[0].len();
-    let mut summed_signal = vec![0.0; length];
+    let max_length = channels.iter().map(|channel| channel.len()).max().unwrap_or(0);
+    let mut summed_signal = vec![0.0; max_length];
 
     for channel in channels {
         for (i, &sample) in channel.iter().enumerate() {
-            summed_signal[i] += sample;
+            if i < summed_signal.len() {
+                summed_signal[i] += sample;
+            }
         }
     }
 
