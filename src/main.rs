@@ -22,6 +22,7 @@ pub mod analysis;
 pub mod synth_config;
 pub mod convolve;
 pub mod decor;
+pub mod demo;
 pub mod engrave;
 pub mod envelope;
 pub mod files;

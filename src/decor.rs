@@ -17,7 +17,6 @@ pub fn gen(cps:f32, note:&Note)-> preset::Modulators {
 }
 
 pub fn gen_from(cps:f32, note:&Note, mbs: &preset::SomeModulators)-> preset::Modulators {
-    let (dur, tone, ampl) = note;
     let amod = match mbs.amp {
         Some(amod) => {
             amod

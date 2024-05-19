@@ -23,8 +23,8 @@
 /// For red and pink noises, the result sounds like a distortion on the fundamental 
 /// For blue and violet noises, the result sounds like typical noise.
 /// 
-/// Therefore, for higher power noise signals, we can use this degredation technique to increase runtime performance.
-/// This is a better selection typically for percussive instruments which are more concerned about covering a wide range in a short time.
+/// Therefore, for higher power noise signals (blue and violet), we can use this degredation technique to increase runtime performance.
+/// This can be used for instrumentsthat cover a wide spectral range in a short time like hats and cymbals.
 
 extern crate rand;
 use rand::Rng;
@@ -126,6 +126,7 @@ impl Mgen {
         let max_added_freq = NF - frequency as usize;
         
         
+        // should probably scale with the current octave
         let n_freqs:usize = frequency as usize + match self.sound.energy {
             Energy::Low => {
                 100

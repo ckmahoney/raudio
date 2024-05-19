@@ -135,6 +135,11 @@ pub mod timbre {
         pub presence: Presence,
         pub pan: f32
     }
+    #[derive(Debug)]
+    pub struct Sound2 {
+        pub bandpass:BandpassFilter,
+        pub extension: usize
+    }
 
     #[derive(Debug)]
     pub struct Timeframe {

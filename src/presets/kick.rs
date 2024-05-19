@@ -8,8 +8,8 @@ use rand::Rng;
 
 use crate::types::{Range, Radian};
 use crate::types::timbre;
-use crate::types::timbre::{Sound, Energy, Presence, Phrasing};
-
+use crate::types::timbre::{Sound, Sound2, Energy, Presence, Phrasing};
+use crate::presets;
 
 fn default_db(energy:&Energy) -> (f32, f32) {
     match energy {
@@ -69,6 +69,65 @@ pub fn fmod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) ->
 
     let scale_coef = 2f32.powi(ctx.extension as i32) - one;
     scale_coef * (1f32 - (pi2 * p / 0.25).tanh()) + one
+}
+
+pub fn amod2(xyz:&presets::Coords, ctx:&presets::Ctx, snd:&Sound2, phr:&presets::Phrasing) -> Range {
+    let snd = Sound {
+        bandpass: snd.bandpass,
+        energy: Energy::Low,
+        presence: Presence::Staccatto,
+        pan: 0f32
+    };
+    let xyz = Coords {
+        k: xyz.k,
+        cps: xyz.cps,
+        i: xyz.i
+    };
+    let ctx = Ctx {
+        dur_seconds: ctx.dur_seconds,
+        root: ctx.root,
+        extension: ctx.extension
+    };
+    amod(&xyz, &ctx, &snd, &Direction::Constant, phr)
+}
+
+pub fn fmod2(xyz:&presets::Coords, ctx:&presets::Ctx, snd:&Sound2, phr:&Phrasing) -> f32 {
+    let snd = Sound {
+        bandpass: snd.bandpass,
+        energy: Energy::Low,
+        presence: Presence::Staccatto,
+        pan: 0f32
+    };
+    let xyz = Coords {
+        k: xyz.k,
+        cps: xyz.cps,
+        i: xyz.i
+    };
+    let ctx = Ctx {
+        dur_seconds: ctx.dur_seconds,
+        root: ctx.root,
+        extension: ctx.extension
+    };
+    fmod(&xyz, &ctx, &snd, &Direction::Constant, phr)
+}
+pub fn pmod2(xyz:&presets::Coords, ctx:&presets::Ctx, snd:&Sound2, phr:&Phrasing) -> f32 {
+    let snd = Sound {
+        bandpass: snd.bandpass,
+        energy: Energy::Low,
+        presence: Presence::Staccatto,
+        pan: 0f32
+    };
+    let xyz = Coords {
+        k: xyz.k,
+        cps: xyz.cps,
+        i: xyz.i
+    };
+    let ctx = Ctx {
+        dur_seconds: ctx.dur_seconds,
+        root: ctx.root,
+        extension: ctx.extension
+    };
+    pmod(&xyz, &ctx, &snd, &Direction::Constant, phr)
 }
 
 /// Generate a monic amplitude modulation curve by Presence and Energy
@@ -162,3 +221,10 @@ pub fn amod(xyz:&Coords, ctx:&Ctx, snd:&Sound, dir:&Direction, phr:&Phrasing) ->
 
 // skip phase modulation
 pub use none::pmod;
+use crate::preset;
+
+pub static pack:preset::SomeModulators = preset::SomeModulators {
+    amp: Some(amod),
+    freq: Some(fmod),
+    phase: Some(pmod),
+};

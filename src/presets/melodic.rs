@@ -27,7 +27,7 @@ pub struct Mgen {
 pub enum PowerColor {
     Violet,
     Blue,
-    White,
+    Equal,
     Pink,
     Red,
 }

@@ -13,28 +13,14 @@ use crate::midi::Midi;
 use crate::monic_theory::tone_to_freq;
 use crate::synth;
 use crate::time;
+pub use crate::analysis::fit;
 
 use std::f32::consts::PI;
 use crate::synth::SR;
 pub static pi2:f32 = PI*2.;
 pub static pi:f32 = PI;
 
-fn normalize(signal: &mut Vec<f32>) {
-    let max_amplitude = signal.iter().map(|&sample| sample.abs()).fold(0.0, f32::max);
-    if max_amplitude != 0.0 && max_amplitude > 1.0 {
-        signal.iter_mut().for_each(|sample| *sample /= max_amplitude);
-    }
-}
-
-pub fn fit(a:f32, b:f32) -> f32 {
-    if b >= a && b < (a*2.) {
-        return b
-    } else if b < a {
-        return fit(a, b*2.0)
-    } else {
-        return fit (a, b/2.0)
-    }
-}
+use crate::render::normalize;
 
 
 /// activation function for bandpass filter. True indicates frequency is OK; false says to filter it out.
@@ -47,7 +33,7 @@ fn bandpass_filter(filter:&BandpassFilter, phr:&Phrasing, freq:f32, i:usize, n:u
 fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
-    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let ks = ((SR as f32 / frequency) as usize).max(1);
     // let n_samples = (time::samples_per_cycle(cps) as f32 * time::dur(cps, &note.0)) as usize;
     let n_samples = time::samples_per_cycle(cps) as usize;
     
@@ -87,7 +73,7 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
 fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
-    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let ks = ((SR as f32 / frequency) as usize).max(1);
     let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
@@ -126,7 +112,7 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
 fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
-    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let ks = ((SR as f32 / frequency) as usize).max(1);
     let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
@@ -167,7 +153,7 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
 fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
-    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let ks = ((SR as f32 / frequency) as usize).max(1);
     let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
@@ -220,12 +206,10 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
 fn mgen_all(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);
     let ampl = &note.2;
-    let ks = ((SR as f32 / frequency) as usize).max(1) - ext;
+    let ks = ((SR as f32 / frequency) as usize).max(1);
     let n_samples = time::samples_per_cycle(cps) as usize;
     
     let mut sig:Vec<f32> = vec![0.0; n_samples];
-
-    let dir:Direction = Direction::Constant;
 
     let m8s:preset::Modulators = decor::gen_from(cps, &note, mbs);
 
