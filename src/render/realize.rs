@@ -12,7 +12,7 @@ use crate::phrasing::bandpass_filter;
 use crate::time;
 
 /// Given an index in the line, return the cumulative cycles passed to reach that point in time.
-fn dur_to(line:&Vec<Note>, pos:usize) -> f32 {
+pub fn dur_to(line:&Vec<Note>, pos:usize) -> f32 {
     if pos == 0 { 
         0f32
     } else {
@@ -24,7 +24,6 @@ fn dur_to(line:&Vec<Note>, pos:usize) -> f32 {
 /// Render a time varying line of notes.
 pub fn render_line(line: &Vec<Note>, sound:&Sound2, phr:&mut Phrasing, preset: &DModulators) -> SampleBuffer {
     let dir = Direction::Constant;
-    let len = line.len() as f32;
     let n_cycles = line.iter().fold(0f32, |acc, note| acc + time::duration_to_cycles(note.0));
     let ext = 1;
     phr.line.cycles = n_cycles;

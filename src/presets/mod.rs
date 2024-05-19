@@ -1,4 +1,5 @@
 pub mod kick;
+pub mod snare;
 pub mod hats;
 pub mod bell;
 pub mod noise;

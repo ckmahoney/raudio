@@ -10,7 +10,7 @@ use rand;
 use rand::Rng;
 
 /** (weight, fmod) pair intended to be used in a small set of BellPartial. */
-type BellPartial = (f32, f32);
+pub type BellPartial = (f32, f32);
 
 
 fn gen_float(min:f32, max:f32) -> f32 {
@@ -75,8 +75,8 @@ pub fn gen_coefficients(fund:f32) -> Vec<BellPartial> {
 }
 
 pub struct Mgen {
-    osc: BaseOsc,
-    sound: Sound
+    pub osc: BaseOsc,
+    pub sound: Sound
 }
 
 
@@ -96,7 +96,7 @@ impl Mgen {
         let dur = time::duration_to_cycles(note.0);
         let frequency = tone_to_freq(&note.1);
         let ampl = &note.2;
-        let n_samples = (dur  * time::samples_per_cycle(phr.cps) as f32) as usize;
+        let n_samples = time::samples_of_duration(phr.cps, &note.0);
         let max_partial = coeffs.iter().fold(0f32, |max, (_, f)| if *f > max { *f } else { max } ).ceil();
         /* Each enharmonic partial has harmonics. This is the maximum allowed partial multiplier */
         let max_coeff_k = NF / (max_partial * frequency) as usize;
