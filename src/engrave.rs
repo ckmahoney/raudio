@@ -20,6 +20,7 @@ use crate::synth::SR;
 pub static pi2:f32 = PI*2.;
 pub static pi:f32 = PI;
 
+use crate::render::realize;
 use crate::render::normalize;
 
 
@@ -349,8 +350,7 @@ pub fn render_line(cps:f32, line: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&m
     phr.line.cycles = n_cycles;
     
     line.iter().enumerate().map(|(index, &note)| {
-        //@bug not correct implementation of p. needs to be decided by accumulative position not index
-        phr.line.p = index as f32 / len;
+        phr.line.p = realize::dur_to(&line, index) / n_cycles;
         color_mod_note(cps, &note, &osc, &sound, dir, phr, preset)
     }).collect()
 }

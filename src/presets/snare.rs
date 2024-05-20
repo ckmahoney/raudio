@@ -123,7 +123,6 @@ pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasi
     .collect::<Vec<BellPartial>>();
 
     for (index, &note) in line.iter().enumerate() {
-        //@bug not correct implementation of p. needs to be decided by accumulative position not index
         phr.line.p = render::realize::dur_to(&line, index) / n_cycles;
 
         let mut enharmonic = freq_component_enharmonic(&note, energy, snd, phr, &coeffs);
