@@ -136,6 +136,8 @@ fn make_synths() -> [DModulators; 3] {
 fn gen_signal_composite(cps:f32, sound:&Sound2, melody:&Melody<Note>, m8s:&DModulators) -> SampleBuffer {
     let n_cycles:f32 = melody[0].iter().fold(0f32, |acc, note| acc + time::duration_to_cycles(note.0));
 
+    println!("Rendering {} cycles for composite", n_cycles);
+
     let mut phr = Phrasing {
         cps, 
         form: Timeframe {
@@ -184,6 +186,8 @@ fn gen_signal_composite(cps:f32, sound:&Sound2, melody:&Melody<Note>, m8s:&DModu
 
 fn gen_signal_m8s(cps:f32, sound:&Sound2, melody:&Melody<Note>, m8s:&DModulators) -> SampleBuffer {
     let n_cycles:f32 = melody[0].iter().fold(0f32, |acc, note| acc + time::duration_to_cycles(note.0));
+    println!("Rendering {} cycles for composite", n_cycles);
+
     let mut phr = Phrasing {
         cps, 
         form: Timeframe {

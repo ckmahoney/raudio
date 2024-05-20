@@ -127,21 +127,25 @@ impl Mgen {
         let n_samples = time::samples_of_duration(phr.cps, &note.0);
         let max_added_freq = NF - frequency as usize;
         
-        
-        // should probably scale with the current octave
-        let n_freqs:usize = match self.sound.energy {
+        let s:f32 = if frequency.log2() > 10f32 {
+            0f32
+        } else if frequency.log2() > 7f32 {
+            0.5f32
+        } else {
+            1f32
+        };
+        let n_freqs:usize = (frequency as usize * match self.sound.energy {
             Energy::Low => {
-                20
+                2f32.powf(s) as usize
             },
             Energy::Medium => {
-                50
+                2f32.powf(s+0.5) as usize
             },
             Energy::High => {   
-                max_added_freq
+                2f32.powf(s+1f32) as usize
             }
-        }.min(100).max(max_added_freq);
+        }).min(200);
 
-        println!("Using {} noise partials for {:#?} energy ", n_freqs, self.sound.energy);
 
 
         let mut phases = vec![0.0; n_freqs];
@@ -149,7 +153,6 @@ impl Mgen {
         let mut sig = vec![0f32; n_samples];
 
         phr.note.cycles = dur;
-
         // Pre-calculate phases and amplitudes
         for k in 0..n_freqs {
             let freq = frequency as usize + k;
@@ -177,7 +180,9 @@ impl Mgen {
     }
 
 
-    /// Keep a small portion of the noise signal
+    /// Keep a portion of the noise signal
+    /// Has a lot of visible harmonic components (does not sound like "random" noise)
+    /// However the result does not sound related to the input note, which supports a goal of noise
     pub fn inflect_noise_degraded(&self, color:&NoiseColor, note:&Note, phr:&mut Phrasing) -> SampleBuffer {
         let dur = time::duration_to_cycles(note.0);
         let frequency = tone_to_freq(&note.1);
@@ -192,15 +197,15 @@ impl Mgen {
         let n_keepers:usize = match self.sound.energy {
             // @art-choice Choose how many frequencies to drop 
             Energy::Low => {
-                let x:i32= (MAX_REGISTER-5i32 - r).max(1);
+                let x:i32= (MAX_REGISTER-4i32 - r).max(1);
                 2f32.powi(x)
             },
             Energy::Medium => {
-                let x:i32= (MAX_REGISTER-3i32 - r).max(1);
+                let x:i32= (MAX_REGISTER-2i32 - r).max(1);
                 2f32.powi(x)
             },
             Energy::High => {   
-                let x:i32= (MAX_REGISTER -2i32 - r).max(1);
+                let x:i32= (MAX_REGISTER -1i32 - r).max(1);
                 2f32.powi(x)
             }
         } as usize;
@@ -453,11 +458,12 @@ mod test {
 
     #[test]
     fn test_shortened() {
-        // low -> 
+        // low -> 3.000794676s
+        // medium -> 5.892954497s
+        // high -> 11.731338122s
         
         for energy in [Energy::Low, Energy::Medium, Energy::High] {
             let (test_name, duration)= crate::time::measure(|| {
-                let energy = Energy::Medium;
                 let mut phr = Phrasing {
                     cps:1f32, 
                     form: Timeframe {
@@ -511,9 +517,9 @@ mod test {
     #[test]
     fn test_degraded() {
 
-        // low -> 4.31s
-        // medium -> 
-        // high -> 21.29s
+        // low -> 943.783023ms
+        // medium -> 2.906214868s 
+        // high -> 5.638831656s
         
         for energy in [Energy::Low, Energy::Medium, Energy::High] {
             let (test_name, duration)= crate::time::measure(|| {

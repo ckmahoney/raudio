@@ -108,6 +108,7 @@ pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasi
     phr.line.cycles = n_cycles;
     
     let mut buff:SampleBuffer = Vec::new();
+    println!("[snare] Rendering {} cycles", n_cycles);
 
     let coeffs:Vec<bell::BellPartial> = vec![
         (0.00055, 0.25),
@@ -124,12 +125,16 @@ pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasi
 
     for (index, &note) in line.iter().enumerate() {
         phr.line.p = render::realize::dur_to(&line, index) / n_cycles;
+        let mut channels = vec![
+            freq_component_enharmonic(&note, energy, snd, phr, &coeffs),
+            freq_component_noise(&note, energy, snd, phr, &coeffs)
+        ];
 
-        let mut enharmonic = freq_component_enharmonic(&note, energy, snd, phr, &coeffs);
-        let mut noise = freq_component_noise(&note, energy, snd, phr, &coeffs);
+        match render::realize::mix_buffers(&mut channels) {
+            Ok(mut signal) => buff.append(&mut signal),
+            Err(msg) => panic!("Error while mixing signal components {}", msg)
+        };
 
-        buff.append(&mut enharmonic);
-        buff.append(&mut noise);
     }
     buff
 }

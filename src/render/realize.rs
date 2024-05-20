@@ -56,7 +56,6 @@ fn mgen_overs(note:&Note, sound:&Sound2, phr:&mut Phrasing, m8s: &DModulators) -
         extension: sound.extension 
     };
     
-    println!("Rendering {} samples for duration {:#?}", n_samples, dur);
     for j in 0..n_samples {
         phr.note.p = j as f32 / n_samples as f32;
         for k in 1..=ks {
