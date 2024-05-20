@@ -38,6 +38,7 @@ use crate::types::render::*;
 use crate::types::timbre::{AmpContour,AmpLifespan,BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
 use crate::monic_theory::tone_to_freq;
 use crate::time;
+use crate::render::realize;
 use crate::phrasing::contour;
 use crate::phrasing::lifespan;
 
@@ -128,7 +129,7 @@ impl Mgen {
         
         
         // should probably scale with the current octave
-        let n_freqs:usize = frequency as usize + match self.sound.energy {
+        let n_freqs:usize = match self.sound.energy {
             Energy::Low => {
                 20
             },
@@ -139,6 +140,9 @@ impl Mgen {
                 max_added_freq
             }
         }.min(100).max(max_added_freq);
+
+        println!("Using {} noise partials for {:#?} energy ", n_freqs, self.sound.energy);
+
 
         let mut phases = vec![0.0; n_freqs];
         let mut amplitudes = vec![0.0; n_freqs];
@@ -153,16 +157,16 @@ impl Mgen {
             amplitudes[k] = NoiseColor::get_amp_mod(color, freq);
         }
 
-        for k in 0..n_freqs {
-            let f = (frequency as usize + k) as f32;
-            for j in 0..n_samples {
-                phr.note.p = j as f32 / n_samples as f32;
-                let p_extra = phr.note.p * phr.note.cycles / phr.line.cycles;
-                if amplitudes[k] > 0f32 && bandpass_filter(&self.sound.bandpass, f, phr.line.p + p_extra) {
+        for j in 0..n_samples {
+            phr.note.p = j as f32 / n_samples as f32;
+            let line_p_extra = phr.note.p * phr.note.cycles / phr.line.cycles;
+            for i in 0..n_freqs {
+                let f = (frequency as usize + i) as f32;
+                if amplitudes[i] > 0f32 && bandpass_filter(&self.sound.bandpass, f, phr.line.p + line_p_extra) {
                     let t = j as f32 / SR as f32;
-                    let amp = amplitudes[k];
+                    let amp = amplitudes[i];
 
-                    sig[j] += amp * (f * pi2 * t + phases[k]).sin();
+                    sig[j] += amp * (f * pi2 * t + phases[i]).sin();
                 } else {
                     continue
                 }
@@ -170,7 +174,7 @@ impl Mgen {
         };
 
         sig
-    }   
+    }
 
 
     /// Keep a small portion of the noise signal
@@ -200,6 +204,8 @@ impl Mgen {
                 2f32.powi(x)
             }
         } as usize;
+
+        println!("Using {} noise partials for {:#?} energy ", n_keepers, self.sound.energy);
 
         let mut opts:Vec<usize> = (frequency as usize..NF).collect();
         let mut rng = rand::thread_rng();
@@ -332,9 +338,7 @@ impl Mgen {
     }   
 }
 
-/// Given a list of notes representing a complete phrase, 
-/// Mutate phrasing to create an expressive SampleBuffer
-fn render_line(mgen:&Mgen, line:&Vec<Note>, color:&NoiseColor, phr:&mut Phrasing) -> SampleBuffer {
+fn render_line_degraded(mgen:&Mgen, line:&Vec<Note>, color:&NoiseColor, phr:&mut Phrasing) -> SampleBuffer {
     let mut samples:SampleBuffer = Vec::new();
 
     let len = line.len() as f32;
@@ -342,9 +346,44 @@ fn render_line(mgen:&Mgen, line:&Vec<Note>, color:&NoiseColor, phr:&mut Phrasing
 
     phr.line.cycles = n_cycles;
     for (index, note) in line.iter().enumerate() {
-        //@bug not correct implementation of p. needs to be decided by accumulative position not index
-        phr.line.p = index as f32 / len;
+        phr.line.p = realize::dur_to(&line, index) / n_cycles;
+        samples.append(&mut mgen.inflect_noise_degraded(&color, &note, phr))
+    }
+    samples
+}
+
+
+/// Given a list of notes representing a complete phrase, 
+/// Mutate phrasing to create an expressive SampleBuffer
+fn render_degraded_modulated(mgen:&Mgen, line:&Vec<Note>, color:&NoiseColor, phr:&mut Phrasing) -> SampleBuffer {
+    let mut samples:SampleBuffer = Vec::new();
+
+    let len = line.len() as f32;
+    let n_cycles = line.iter().fold(0f32, |acc, note| acc + time::duration_to_cycles(note.0));
+
+    phr.line.cycles = n_cycles;
+    for (index, note) in line.iter().enumerate() {
+        phr.line.p = realize::dur_to(&line, index) / n_cycles;
         samples.append(&mut mgen.inflect_noise_degraded_modulated(&color, &note, phr))
+    }
+    samples
+}
+
+
+/// Given a list of notes representing a complete phrase, 
+/// Mutate phrasing to create an expressive SampleBuffer
+fn render_line_shortened(mgen:&Mgen, line:&Vec<Note>, color:&NoiseColor, phr:&mut Phrasing) -> SampleBuffer {
+    let mut samples:SampleBuffer = Vec::new();
+
+    let len = line.len() as f32;
+    let n_cycles = line.iter().fold(0f32, |acc, note| acc + time::duration_to_cycles(note.0));
+    let mut rng = rand::thread_rng();
+
+    phr.line.cycles = n_cycles;
+    for (index, note) in line.iter().enumerate() {
+        phr.line.p = realize::dur_to(&line, index) / n_cycles;
+
+        samples.append(&mut mgen.inflect_noise_shortened(&mut rng, color, &note, phr))
     }
     samples
 }
@@ -355,8 +394,40 @@ fn note_by_register(n_cycles:i32, register:i8) -> Note {
 
 
 mod test {
-    static test_dir:&str = "dev-audio/presets/noise";
     use super::*;
+    use crate::files;
+    use crate::render;
+
+    static test_dir:&str = "dev-audio/presets/noise";
+
+    static presence:Presence = Presence::Legato; // assume "worst case" for test
+    static bandpass:(FilterMode, FilterPoint, (f32, f32)) = (FilterMode::Linear, FilterPoint::Constant, (MF as f32, NF as f32));
+    static color:NoiseColor = NoiseColor::Pink;
+
+    fn test_line() -> Vec<Note> {
+        vec![
+            note_by_register(1, 5),
+            note_by_register(1, 5),
+            note_by_register(1, 5),
+            note_by_register(1, 5),
+            note_by_register(1, 6),
+            note_by_register(1, 6),
+            note_by_register(1, 6),
+            note_by_register(1, 6),
+            note_by_register(1, 8),
+            note_by_register(1, 8),
+            note_by_register(1, 8),
+            note_by_register(1, 8),
+            note_by_register(1, 10),
+            note_by_register(1, 10),
+            note_by_register(1, 10),
+            note_by_register(1, 10),
+            note_by_register(1, 12),
+            note_by_register(1, 12),
+            note_by_register(1, 12),
+            note_by_register(1, 12)
+        ]
+    }
 
     #[test]
     /// This shows that it is way too expensive to keep a cache of fourier series values (even 1 second) 
@@ -376,80 +447,126 @@ mod test {
 
     #[test]
     fn test_all() {
-        use crate::files;
-        use crate::render;
+        test_degraded();
+        test_shortened();
+    }
 
-        // for color in NoiseColor::variants() {
-        for color in vec![NoiseColor::Pink] {
-            let mut phr = Phrasing {
-                cps:1f32, 
-                form: Timeframe {
-                    cycles: 5f32,
-                    p: 0f32,
-                    instance: 0
-                },
-                arc: Timeframe {
-                    cycles: 5f32,
-                    p: 0f32,
-                    instance: 0
-                },
-                line: Timeframe {
-                    cycles: 5f32,
-                    p: 0f32,
-                    instance: 0
-                },
-                note: Timeframe {
-                    cycles:0f32,
-                    p: 0f32,
-                    instance: 0
-                }
-            };
+    #[test]
+    fn test_shortened() {
+        // low -> 
+        
+        for energy in [Energy::Low, Energy::Medium, Energy::High] {
+            let (test_name, duration)= crate::time::measure(|| {
+                let energy = Energy::Medium;
+                let mut phr = Phrasing {
+                    cps:1f32, 
+                    form: Timeframe {
+                        cycles: 5f32,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    arc: Timeframe {
+                        cycles: 5f32,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    line: Timeframe {
+                        cycles: 5f32,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    note: Timeframe {
+                        cycles:0f32,
+                        p: 0f32,
+                        instance: 0
+                    }
+                };
 
-            let sound = Sound {
-                bandpass: (FilterMode::Linear, FilterPoint::Constant, (MF as f32, NF as f32)),
-                energy: Energy::High,
-                presence : Presence::Legato,
-                pan: 0f32,
-            };
+                let sound = Sound {
+                    bandpass,
+                    energy,
+                    presence,
+                    pan: 0f32,
+                };
 
-            let line:Vec<Note> = vec![
-                note_by_register(1, 5),
-                note_by_register(1, 5),
-                note_by_register(1, 5),
-                note_by_register(1, 5),
-                note_by_register(1, 6),
-                note_by_register(1, 6),
-                note_by_register(1, 6),
-                note_by_register(1, 6),
-                note_by_register(1, 8),
-                note_by_register(1, 8),
-                note_by_register(1, 8),
-                note_by_register(1, 8),
-                note_by_register(1, 10),
-                note_by_register(1, 10),
-                note_by_register(1, 10),
-                note_by_register(1, 10),
-                note_by_register(1, 12),
-                note_by_register(1, 12),
-                note_by_register(1, 12),
-                note_by_register(1, 12),
-            ];
+                let mgen = Mgen {
+                    osc:BaseOsc::Noise,
+                    sound
+                };
 
-            let mgen = Mgen {
-                osc:BaseOsc::Noise,
-                sound
-            };
+                let samples = render_line_shortened(&mgen, &test_line(), &color, &mut phr);
 
-            let samples = render_line(&mgen, &line, &color, &mut phr);
+                files::with_dir(test_dir);
+                let test_name = format!("noise-shortened-{:#?}-{:#?}",energy, color);
+                let filename = format!("{}/{}.wav",test_dir,test_name);
 
-            files::with_dir(test_dir);
-            let test_name = format!("noise-degraded-1000-{:#?}",color);
-            let filename = format!("{}/{}.wav",test_dir,test_name);
+                render::samples_f32(SR, &samples, &filename);
+                test_name
+            });
+            println!("Completed test {:#?} in {:#?} ", test_name, duration);    
+        }
 
-            render::samples_f32(44100, &samples, &filename);
-            println!("Rendered audio file{:#?} ", filename);
+    }
+
+    #[test]
+    fn test_degraded() {
+
+        // low -> 4.31s
+        // medium -> 
+        // high -> 21.29s
+        
+        for energy in [Energy::Low, Energy::Medium, Energy::High] {
+            let (test_name, duration)= crate::time::measure(|| {
+                
+                let mut phr = Phrasing {
+                    cps:1f32, 
+                    form: Timeframe {
+                        cycles: 5f32,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    arc: Timeframe {
+                        cycles: 5f32,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    line: Timeframe {
+                        cycles: 5f32,
+                        p: 0f32,
+                        instance: 0
+                    },
+                    note: Timeframe {
+                        cycles:0f32,
+                        p: 0f32,
+                        instance: 0
+                    }
+                };
+
+                let sound = Sound {
+                    bandpass,
+                    energy,
+                    presence : Presence::Legato,
+                    pan: 0f32,
+                };
+
+                let mgen = Mgen {
+                    osc:BaseOsc::Noise,
+                    sound
+                };
+
+                let samples = render_line_degraded(&mgen, &test_line(), &color, &mut phr);
+
+                files::with_dir(test_dir);
+                let test_name = format!("noise-degraded-{:#?}-{:#?}",energy, color);
+                let filename = format!("{}/{}.wav",test_dir,test_name);
+
+                render::samples_f32(SR, &samples, &filename);
+                test_name
+            });
+            println!("Completed test {:#?} in {:#?} ", test_name, duration);    
         }
     }
+
 }
 
 
