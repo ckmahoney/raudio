@@ -164,17 +164,11 @@ fn gen_signal_composite(cps:f32, sound:&Sound2, melody:&Melody<Note>, m8s:&DModu
 
     let mut voices:Vec<SampleBuffer> = Vec::new();
     let snare_energy = Energy::Medium;
+
+    println!("This melody has {} voices", melody.len());
     
     for line in melody.iter() {
-        let mut channels = vec![
-            // crate::render::realize::render_line(&line, &sound, &mut phr, &m8s),
-            snare::render_line(&line, &snare_energy, &sound, &mut phr)
-        ];
-        let buff:SampleBuffer = match render::realize::mix_buffers(&mut channels) {
-            Ok(signal) => signal,
-            Err(msg) => panic!("Error while mixing signal components {}", msg)
-        };
-        voices.push(buff)
+        voices.push(snare::render_line(&line, &snare_energy, &sound, &mut phr, m8s))
     }
 
     render::realize::normalize_channels(&mut voices);
@@ -226,7 +220,7 @@ fn gen_signal_m8s(cps:f32, sound:&Sound2, melody:&Melody<Note>, m8s:&DModulators
 fn demonstrate() {
     let cps:f32 = 1.15;
     let labels:Vec<&str> = vec!["kick", "perc"];
-    let labels:Vec<&str> = vec!["kick", "perc", "hat"];
+    // let labels:Vec<&str> = vec!["kick", "perc", "hat"];
     let melodies = make_melodies();
     let sounds = make_sounds();
     let synths = make_synths();

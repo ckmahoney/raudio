@@ -39,9 +39,10 @@ pub fn render_line(line: &Vec<Note>, sound:&Sound2, phr:&mut Phrasing, preset: &
 }
 
 
+
 #[inline]
 /// Iterates over all available overtones for the given note to produce an audio sample.
-fn mgen_overs(note:&Note, sound:&Sound2, phr:&mut Phrasing, m8s: &DModulators) -> synth::SampleBuffer {
+pub fn mgen_overs(note:&Note, sound:&Sound2, phr:&mut Phrasing, m8s: &DModulators) -> synth::SampleBuffer {
     let dur = &note.0;
     let fund = tone_to_freq(&note.1);
     let ampl = &note.2;

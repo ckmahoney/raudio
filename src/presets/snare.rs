@@ -102,7 +102,7 @@ pub fn freq_component_enharmonic(note:&Note, energy:&Energy, snd:&Sound2, phr:&m
 use crate::render;
 
 use super::bell::BellPartial;
-pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasing) -> SampleBuffer {
+pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasing, m8s:&super::DModulators) -> SampleBuffer {
     let n_cycles = line.iter().fold(0f32, |acc, note| acc + time::duration_to_cycles(note.0));
     let ext = 1;
     phr.line.cycles = n_cycles;
@@ -126,6 +126,7 @@ pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasi
     for (index, &note) in line.iter().enumerate() {
         phr.line.p = render::realize::dur_to(&line, index) / n_cycles;
         let mut channels = vec![
+            crate::render::realize::mgen_overs(&note, &snd, phr, &m8s),
             freq_component_enharmonic(&note, energy, snd, phr, &coeffs),
             freq_component_noise(&note, energy, snd, phr, &coeffs)
         ];
