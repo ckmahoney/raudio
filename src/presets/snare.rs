@@ -108,7 +108,6 @@ pub fn render_line(line:&Vec<Note>, energy:&Energy, snd:&Sound2, phr:&mut Phrasi
     phr.line.cycles = n_cycles;
     
     let mut buff:SampleBuffer = Vec::new();
-    println!("[snare] Rendering {} cycles", n_cycles);
 
     let coeffs:Vec<bell::BellPartial> = vec![
         (0.00055, 0.25),

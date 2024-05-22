@@ -58,7 +58,7 @@ fn do_ifft(spectrum: &mut [Complex<f32>], num_samples: usize) -> Vec<f32> {
 
 
 /// Performs the inverse FFT on the provided spectrum and normalizes the resulting signal.
-fn render_ifft(sinus: &mut [(f32, f32, f32)], sample_rate:usize, n_samples: usize) -> SampleBuffer {
+pub fn ifft(sinus: &mut [(f32, f32, f32)], sample_rate:usize, n_samples: usize) -> SampleBuffer {
     let mut spectrum = create_spectrum(sinus, n_samples, sample_rate as f32);
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft(n_samples, FftDirection::Inverse);
@@ -123,7 +123,7 @@ mod test {
         ];
         let filename = format!("{}/major-chord.wav", TEST_DIR);
 
-        let signal = render_ifft(&mut freqs, SR, SR * 4);
+        let signal = ifft(&mut freqs, SR, SR * 4);
         engrave::samples(SR as usize, &signal, &filename);
 
         let mut freqs:Vec<(f32,f32,f32)> = vec![
@@ -133,7 +133,7 @@ mod test {
         ];
         let filename = format!("{}/minor-chord.wav", TEST_DIR);
 
-        let signal = render_ifft(&mut freqs, SR, SR * 4);
+        let signal = ifft(&mut freqs, SR, SR * 4);
         engrave::samples(SR as usize, &signal, &filename);
 
         let mut freqs:Vec<(f32,f32,f32)> = vec![
@@ -145,7 +145,7 @@ mod test {
         ];
         let filename = format!("{}/monic-chord.wav", TEST_DIR);
 
-        let signal = render_ifft(&mut freqs, SR, SR * 4);
+        let signal = ifft(&mut freqs, SR, SR * 4);
         engrave::samples(SR as usize, &signal, &filename);
     }
 
