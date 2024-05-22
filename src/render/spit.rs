@@ -207,4 +207,46 @@ mod test {
         engrave::samples(SR, &signal, &filename);
 
     }
+
+    fn small_p_modulator(cps:f32, n_samples:usize)-> SampleBuffer {
+        use rand;
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let frequency = 1f32;
+        (0..n_samples).map(|j| {
+            let phase = (j as f32).sqrt().sqrt()     * frequency * pi2 * (j as f32 / n_samples as f32) / cps;
+            let x:f32 =  rng.gen();
+             pi2 * (x - 0.5f32) * 0.01f32 
+        }).collect()
+    }
+
+    #[test]
+    fn test_pmod() {
+        let test_name = "gena-overs-pmod";
+        let funds:FreqSeq = (
+            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+        );
+        let span:Span = (1.5, 2.0);
+        let bp:Bp = (vec![MFf], vec![NFf]);
+        let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
+        let noise_thresh = 0f32;
+        let d:Range = 0f32;
+        let n_samples = crate::time::samples_of_cycles(span.0, span.1);
+        let expr:Expr = (vec![1f32], vec![1f32], small_p_modulator(span.0, n_samples));
+
+        let signal = gena(
+            funds.clone(),
+            expr.clone(),
+            &span,
+            &bp,
+            &multipliers,
+            noise_thresh,
+            d,
+        );
+
+        files::with_dir(TEST_DIR);
+        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
+        engrave::samples(SR, &signal, &filename);
+
+    }
 }
