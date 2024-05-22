@@ -1,6 +1,7 @@
 pub mod engrave;
 pub mod ifft;
 pub mod realize; 
+pub mod spit; 
 
 use crate::synth_config::SynthConfig;
 

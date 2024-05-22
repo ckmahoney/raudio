@@ -1,8 +1,28 @@
 use crate::phrasing::AmpModulation;
 use crate::synth::{pi,pi2,SampleBuffer};
 use crate::types::timbre::AmpContour;
+use crate::types::synthesis::{Range, Radian,Freq};
 
-const x:AmpContour =AmpContour::Fade;
+const x:AmpContour = AmpContour::Fade;
+
+pub type Cont<T> = Vec<T>;
+pub type AmpCont = Cont<Range>;
+pub type FreqCont = Cont<Freq>;
+pub type PhaseCont = Cont<Radian>;
+
+pub type Expr = (AmpCont, FreqCont, PhaseCont);
+
+pub struct Timeframe {
+    pub n_cycles: f32,
+    pub p: Range,
+}
+pub struct Position {
+    cps: f32,
+    note: Timeframe,
+    line: Timeframe,
+    arc: Timeframe,
+    form: Timeframe,
+}
 
 /// Given an index i in a sample buffer representing n_cycles,
 /// Produce amplitude modulation for a long form lifespan 

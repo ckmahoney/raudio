@@ -25,8 +25,8 @@ pub mod synthesis {
     pub type Note = (Duration, Tone, Ampl);
     pub type Progression = Vec<(Duration, Place)>;
     
-    type Radian = f32;
-    type Range = f32;
+    pub type Radian = f32;
+    pub type Range = f32;
 
     /// When in the melody does the filter activate
     #[derive(Debug, Clone, Copy)]
@@ -42,8 +42,11 @@ pub mod synthesis {
         Falling,
         Brownian
     }
+
     
     pub type Bandpass = (f32, f32);
+    /// Contour vector for Highpass, Lowpass frequencies
+    pub type Bp = (Vec<f32>, Vec<f32>);
 }
 
 pub mod render {
@@ -57,6 +60,9 @@ pub mod render {
         pub cpc: i16,
         pub base: i8,
     }
+    pub type NCycles = f32;
+    pub type NSamples = usize;
+    pub type Span = (NCycles, NSamples);
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct PlayerTrack<C> {
