@@ -46,6 +46,8 @@ pub mod synthesis {
     
     pub type Bandpass = (f32, f32);
     /// Contour vector for Highpass, Lowpass frequencies
+    /// Since inner vectors represent frequency cutoff values,
+    /// all must be in range of [MF, NF]
     pub type Bp = (Vec<f32>, Vec<f32>);
 }
 
@@ -62,7 +64,8 @@ pub mod render {
     }
     pub type NCycles = f32;
     pub type NSamples = usize;
-    pub type Span = (NCycles, NSamples);
+    pub type Cps = f32;
+    pub type Span = (Cps, NCycles);
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct PlayerTrack<C> {

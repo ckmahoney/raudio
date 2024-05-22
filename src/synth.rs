@@ -8,8 +8,10 @@ pub static pi2:f32 = pi*2f32;
 pub static SR:usize = 44100;
 // Maximum renderable frequency 
 pub static NF:usize = SR/2;
+pub static NFf:f32 = SR as f32/2f32;
 /* The minimum supported frequency to render*/
 pub static MF:usize = 24;
+pub static MFf:f32 = 24f32;
 
 pub struct Renderable {
     pub composition_id: i32,

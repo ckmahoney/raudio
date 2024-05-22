@@ -50,6 +50,7 @@ pub fn samples_from_dur(cps:f32, dur:f32) -> usize {
     ((SR as f32 / cps) * dur) as usize
 }
 
+/// Provides the number of samples required to span k cycles at cps.
 pub fn samples_of_cycles(cps:f32, k:f32) -> usize {
     (samples_per_cycle(cps) as f32 * k) as usize
 }

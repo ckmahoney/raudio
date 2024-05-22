@@ -78,7 +78,11 @@ pub fn gen_contour(n_samples:usize, n_cycles:f32, contour:&AmpContour, reverse:b
 }
 
 pub fn sample(contour:&AmpModulation, p:f32) -> f32 {
+    if contour.len() == 1 {
+        return contour[0]
+    }
     let index = (p * contour.len() as f32) as usize;
+    
     contour[index]
 }
 

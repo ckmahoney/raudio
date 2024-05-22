@@ -630,7 +630,7 @@ mod test {
         // high -> 2.341231525s
         
         for energy in [Energy::Low, Energy::Medium, Energy::High] {
-            let (test_name, duration)= crate::time::measure(|| {
+            let (test_name, duration) = crate::time::measure(|| {
                 let mut phr = Phrasing {
                     cps:1f32, 
                     form: Timeframe {
