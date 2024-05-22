@@ -41,7 +41,7 @@ fn filter(p:f32, freq:f32, bandpass:&Bp) -> Range {
 /// 
 /// ### Arguments
 /// * `funds` Immediate frequency context. Provides insight to previous and upcoming note, often for glissando.
-/// * `expr` Contour buffers for amplitude, frequency, and phase. Sampled based on this note's progress.
+/// * `expr` Contour buffers for amplitude, frequency, and phase. Sampled based on this note's progres and applied to the summed result (time-series) signal.
 /// * `span` Tuple of (cps, n_cycles, n_samples) 
 /// * `bp` Bandpass filter buffers. First entry is a list of highpass values; second entry is a list of lowpass values.
 /// * `multipliers` Frequencies for multiplying the curr frequency; to create a triangle wave, for example. Values must be in range of (0, NF/2]
@@ -55,8 +55,7 @@ pub fn gena(
     span: &Span,
     bp: &Bp,
     multipliers: &Vec<Freq>,
-    noise_thresh: f32,
-    d: Range
+    noise_thresh: f32
 ) -> SampleBuffer {
     let (_, prev, freq, next, _) = funds;
     let (acont, fcont, pcont) = expr;
@@ -71,13 +70,17 @@ pub fn gena(
         let am = sample(&acont, p);
         let fm = sample(&fcont, p);
         let pm = sample(&pcont, p);
+        let mut b:f32 = 0f32;
         for m in multipliers {
             let frequency = m * fm * freq;
             let amp = am * filter(p, frequency, bp);
-            if amp.abs() > noise_thresh {
+            if amp != 0f32 {
                 let phase = frequency * pi2 * t + pm; 
-                sig[j] += amp * phase.sin();
+                b += amp * phase.sin();
             }
+        }
+        if b.abs() > noise_thresh {
+            sig[j] += b
         }
     }
 
@@ -93,7 +96,7 @@ mod test {
     static TEST_DIR:&str = "dev-audio/spit";
 
     #[test]
-    fn test_minimal_tone() {
+    fn test_multipliers_overtones() {
         let test_name = "gena-overs";
         let funds:FreqSeq = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
@@ -103,7 +106,6 @@ mod test {
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let noise_thresh = 0f32;
-        let d:Range = 0f32;
 
         let signal = gena(
             funds,
@@ -111,8 +113,32 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            noise_thresh,
-            d,
+            noise_thresh
+        );
+        files::with_dir(TEST_DIR);
+        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
+        engrave::samples(SR, &signal, &filename);
+    }
+
+    #[test]
+    fn test_multipliers_undertones() {
+        let test_name = "gena-unders";
+        let funds:FreqSeq = (
+            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+        );
+        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
+        let span:Span = (1.5, 2.0);
+        let bp:Bp = (vec![MFf], vec![NFf]);
+        let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| 1f32/x as f32).collect();
+        let noise_thresh = 0f32;
+
+        let signal = gena(
+            funds,
+            expr,
+            &span,
+            &bp,
+            &multipliers,
+            noise_thresh
         );
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
@@ -131,7 +157,6 @@ mod test {
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let noise_thresh = 0f32;
-        let d:Range = 0f32;
 
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let highpass_filter:Vec<f32> = (0..n_samples/4).map(|x|  x as f32).collect();
@@ -142,8 +167,7 @@ mod test {
             &span,
             &(highpass_filter, lowpass_filter),
             &multipliers,
-            noise_thresh,
-            d,
+            noise_thresh
         );
 
         files::with_dir(TEST_DIR);
@@ -162,8 +186,7 @@ mod test {
             &span,
             &(highpass_filter, lowpass_filter),
             &multipliers,
-            noise_thresh,
-            d,
+            noise_thresh
         );
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
@@ -188,7 +211,6 @@ mod test {
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let noise_thresh = 0f32;
-        let d:Range = 0f32;
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], small_f_modulator(span.0, n_samples), vec![0f32]);
 
@@ -198,8 +220,7 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            noise_thresh,
-            d,
+            noise_thresh
         );
 
         files::with_dir(TEST_DIR);
@@ -230,7 +251,6 @@ mod test {
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let noise_thresh = 0f32;
-        let d:Range = 0f32;
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], small_p_modulator(span.0, n_samples));
 
@@ -240,13 +260,39 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            noise_thresh,
-            d,
+            noise_thresh
         );
 
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
         engrave::samples(SR, &signal, &filename);
+    }
 
+
+
+    #[test]
+    fn test_noise_thresh() {
+        let test_name = "gena-thresh";
+        let funds:FreqSeq = (
+            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+        );
+        let span:Span = (1.5, 2.0);
+        let bp:Bp = (vec![MFf], vec![NFf]);
+        let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
+        let n_samples = crate::time::samples_of_cycles(span.0, span.1);
+        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
+        let noise_thresh = 0.7f32;
+        let signal = gena(
+            funds.clone(),
+            expr.clone(),
+            &span,
+            &bp,
+            &multipliers,
+            noise_thresh
+        );
+
+        files::with_dir(TEST_DIR);
+        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
+        engrave::samples(SR, &signal, &filename);
     }
 }
