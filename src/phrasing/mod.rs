@@ -134,5 +134,90 @@ pub fn verify_amp_mod(vec:Vec<f32>) -> bool {
     if rms == 0f32 || rms == 1f32 {
         return false
     }
+
     return true
+}
+
+
+pub fn gen_mixers(n:usize)-> Vec<ranger::Mixer> {
+    use rand;
+    use rand::Rng;
+    use rand::seq::SliceRandom;
+    let mut rng = rand::thread_rng();
+
+    if n > ranger::options.len() {
+        panic!("Requested more rangers than are available. Repeating the same ranger is the same as boosting its weight.")
+    }
+
+    let weights:Vec<f32> = if n == 1usize {
+        vec![1f32]
+    } else {
+        let init = rng.gen();
+        let mut ws = vec![init];
+        for i in 0..(n-1) {
+            let rem = ws.iter().sum();
+            let next = if i == (n-2) { rem } else {
+                rng.gen::<f32>() * rem
+            };
+            ws.push(next) 
+        }
+
+        ws
+    };
+
+    let mut opts = ranger::options.to_vec();
+    opts.shuffle(&mut rng);
+    let rangers:Vec<ranger::Ranger> = opts.to_vec().iter().cloned().take(n).collect();   
+    weights.into_iter().zip(rangers.into_iter()).collect()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const MONICS: [usize; 59] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+        21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+        41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
+    ];
+
+    const DOMAIN: [f32; 48000] = {
+        let mut array = [0.0; 48000];
+        let mut i = 0;
+        while i < 48000 {
+            array[i] = i as f32 / 48000.0;
+            i += 1;
+        }
+        array
+    };
+
+
+    #[test]
+    fn test_gen_mixer() {
+        let n:usize = 3;
+        let d = 1f32;
+        let min = 0f32;
+        let max = 1f32;
+
+        let mixers = gen_mixers(n);
+        for k in MONICS {
+            let kf = k as f32;
+            let mut has_value = false;
+            let mut not_one = false;
+            for x in DOMAIN {
+                let y = ranger::mix(kf, x, d, &mixers);
+                if y > 0f32 && !has_value {
+                    has_value = true
+                };
+                if y < 1f32 && !not_one {
+                    not_one = true
+                };
+                assert!(y >= min, "Mixing rangers must not produce values below {}", min);
+                assert!(y <= max, "Mixing rangers must not produce values above {}", max);
+            }
+            assert!(has_value, "Mixing rangers must not be 0 valued over its domain");
+            assert!(not_one, "Mixing rangers must not be 1 valued over its domain");
+        }
+    }
+
 }
