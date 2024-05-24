@@ -108,16 +108,44 @@ mod test {
             for k in MONICS {
                 let kf = k as f32;
                 let mut has_value = false;
+                let mut not_one = false;
                 for x in DOMAIN {
                     let y = ranger(kf, x, d);
-                    if y > 0f32 {
+                    if y > 0f32 && !has_value {
                         has_value = true
+                    };
+                    if y < 1f32 && !not_one {
+                        not_one = true
                     };
                     assert!(y >= min, "Ranger {} must not produce values below {}", i, min);
                     assert!(y <= max, "Ranger {} must not produce values above {}", i, max);
                 }
                 assert!(has_value, "Ranger {} must not be 0 valued over its domain", i);
+                assert!(not_one, "Ranger {} must not be 1 valued over its domain", i);
             }
+        }
+    }
+
+    #[test]
+    fn test_mix() {
+        let mixers:Vec<Mixer> = (&options).iter().map(|ranger| (1f32/options.len() as f32, *ranger)).collect();
+        for k in MONICS {
+            let kf = k as f32;
+            let mut has_value = false;
+            let mut not_one = false;
+            for x in DOMAIN {
+                let y = mix(kf, x, d, &mixers);
+                if y > 0f32 && !has_value {
+                    has_value = true
+                };
+                if y < 1f32 && !not_one {
+                    not_one = true
+                };
+                assert!(y >= min, "Mixing rangers must not produce values below {}", min);
+                assert!(y <= max, "Mixing rangers must not produce values above {}", max);
+            }
+            assert!(has_value, "Mixing rangers must not be 0 valued over its domain");
+            assert!(not_one, "Mixing rangers must not be 1 valued over its domain");
         }
     }
 }
