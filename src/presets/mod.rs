@@ -29,9 +29,16 @@ pub struct Modulators {
 
 pub struct DModulators {
     pub amp: Option<DAmpMod>,
-    pub freq: Option<DFreqMod>,
+    pub freq: Option<DAmpMod>,
     pub phase: Option<DPhaseMod>,
 }
+
+/// 3-tuple enabling index-based (Vertical) modulation of a signal.
+pub type VModulators = (
+    Option<DAmpMod>,
+    Option<DAmpMod>,
+    Option<DPhaseMod>
+);
 
 
 pub struct Ctx {

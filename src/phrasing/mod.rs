@@ -139,7 +139,7 @@ pub fn verify_amp_mod(vec:Vec<f32>) -> bool {
 }
 
 
-pub fn gen_mixers(n:usize)-> Vec<ranger::Mixer> {
+pub fn gen_cocktail(n:usize)-> Vec<ranger::Mixer> {
     use rand;
     use rand::Rng;
     use rand::seq::SliceRandom;
@@ -155,7 +155,7 @@ pub fn gen_mixers(n:usize)-> Vec<ranger::Mixer> {
         let init = rng.gen();
         let mut ws = vec![init];
         for i in 0..(n-1) {
-            let rem = ws.iter().sum();
+            let rem = 1f32 - ws.iter().sum::<f32>();
             let next = if i == (n-2) { rem } else {
                 rng.gen::<f32>() * rem
             };
@@ -199,7 +199,7 @@ mod test {
         let min = 0f32;
         let max = 1f32;
 
-        let mixers = gen_mixers(n);
+        let mixers = gen_cocktail(n);
         for k in MONICS {
             let kf = k as f32;
             let mut has_value = false;

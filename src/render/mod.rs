@@ -1,3 +1,4 @@
+pub mod blend; 
 pub mod engrave;
 pub mod ifft;
 pub mod realize; 
