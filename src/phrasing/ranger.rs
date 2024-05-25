@@ -15,6 +15,23 @@
 /// Functions are guaranteed to be defined for all x in [0,1] but no guarantees outside this domain.
 /// Functions may optionally respond to d parameter.
 /// 
+/// ## Placement
+/// 
+/// Currently the methods describe their placement with respect to a spectrogram.
+/// 
+/// Horiztonal placement refers to where the body of energy is activated. 
+/// Left means the signal starts strong and ends weaker,
+/// Center means it starts weaker, grows in strength, and falls back down
+/// Right means the signal starts weak and ends strong.
+/// 
+/// Vertical placement refers to the spectral centroid. 
+/// Bottom means values near the fundamental are emphasized.
+/// Center means values "farther away" (e.g. k > 7) are emphasized.
+/// Top means values "way up" (e.g. k > 15) are emphasized.
+/// 
+/// Between the two, horizontal placement is more straightforward to generalize.
+/// Vertical placement, when properly implemented, provides a magnificient array of tingly ear candy.
+/// 
 /// View implementations of these (as of May 23 2024)
 /// https://www.desmos.com/calculator/ar9rw3klcs
 
@@ -37,7 +54,7 @@ static two:f32 = 2f32;
 static half:f32 = 0.5f32;
 
 /// Transformer based on logistic function for output in range [0, 1]
-/// Only one conform method is allowed. 
+/// Only one conform method is allowed. It should maintain the contour of the input.
 fn conform(y:f32) -> f32 {
     // mutation looks good in desmos; can remove this subtraction for a more pure conformation
     let z = y - 0.5; 
@@ -58,6 +75,8 @@ pub fn mix(k:f32, x:f32, d:f32, mixers:&Cocktail) -> f32 {
 }
 
 /// Model based on (1/x)
+/// Horizontal: left
+/// Vertical: bottom
 pub fn a(k:f32, x:f32, d:f32) -> f32 {
     if x == 0f32 {
         return 1f32
@@ -68,6 +87,8 @@ pub fn a(k:f32, x:f32, d:f32) -> f32 {
 }
 
 /// Model based on (1/x^2)
+/// Horizontal: left
+/// Vertical: bottom
 pub fn b(k:f32, x:f32, d:f32) -> f32 {
     if x == 0f32 {
         return 1f32
@@ -77,7 +98,9 @@ pub fn b(k:f32, x:f32, d:f32) -> f32 {
     conform(y)
 }
 
-/// Model inspired by the logistic function 
+/// Model inspired by the logistic function
+/// Horizontal: left
+/// Vertical: bottom
 pub fn c(k:f32, x:f32, d:f32) -> f32 {
     let p = -0.75f32 * (one + x * (half * k).log10());
     let y = (two / (one - p.exp())) - one;
