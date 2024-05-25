@@ -56,7 +56,7 @@ pub struct Mgen {
 pub enum NoiseColor {
     Violet,
     Blue,
-    White,
+    Equal,
     Pink,
     Red,
 }
@@ -64,7 +64,7 @@ pub enum NoiseColor {
 impl NoiseColor {
     pub fn variants() -> Vec<NoiseColor> {
         vec![
-            NoiseColor::White,
+            NoiseColor::Equal,
             NoiseColor::Pink,
             NoiseColor::Blue,
             NoiseColor::Red,
@@ -77,7 +77,7 @@ impl NoiseColor {
         match color {
             NoiseColor::Violet => (f as f32).powi(2),
             NoiseColor::Blue => (f as f32).sqrt(),
-            NoiseColor::White => 1.0,
+            NoiseColor::Equal => 1.0,
             NoiseColor::Pink => 1.0 / (f as f32).sqrt(),
             NoiseColor::Red => 1.0 / (f as f32).powi(2),
         }
@@ -853,80 +853,4 @@ mod test {
         }
     }
 
-}
-
-
-
-
-
-
-
-
-
-
-
-
-struct NoiseCache {
-    // pink: Vec<Vec<f32>>,
-    // white: Vec<Vec<f32>>,
-    // blue: Vec<Vec<f32>>,
-    // violet: Vec<Vec<f32>>,
-    red: Vec<Vec<f32>>,
-}
-
-/// Given a frequency value, 
-/// Get the highest supported noise offset value 
-/// helps make noise computation cheaper
-fn get_max_freq(freq:f32) -> usize {
-    1000usize.min(NF - freq as usize)
-}
-
-/// Generate a sampled fourier series of the specified noise type 
-impl NoiseCache {
-    fn looper(source: &Vec<f32>, repeat_times: f32) -> Vec<f32> {
-        let total_elements = (source.len() as f32 * repeat_times).round() as usize;
-    
-        let result = source.iter()
-            .cycle()  
-            .take(total_elements)  
-            .copied() 
-            .collect::<Vec<f32>>();
-    
-        result
-    }
-
-    fn to_size(freq:f32, group:&Vec<Vec<f32>>, n_samples:usize) -> Vec<Vec<f32>> {
-        let len = group[0].len();
-        if len == n_samples {
-            return group.clone()
-        }
-        let start = freq.floor() as usize;
-        let end = get_max_freq(freq);
-        group[start..end].iter().map(|row| 
-            NoiseCache::looper(row, n_samples as f32/ len as f32)
-        ).collect()
-    }
-
-    pub fn new(n_samples:usize) -> Self {
-        NoiseCache {
-            // violet: Mgen::buffs_by_duration(n_samples, &NoiseColor::Violet),
-            // blue: Mgen::buffs_by_duration(n_samples, &NoiseColor::Blue),
-            // white: Mgen::buffs_by_duration(n_samples, &NoiseColor::White),
-            // pink: Mgen::buffs_by_duration(n_samples, &NoiseColor::Pink),
-            red: Mgen::buffs_by_duration(n_samples, &NoiseColor::Red),
-        }
-    }
-
-    pub fn get(&self, freq:f32, color:&NoiseColor, n_samples:usize) -> Vec<Vec<f32>> {
-        let group = match color {
-            // NoiseColor::Violet => &self.violet,
-            // NoiseColor::Blue => &self.blue,
-            // NoiseColor::White => &self.white,
-            // NoiseColor::Pink => &self.pink,
-            NoiseColor::Red => &self.red,
-            _ => { &self.red} ,
-        };
-
-        NoiseCache::to_size(freq, group, n_samples)
-    }
 }
