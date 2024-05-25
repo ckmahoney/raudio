@@ -57,10 +57,10 @@ fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:f32, x:f32, d:f32) ->
 /// * `bp` Bandpass filter buffers. First entry is a list of highpass values; second entry is a list of lowpass values.
 /// * `multipliers` Frequencies for multiplying the curr frequency; to create a triangle wave, for example. Values must be in range of (0, NF/2]
 /// * `druid` Optional callbacks to apply for modulating amp, freq,and phase on each multiplier (by index + 1 as k).
-/// * `noise_thresh` Minimum allowed amplitude. Use -1 for an allpass. 
+/// * `noise_thresh` Minimum allowed amplitude. Use 0 for an allpass. 
 /// ### Returns
 /// A samplebuffer representing audio data of the specified event.
-pub fn genb(
+pub fn blender(
     funds: Frex,
     expr: Expr,
     span: &Span,
@@ -96,7 +96,7 @@ pub fn genb(
             }
         }
 
-        if v.abs() > noise_thresh {
+        if v.abs() >= noise_thresh {
             sig[j] += v
         }
     }
@@ -115,7 +115,7 @@ mod test {
 
     #[test]
     fn test_multipliers_overtones() {
-        let test_name = "genb-overs";
+        let test_name = "blender-overs";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -125,7 +125,7 @@ mod test {
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let noise_thresh = 0f32;
 
-        let signal = genb(
+        let signal = blender(
             funds,
             expr,
             &span,
@@ -141,7 +141,7 @@ mod test {
 
     #[test]
     fn test_multipliers_undertones() {
-        let test_name = "genb-unders";
+        let test_name = "blender-unders";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -151,7 +151,7 @@ mod test {
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| 1f32/x as f32).collect();
         let noise_thresh = 0f32;
 
-        let signal = genb(
+        let signal = blender(
             funds,
             expr,
             &span,
@@ -168,7 +168,7 @@ mod test {
 
     #[test]
     fn test_bp_filters() {
-        let test_name = "genb-overs-highpass-filter";
+        let test_name = "blender-overs-highpass-filter";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -181,7 +181,7 @@ mod test {
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let highpass_filter:Vec<f32> = (0..n_samples/4).map(|x|  x as f32).collect();
         let lowpass_filter = vec![NFf];
-        let signal = genb(
+        let signal = blender(
             funds.clone(),
             expr.clone(),
             &span,
@@ -195,13 +195,13 @@ mod test {
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
         engrave::samples(SR, &signal, &filename);
 
-        let test_name = "genb-overs-lowpass-filter";
+        let test_name = "blender-overs-lowpass-filter";
         let bp:Bp = (vec![MFf], vec![NFf]);
 
         let highpass_filter = vec![MFf];
         let lowpass_filter = (0..n_samples/4).map(|x| (15000 - x) as f32).collect();
 
-        let signal = genb(
+        let signal = blender(
             funds,
             expr,
             &span,
@@ -225,7 +225,7 @@ mod test {
 
     #[test]
     fn test_fmod() {
-        let test_name = "genb-overs-fmod";
+        let test_name = "blender-overs-fmod";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -236,7 +236,7 @@ mod test {
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], small_f_modulator(span.0, n_samples), vec![0f32]);
 
-        let signal = genb(
+        let signal = blender(
             funds.clone(),
             expr.clone(),
             &span,
@@ -249,7 +249,6 @@ mod test {
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
         engrave::samples(SR, &signal, &filename);
-
     }
 
     fn small_p_modulator(cps:f32, n_samples:usize)-> SampleBuffer {
@@ -266,7 +265,7 @@ mod test {
 
     #[test]
     fn test_pmod() {
-        let test_name = "genb-overs-pmod";
+        let test_name = "blender-overs-pmod";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -277,7 +276,7 @@ mod test {
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], small_p_modulator(span.0, n_samples));
 
-        let signal = genb(
+        let signal = blender(
             funds.clone(),
             expr.clone(),
             &span,
@@ -296,7 +295,7 @@ mod test {
 
     #[test]
     fn test_noise_thresh() {
-        let test_name = "genb-thresh";
+        let test_name = "blender-thresh";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -306,7 +305,7 @@ mod test {
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
         let noise_thresh = 0.7f32;
-        let signal = genb(
+        let signal = blender(
             funds.clone(),
             expr.clone(),
             &span,
@@ -323,7 +322,7 @@ mod test {
 
     #[test]
     fn test_druid_amp() {
-        let test_name = "genb-druid-amp";
+        let test_name = "blender-druid-amp";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -338,7 +337,7 @@ mod test {
             None,
             None,
         ];
-        let signal = genb(
+        let signal = blender(
             funds.clone(),
             expr.clone(),
             &span,
@@ -355,7 +354,7 @@ mod test {
 
     #[test]
     fn test_druid_freq() {
-        let test_name = "genb-druid-freq";
+        let test_name = "blender-druid-freq";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -370,7 +369,7 @@ mod test {
             Some(phrasing::gen_cocktail(2)),
             None,
         ];
-        let signal = genb(
+        let signal = blender(
             funds.clone(),
             expr.clone(),
             &span,
@@ -388,7 +387,7 @@ mod test {
 
     #[test]
     fn test_druid_phase() {
-        let test_name = "genb-druid-phase";
+        let test_name = "blender-druid-phase";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -403,7 +402,7 @@ mod test {
             None,
             Some(phrasing::gen_cocktail(2)),
         ];
-        let signal = genb(
+        let signal = blender(
             funds.clone(),
             expr.clone(),
             &span,
