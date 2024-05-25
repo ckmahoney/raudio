@@ -1,0 +1,15 @@
+*.log
+node_modules
+out
+sclang-log
+.gitignore
+.env
+node_modules
+target
+dev-audio
+dev-image
+dist
+tmp
+audio-out
+audio
+release
