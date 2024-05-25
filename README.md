@@ -14,15 +14,19 @@ This project has a few goals. It also has some explicit no-gos of conventional a
 
 ## Goals
 
- - Provide a high level API for describing sound in the frequency domain
- - Provide a secure and safe environment for rendering audio files 
-    - By definition, aliasing is not possible (like in FM synthesis)
- - Enable arbitrary fidelity for any sample rate
- - Provide support for time domain signal analysis
- - Melt your face with lush sounds
+    - Provide a high level API for creating and modulating sound in the frequency domain
+    - Provide a secure and safe environment for rendering audio files 
+        - By definition, aliasing is not possible (haha bye FM synthesis)
+    - Enable arbitrary fidelity for any sample rate
+    - Provide support for time domain signal analysis (but not modulation)
+    - Melt your face with lush sounds
 
 ## Not Goals
 
   - Does not provide support for time domain signal modulation
-    - Lowpass and highpass filters not welcome here!
+    - Conventional Lowpass and highpass filters not welcome here!
     - Hey distortion, we've got cooler ways to do you
+    - Reverb, more like stretchy harmonics
+  - Does not provide support for sample-based music
+    - Leave your sample packs at home kids, we gen our own
+
