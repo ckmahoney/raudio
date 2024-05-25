@@ -12,6 +12,8 @@ use presets::{PartialModulators, DModulators, kick, snare};
 
 static demo_name:&str = "drakebeat";
 
+
+/// helper for making a test line of specific length with arbitrary pitch.
 fn make_line(durations:Vec<Duration>, registers:Vec<i8>, amps:Vec<Ampl>, overs:bool) -> Vec<Note> {
     let len = durations.len();
     if len != registers.len() || len != amps.len() {
@@ -27,6 +29,8 @@ fn make_line(durations:Vec<Duration>, registers:Vec<i8>, amps:Vec<Ampl>, overs:b
     line
 }
 
+
+/// helper for making a test monophonic melody of specific length with arbitrary pitch.
 fn make_melody(durations:Vec<Duration>, registers:Vec<i8>, amps:Vec<Ampl>, overs:bool) -> Melody<Note> {
     vec![
         make_line(durations, registers, amps, overs)
