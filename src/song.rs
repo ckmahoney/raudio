@@ -3,6 +3,8 @@ use crate::types::synthesis::*;
 use crate::types::timbre::*;
 use crate::types::render::*;
 
+/// MIDI representation of the X-Files theme
+/// This song is under copyright; be careful
 pub mod x_files {
     use super::*;
     
@@ -149,6 +151,8 @@ pub mod x_files {
     }
 }
 
+/// Monic representation of Happy Birthday
+/// This song is public domain
 pub mod happy_birthday {
     use super::*;
 
@@ -241,41 +245,3 @@ pub mod happy_birthday {
     }
 }
 
-
-#[test]
-fn test_check_notes() {
-    use crate::monic_theory::{Chrom, tone_to_chrom};
-    let tones:Vec<Tone> = happy_birthday::get_track().parts[0].1[0].iter().map(|p| p.1).collect::<Vec<Tone>>();
-    let chroms:Vec<Chrom> = tones.into_iter().map(|t| tone_to_chrom(t)).collect::<Vec<Chrom>>();
-        
-    let expected:Vec::<i8> = vec![
-        43,
-        43,
-        45,
-        43,
-        48,
-        47,
-        43,
-        43,
-        45,
-        43,
-        50,
-        48,
-        43,
-        43,
-        55,
-        52,
-        48,
-        47,
-        45,
-        53,
-        53,
-        52,
-        48,
-        50,
-        48,
-    ];
-    println!("Got these chroms for the happy birthday melody");
-    println!("{:#?}", chroms);
-    assert_eq!(expected, chroms);
-}

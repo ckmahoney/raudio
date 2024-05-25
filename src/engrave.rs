@@ -253,9 +253,9 @@ fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
 fn fill_zeros(cps:f32, n_cycles:f32) -> SampleBuffer {
     let n_samples = (time::samples_per_cycle(cps) as f32 * n_cycles) as usize;
     vec![0f32; n_samples]
-    
 }
 
+/// Deprecated method (was the MVP) for generating expressive signals
 #[inline]
 fn color_mod_note(cps:f32, note:&Note, osc:&BaseOsc, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> SampleBuffer {
     let (duration, (_, (_,_, monic)), amp) = note;
@@ -355,6 +355,7 @@ pub fn render_line(cps:f32, line: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&m
     }).collect()
 }
 
+/// Deprecated method (was the MVP) for rendering expressive lines
 pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> Vec<synth::SampleBuffer> {
     let dir = Direction::Constant;
     phr.line.cycles = notes.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32 / note.0.0 as f32 );
@@ -392,7 +393,7 @@ mod test {
     use crate::render; 
     use crate::files;
 
-    static test_dir:&str = "dev-audio/presets/kick";
+    static test_dir:&str = "dev-audio/engrave";
 
     // #[test]
     // fn test_song_x_files() {
@@ -422,8 +423,6 @@ mod test {
     //     }
     // }
 
-    /// iterate early monics over sequential rotations in alternating spaces
-    
     
     #[test]
     fn test_song_happy_birthday() {

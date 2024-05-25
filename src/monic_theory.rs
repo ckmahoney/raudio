@@ -82,79 +82,122 @@ pub fn tone_to_freq(tone:&Tone) -> f32 {
     fit(2f32.powi(*register as i32), monae_to_freq(m))
 }
 
-#[test]
-fn view_early_monics() {
-    let monics:[usize; 7] = [1,3,5, 7, 11, 13, 17 ];
-    let os:[f32; 7] = monics.map(|x| fit(1.0, x as f32));
-    let us:[f32; 7] = monics.map(|x| fit(1.0, 1f32/x as f32));
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::song::happy_birthday;
 
-    let info = r##"
-
-        # Monic 
-
-            The word "Monic" indicates the prime numbers element witihn the harmonic series. 
-            This could also be described as positive primes, usually constrained to be less than 13.
+    #[test]
+    fn test_check_notes() {
+        use crate::monic_theory::{Chrom, tone_to_chrom};
+        let tones:Vec<Tone> = happy_birthday::get_track().parts[0].1[0].iter().map(|p| p.1).collect::<Vec<Tone>>();
+        let chroms:Vec<Chrom> = tones.into_iter().map(|t| tone_to_chrom(t)).collect::<Vec<Chrom>>();
             
-            Most of the time we can use 1,3,5. 
+        let expected:Vec::<i8> = vec![
+            43,
+            43,
+            45,
+            43,
+            48,
+            47,
+            43,
+            43,
+            45,
+            43,
+            50,
+            48,
+            43,
+            43,
+            55,
+            52,
+            48,
+            47,
+            45,
+            53,
+            53,
+            52,
+            48,
+            50,
+            48,
+        ];
+        assert_eq!(expected, chroms);
+    }
 
-            The "space" is either Overtones (O) or Undertones (U).
-            Overtones are identical in concept to the harmonics in the harmonic series.
-            Undertones are the reciprocal of these values.
+    #[test]
+    fn view_early_monics() {
+        let monics:[usize; 7] = [1,3,5, 7, 11, 13, 17 ];
+        let os:[f32; 7] = monics.map(|x| fit(1.0, x as f32));
+        let us:[f32; 7] = monics.map(|x| fit(1.0, 1f32/x as f32));
 
-            O[1,3,5] = [1,3,5]
-            U[1,3,5] = [1, 1/3, 1/5]
+        let info = r##"
 
-        # Basis of Harmony
+            # Monic 
 
-            For Western music we generally like music that fit well in a piano or guitar. 
+                The word "Monic" indicates the prime numbers element witihn the harmonic series. 
+                This could also be described as positive primes, usually constrained to be less than 13.
+                
+                Most of the time we can use 1,3,5. 
 
-            This music is centered around the "Tonic <> Dominant" relationship, also known as {I V I}. A similar effect can be achieved by using a harmonic basis of (3/2) as our value for rotating monics. 
+                The "space" is either Overtones (O) or Undertones (U).
+                Overtones are identical in concept to the harmonics in the harmonic series.
+                Undertones are the reciprocal of these values.
 
-            We apply the exponential variable (r) for rotation. 
-            (3/2)^r
+                O[1,3,5] = [1,3,5]
+                U[1,3,5] = [1, 1/3, 1/5]
 
-            The origin of our tonality is 0. 
-            Here we'll apply 0 as r and use it to modulate our monics:
+            # Basis of Harmony
 
-            (3/2)^0 = 1
-            O: 1 * [1, 3, 5] = [1, 3, 5]
-            U: 1 * [1, 1/3, 1/5] = [1, 1/3, 1/5]
+                For Western music we generally like music that fit well in a piano or guitar. 
+
+                This music is centered around the "Tonic <> Dominant" relationship, also known as {I V I}. A similar effect can be achieved by using a harmonic basis of (3/2) as our value for rotating monics. 
+
+                We apply the exponential variable (r) for rotation. 
+                (3/2)^r
+
+                The origin of our tonality is 0. 
+                Here we'll apply 0 as r and use it to modulate our monics:
+
+                (3/2)^0 = 1
+                O: 1 * [1, 3, 5] = [1, 3, 5]
+                U: 1 * [1, 1/3, 1/5] = [1, 1/3, 1/5]
+                
+                So our O and U series are still [1, 3, 5] and [1, 1/3, 1/5].
+
+                We can describe "neighbor series" by setting r to 1 or -1. Then we get values
+                (3/2)^1
+
+                (3/2)^1 = 1.5
+                O: 1.5 * [1, 3, 5] = [1.5, 4.5, 7.5]
+                U: 1.5 * [1, 1/3, 1/5] = [1.5, 0.5, 0.3]
+
+                (3/2)^-1 = 0.66
+                O: 0.66 * [0.666, 2, 2.666]
+                U: 0.66 * [1, 1/3, 1/5] = [0.666, 0.222, 0.133]
             
-            So our O and U series are still [1, 3, 5] and [1, 1/3, 1/5].
+            # Relationship of O an U
 
-            We can describe "neighbor series" by setting r to 1 or -1. Then we get values
-            (3/2)^1
-
-            (3/2)^1 = 1.5
-            O: 1.5 * [1, 3, 5] = [1.5, 4.5, 7.5]
-            U: 1.5 * [1, 1/3, 1/5] = [1.5, 0.5, 0.3]
-
-            (3/2)^-1 = 0.66
-            O: 0.66 * [0.666, 2, 2.666]
-            U: 0.66 * [1, 1/3, 1/5] = [0.666, 0.222, 0.133]
-        
-        # Relationship of O an U
-
-            It is satisfying to offer a proof for the conventional Western Major Scale, the Minor Scale, and the fundamental relationship between them.
-            To do so we'll need 3 monics, both neighbors, and a sorting function. 
-            
-            Using O space yields the Major Scale
+                It is satisfying to offer a proof for the conventional Western Major Scale, the Minor Scale, and the fundamental relationship between them.
+                To do so we'll need 3 monics, both neighbors, and a sorting function. 
+                
+                Using O space yields the Major Scale
 
 
-            O[-1]: 0.66 * [0.666, 2, 2.666]
-            O[=0]: 1 * [1, 3, 5] = [1, 3, 5]
-            O[+1]: 1.5 * [1, 3, 5] = [1.5, 4.5, 7.5]
+                O[-1]: 0.66 * [0.666, 2, 2.666]
+                O[=0]: 1 * [1, 3, 5] = [1, 3, 5]
+                O[+1]: 1.5 * [1, 3, 5] = [1.5, 4.5, 7.5]
 
-            Putting the results all together into one list, from lowest rotation to highest rotation, gives us
+                Putting the results all together into one list, from lowest rotation to highest rotation, gives us
 
-            [ 0.666, 2, 2.666, 1, 3, 5, 1.5, 4.5, 7.5]
+                [ 0.666, 2, 2.666, 1, 3, 5, 1.5, 4.5, 7.5]
 
-            Applying our fit function to the results provides
+                Applying our fit function to the results provides
 
 
-    "##;
+        "##;
 
-    println!("Fit {:?}",(0i32..=110).into_iter().map(|x| (3f32/2f32).powi(x) ).collect::<Vec<f32>>());
+        println!("Fit {:?}",(0i32..=110).into_iter().map(|x| (3f32/2f32).powi(x) ).collect::<Vec<f32>>());
 
-    // println!("monics: {:#?}\novertones: {:#?}\nundertones: {:#?}", monics, os, us)
+        // println!("monics: {:#?}\novertones: {:#?}\nundertones: {:#?}", monics, os, us)
+    }
+
 }

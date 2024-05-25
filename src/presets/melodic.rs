@@ -76,7 +76,7 @@ impl BaseOsc {
         match color {
             Violet => 1.0 / (max_k - kf).powi(2),
             Blue => 1.0 / (max_k - kf).sqrt(),
-            White => 1.0,
+            Equal => 1.0,
             Pink => 1.0 / (kf).sqrt(),
             Red => 1.0 / (kf).powi(2),
         }

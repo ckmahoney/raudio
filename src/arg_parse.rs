@@ -365,6 +365,7 @@ mod test_unit {
     use super::*;
     use crate::types::render::Score;
 
+    /// Verify raudio accepts input from external applications
     #[test]
     fn test_parse_tin_pan_score() {
         let score_path = "test-tin-pan-score.json";
