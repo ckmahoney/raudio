@@ -5,11 +5,6 @@
 /// 
 /// Some methods applied below to improve performance:
 /// 
-/// ## Cache
-/// Cache 1 period of each noise value. Takes 42 seconds to fill the "Red" cache (1/5 entries).
-/// Copies from cach are very slow and expensive
-/// Bandlimited copies much faster, scaling O(n) 
-/// 
 /// ## Shortening
 /// Much better success is seen reducing the harmonic reach of the noise signal.
 /// This also adds a lot more character to the result. Testing with a max of +1000 noise 
@@ -602,22 +597,6 @@ mod test {
     }
 
     #[test]
-    /// This shows that it is way too expensive to keep a cache of fourier series values (even 1 second) 
-    /// just 1 period of 1hertz red noise takes 41 seconds to render.
-    /// It enabled making copies at 12 seconds shorter copies, and halted with SIGTERM 9 when attempting to do three in one functionc all.
-    fn test_cache() {
-        let freq = 500f32;
-        let (cache, duration )= crate::time::measure(|| NoiseCache::new(SR));
-        println!("Time to create single entry cache: {:#?}", duration);
-        let (_, duration) = crate::time::measure(|| cache.get(freq, &NoiseColor::Red, SR/2));
-        println!("Time to render shorter segment: {:#?}", duration);
-        let (_, duration) = crate::time::measure(|| cache.get(freq, &NoiseColor::Red, SR));
-        println!("Time to render copy segment: {:#?}", duration);
-        let (_, duration) = crate::time::measure(|| cache.get(freq, &NoiseColor::Red, SR*4));
-        println!("Time to render longer segment: {:#?}", duration);
-    }
-
-    #[test]
     fn test_all() {
         test_degraded();
         test_inflect_noise_shortened();
@@ -625,6 +604,7 @@ mod test {
 
     #[test]
     fn test_inflect_noise_shortened() {
+        // runtimes
         // low -> 2.030511241s 
         // medium -> 2.006620384s 
         // high -> 2.341231525s
@@ -682,6 +662,7 @@ mod test {
 
     #[test]
     fn test_shortened_blocked() {
+        // runtimes
         // low -> 75.922789ms
         // medium -> 73.356566ms
         // high -> 83.386089ms
@@ -739,6 +720,7 @@ mod test {
 
     #[test]
     fn test_shortened_ifft() {
+        // runtimes
         // low -> 9.249487142s
         // medium -> 9.496798079s
         // high -> 10.914292173s
@@ -796,7 +778,7 @@ mod test {
 
     #[test]
     fn test_degraded() {
-
+        // runtimes
         // low -> 943.783023ms
         // medium -> 2.906214868s 
         // high -> 5.638831656s
@@ -852,5 +834,4 @@ mod test {
             println!("Completed test {:#?} in {:#?} ", test_name, duration);    
         }
     }
-
 }
