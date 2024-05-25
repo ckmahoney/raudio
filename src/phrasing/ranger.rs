@@ -5,41 +5,52 @@
 /// Provides methods for computing a value in [0, 1] given common synthesis parameters.
 /// The pub methods accept three parameters: `k`, `x`, and `d`
 /// 
-/// Where `k` typically represents an index (usize)
+/// Where: 
+/// `k` typically represents a harmoinc or index (usize)
 /// `x` represents the progression of time from [0, 1]
 /// `d` is a free parameter representing duration in cycles.
 /// 
 /// ## Guarantees
 /// 
-/// Functions are guaranteed to be responsive to both x and k and guaranteed to return a value in [0, 1] for all x in [0,1].
-/// Functions are guaranteed to be defined for all x in [0,1] but no guarantees outside this domain.
+/// Functions are guaranteed to be defined for all x in (0,1], and if not defined at 0, returns 1.
+/// Functions are guaranteed to be responsive to both x and k and return a value in [0, 1] for all x in [0,1].
 /// Functions may optionally respond to d parameter.
 /// 
 /// ## Placement
 /// 
-/// Currently the methods describe their placement with respect to a spectrogram.
+/// Currently the methods describe their 2D placement with respect to a spectrogram.
 /// 
+/// 
+/// ### Horizontal Placement 
 /// Horiztonal placement refers to where the body of energy is activated. 
 /// Left means the signal starts strong and ends weaker,
 /// Center means it starts weaker, grows in strength, and falls back down
 /// Right means the signal starts weak and ends strong.
 /// 
+/// ### Vertical Placement
 /// Vertical placement refers to the spectral centroid. 
 /// Bottom means values near the fundamental are emphasized.
 /// Center means values "farther away" (e.g. k > 7) are emphasized.
 /// Top means values "way up" (e.g. k > 15) are emphasized.
 /// 
-/// Between the two, horizontal placement is more straightforward to generalize.
+/// Between the two dimensions, horizontal placement is more straightforward to generalize.
 /// Vertical placement, when properly implemented, provides a magnificient array of tingly ear candy.
-/// 
-/// View implementations of these (as of May 23 2024)
+
+/// Desmos is a handly tool for previewing contours! This sketch shows a, b, and c
+/// as of May 23 2024
 /// https://www.desmos.com/calculator/ar9rw3klcs
 
+static neg:f32 = -1f32;
+static one:f32 = 1f32;
+static two:f32 = 2f32;
+static half:f32 = 0.5f32;
+
 pub type Ranger = fn(f32, f32, f32) -> f32;
-
 pub type Mixer = (f32, Ranger);
-pub type Cocktail = Vec<(f32, Ranger)>;
+pub type Weight = f32;
+pub type Cocktail = Vec<(Weight, Ranger)>;
 
+/// Collection of optional xformers for amplitude, frequency, and phase.
 pub type Druid = [Option<Cocktail>;3]; 
 
 pub static options:[Ranger; 3] = [
@@ -48,10 +59,7 @@ pub static options:[Ranger; 3] = [
     c
 ];
 
-static neg:f32 = -1f32;
-static one:f32 = 1f32;
-static two:f32 = 2f32;
-static half:f32 = 0.5f32;
+
 
 /// Transformer based on logistic function for output in range [0, 1]
 /// Only one conform method is allowed. It should maintain the contour of the input.
