@@ -13,20 +13,30 @@ pub enum GlideLen {
     Sixteenth
 }
 
-/// Context window for a frequency. 
+/// Context window for a frequency in series of frequencies, as in a melody. 
 /// Second, Third, and Fourth entries describe the frequencies being navigated.
-/// Middle entry is the current frequency to perform.
+/// Centermost entry is the current frequency to perform.
 /// The first and final f32 are the previous/next frequency.
-/// First and final entries describe how to glide
+/// First and final GlideLen describe how to glide, 
+/// where the first GlideLen pairs with the "prev" frquency and the final GlideLen pairs with the "next" frquency.
+/// 
+/// This allows us to glide into a note from its predecessor,
+/// and glide out of a note into its upcoming note,
+/// Or perform no glide either way.
 ///
 /// If a C Major chord is spelled as C, E, G and we wanted to arpeggiate the notes,
 /// then an analogous Frex looks like (GlideLen::None, None, C, E, GlideLen::None)
 /// and then for the second note, (GlideLen::None, C, E, G, GlideLen::None)
+/// 
+/// as of May 25 2024 the glide modulation logic is yet to be implemented in the ugen
 pub type Frex = (GlideLen, Freq, Freq, Freq, GlideLen);
 
 
-/// Returns an amplitude identity, attenuation, or cancellation 
+/// Returns an amplitude identity or cancellation value
 /// for the given frequency and bandpass settings
+/// 
+/// idea: enable attenuation by providing conventional Q settings wrt equalization/filtering.
+/// That is, Ratio Q for how wide the attenuation reaches and Mod Q for how much to attenuate.
 fn filter(p:f32, freq:f32, bandpass:&Bp) -> Range {
     let min_f = sample(&bandpass.0, p).max(MF as f32);
     let max_f = sample(&bandpass.1, p).min(NF as f32);
@@ -38,6 +48,8 @@ fn filter(p:f32, freq:f32, bandpass:&Bp) -> Range {
 }
 
 
+/// Given a cocktail, apply it at (k,x,d) iff it exists 
+/// Otherwise apply the default value.
 fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:f32, x:f32, d:f32) -> f32 {
     if maybe_cocktail.is_some() {
         let cocktail = maybe_cocktail.clone().unwrap();
