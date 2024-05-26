@@ -96,7 +96,7 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
                 extension: ext 
             };
             let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
-            if bandpass_filter(&sound.bandpass, phr, f, j, k) {
+            if bandpass_filter(&sound.bandpass, phr, f, j, n_samples) {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
                 let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
                 sig[j] += c * amp * phase.sin() / k as f32;
@@ -137,7 +137,7 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
                 extension: ext 
             };
             let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
-            if !bandpass_filter(&sound.bandpass, phr, f, j, k) {
+            if !bandpass_filter(&sound.bandpass, phr, f, j, n_samples) {
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
@@ -177,7 +177,7 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
                 extension: ext 
             };
             let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
-            if !bandpass_filter(&sound.bandpass, phr, f, j, k) {
+            if !bandpass_filter(&sound.bandpass, phr, f, j, n_samples) {
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr) / k as f32;
@@ -225,7 +225,7 @@ fn mgen_all(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mu
                 extension: ext 
             };
             let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
-            if !bandpass_filter(&sound.bandpass, phr, f, j, k) {
+            if !bandpass_filter(&sound.bandpass, phr, f, j, n_samples) {
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
@@ -365,6 +365,7 @@ pub fn color_line(cps:f32, notes: &Vec<Note>, osc:&BaseOsc, sound:&Sound, phr:&m
     }).collect()
 }
 
+/// Generate a list of Note for testing (misnomer of tone, it's older code)
 pub fn test_tone(d:i32, register:i8, n:usize) -> Vec<Note> {
     let monic:i8 = 1;
     let rotation:i8 =0;
