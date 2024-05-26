@@ -15,9 +15,7 @@ It does not accept MIDI as input. It does support inline MIDI, so it *could* acc
 
 This project has a few goals. It also has some explicit no-gos of conventional audio tasks. 
 
-The tl;dr is, 
-
-**Monics only**!!!
+For a quick peek at what it sounds like, try the [music/amb](music/amb) directory!
 
 ## Goals
 
@@ -70,20 +68,19 @@ cargo test
 ```
 
 
+Many tests will create files. It is intentional that the files are not deleted so the tester can manually inspect the generated asset at their leisure.
+If you are low on disk space (less that 3GB remaining) then these tests may not work for you. 
+
+
 For you the most relatable test might be this one
 
 
-[happy birthday]()
-
-
-There's also a MIDI test (X Files theme song) but that is outdated and may not work with the current state of the repo. If you want to help fix it then that would make me delighted.
-
+[happy birthday](src/engrave.rs#L429)
 
 If it didn't already exist, this will crate a new directory `dev-audio` for writing test results.
 
 
-Many tests will create files. It is intentional that the files are not deleted so the tester can manually inspect the generated asset at their leisure.
-If you are low on disk space (less that 3GB remaining) then these tests may not work for you. 
+There's also a MIDI test (X Files theme song) but that is outdated and may not work with the current state of the repo. If you want to help fix it then that would make me delighted. Ultimately all inline tracks should be written in both monic and MIDI format.
 
 
 Some tests may be non-deterministic in that they produce a variant in the set of all available frequency spaces of the input test. That is, a new version of the "same" sample will overwrite the previous version. 
