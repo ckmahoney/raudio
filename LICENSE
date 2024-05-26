@@ -1,32 +1,40 @@
-Custom License Agreement
+# License Agreement
 
-1. Definitions
+0. This is software represents an epoch of work. 15 years of creating music and writing software. As such, only Contributors are enabled to use it for commercial gains. Anybody else (Non-Contributors) are entitled to use it for self-development gains only.
+
+1. **Definitions**
    1.1 "Software" refers to the repository and its contents.
    1.2 "User" refers to any individual accessing the Software.
    1.3 "Contributor" refers to any User who has made significant contributions to the Software by completing an approved GitHub issue or submitting an approved independent pull request (PR).
    1.4 "Significant Contribution" is defined as a contribution that has been approved and merged into the main branch by the maintainers of the Software.
 
-2. License Grant
-   2.1 Contributors: Contributors are granted a non-exclusive, royalty-free, worldwide license to use, copy, modify, and distribute the Software for commercial purposes.
-   2.2 Non-Contributors: Users who have not made significant contributions (hereinafter "Non-Contributors") are granted a non-exclusive, royalty-free, worldwide license to use and view the Software for personal or educational purposes only.
+2. **License Grant**
+   2.1 **Contributors:** Contributors are granted a non-exclusive, royalty-free, worldwide license to use, copy, modify, and distribute the Software for commercial purposes.
+   2.2 **Non-Contributors:** Users who have not made significant contributions (hereinafter "Non-Contributors") are granted a non-exclusive, royalty-free, worldwide license to use and view the Software for personal or educational purposes only.
 
-3. Restrictions
+3. **Restrictions**
    3.1 Non-Contributors may not modify, create derivative works from, distribute, sublicense, or commercially exploit the Software.
    3.2 Non-Contributors may not decompile, reverse engineer, or disassemble the Software.
-   3.3 Non-Contributors must retain all copyright and other proprietary notices contained in the original Software.
+   3.3 Non-Contributors may not distribute the Software in any form. They may point others to the GitHub repository but cannot provide the Software on any physical or digital medium (e.g., flash drives).
+   3.4 Non-Contributors must retain all copyright and other proprietary notices contained in the original Software.
 
-4. Contributions
+4. **Contributions**
    4.1 By submitting a contribution, the Contributor agrees to grant the Project maintainers the right to determine the significance of the contribution.
    4.2 Significant Contributors will be listed in a CONTRIBUTORS file within the Project, granting them the rights outlined in section 2.1.
+   4.3 All contributions are subject to a review process to ensure quality and compliance with the project's goals.
+   4.4 Maintainers do not have the right to remove contributions after they have been merged.
+   4.5 Contributors do not have the ability to specify how their contributions are used.
+   4.6 A PR granting commercial allowance for a user needs to be approved. When a contributor has 1-5 supporting PRs to declare why they are allowed to use it for commercial gains is approved, then that contributor (or entity) is allowed to use the software for commercial gains.
+   4.7 Unapproved PRs may not be used by the owner. If similar or identical code soon exists in the PR (within 1 year after the closed unapproved PR), then the person who opened the rejected PR may file a claim for contribution.
 
-5. Disclaimer of Warranty
-   The Software is provided "as is" without warranty of any kind. The entire risk as to the quality and performance of the Software is with the User.
+5. **Disclaimer of Warranty**
+   The Software is provided "as is," without warranty of any kind. The entire risk as to the quality and performance of the Software is with the User.
 
-6. Limitation of Liability
+6. **Limitation of Liability**
    In no event shall the authors or copyright holders be liable for any claim, damages, or other liability arising from the use of the Software.
 
-7. Termination
+7. **Termination**
    This license is effective until terminated. Users' rights under this license will terminate automatically without notice if they fail to comply with any terms herein.
 
-8. Governing Law
+8. **Governing Law**
    This license shall be governed by and construed in accordance with the laws of the jurisdiction in which the Software maintainers reside, excluding its conflicts of law principles.
