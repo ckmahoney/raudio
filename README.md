@@ -17,12 +17,15 @@ This project has a few goals. It also has some explicit no-gos of conventional a
 
 The tl;dr is, 
 
-
-Monics only!!!
+**Monics only**!!!
 
 ## Goals
 
 The Primary Objective is to have a synthesizer that creates dynamic harmonic content for any musical context. 
+
+All of the music rendered by `raudio` should feel natural or organic. Your elders can appreciate it as well equally as well as yourself.
+
+None of the music rendered by `raudio` should feel "mechanical" or "synthetic". 
 
 The supplementary objective is to provide a high level API for describing sound as a small (manageable) set of input parameters.
 
@@ -45,6 +48,13 @@ As a list,
   - Does not provide support for sample-based music
     - Leave your sample packs at home kids, we gen our own
 
+## Usage
+
+As described above, this application is for Monic playbooks. 
+
+It accepts a path to a playbook and 
+
+
 ## Tests
 
 Most recent test results (May 25 2024)
@@ -59,15 +69,29 @@ To test,
 cargo test
 ```
 
+
+For you the most relatable test might be this one
+
+
+[happy birthday]()
+
+
+There's also a MIDI test (X Files theme song) but that is outdated and may not work with the current state of the repo. If you want to help fix it then that would make me delighted.
+
+
 If it didn't already exist, this will crate a new directory `dev-audio` for writing test results.
+
 
 Many tests will create files. It is intentional that the files are not deleted so the tester can manually inspect the generated asset at their leisure.
 If you are low on disk space (less that 3GB remaining) then these tests may not work for you. 
 
+
 Some tests may be non-deterministic in that they produce a variant in the set of all available frequency spaces of the input test. That is, a new version of the "same" sample will overwrite the previous version. 
 This is valid for this applicaton because we prefer to describe elementary components in the context of their own domain; which means there is a range of equally valid outputs.
 
+
 Some tests take a long time to run because they enumerate all the available parameters. 
+
 
 ## Demos
 
@@ -79,7 +103,7 @@ Some code herein writes to an `audio/demo` directory. This is intended to repres
 Some code herein writes to an `audio/music` directory. This is intended to be creative, original music! 
 You already have the results of the included ambient music generator [here](audio/music) :) 
 
-An example of how this can be used in the `Real World`,
+An example of how this can be used in the `Real World`,g
 Here's 4 hours of music synthesized with `raudio` circa May 2024
 
 https://www.youtube.com/watch?v=mFipUHqXrw0
