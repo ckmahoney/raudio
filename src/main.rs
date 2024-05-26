@@ -41,9 +41,6 @@ pub mod synth;
 pub mod time;
 pub mod types;
 
-const audio_dir:&str = "renditions/early";
-
-
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -151,8 +148,6 @@ fn contrib_to_amod(contrib:&Contrib) -> preset::AmpMod {
     amod
 }
 
-
-
 pub fn render_score(filename:&str, score:Score) -> Result<(), core::fmt::Error> {
     files::with_dir(filename);
     let lens:Vec::<f32> = (&score.parts).iter()
@@ -229,9 +224,6 @@ pub fn render_score(filename:&str, score:Score) -> Result<(), core::fmt::Error> 
         }
     }
 }
-
-
-
 
 #[cfg(test)]
 mod test_integration {
