@@ -345,7 +345,7 @@ mod unit_test {
         let registers:Vec<i8> = vec![5,7,9,11,13];
         let oscs:Vec<BaseOsc> = vec![BaseOsc::Square, BaseOsc::Sawtooth, BaseOsc::Triangle, BaseOsc::Sine];
         let directions:Vec<Direction> = vec![Direction::Constant];
-        let energies:Vec<Energy> = vec![Energy::High, Energy::Medium];
+        let energies:Vec<Energy> = vec![Energy::High, Energy::Medium, Energy::Low];
         let presences:Vec<Presence> = vec![Presence::Legato, Presence::Staccatto, Presence::Tenuto];
         
         for osc in &oscs {
