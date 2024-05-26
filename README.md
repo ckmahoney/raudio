@@ -15,7 +15,9 @@ It does not accept MIDI as input. It does support inline MIDI, so it *could* acc
 
 This project has a few goals. It also has some explicit no-gos of conventional audio tasks. 
 
-For a quick peek at what it sounds like, try the [music/amb](music/amb) directory!
+For a quick peek at what it sounds like, try the [music/amb](music/amb) directory! It has 2 hours of contoured music.
+To print more of these, run the `many` test in [music/dance_krog](music/dance_krog.rs). If your sound system has a reverb unit, it adds a lot (since reverb is a pending project in this synthesizer).
+
 
 ## Goals
 
