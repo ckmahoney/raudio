@@ -156,7 +156,7 @@ pub mod x_files {
 pub mod happy_birthday {
     use super::*;
 
-    /// in the key of 0 Major 
+    /// performed in the key of (0, 0) 
     pub fn get_track() -> PlayerTrack<Note> {
         let progression: Progression = vec![
             ((1, 1), (0, 0)),
@@ -229,11 +229,11 @@ pub mod happy_birthday {
         PlayerTrack {
             conf: Conf {
                 root: 1.3f32,
-                cps: 1.1f32,
+                cps: 2.1f32,
                 cube: Cube::Room
             },
             duration: parts[0].1.iter().fold(0f32, |acc_melody, line|
-                    acc_melody + line.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32/note.0.0 as f32)
+                acc_melody + line.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32/note.0.0 as f32)
             ),
             dimensions: Dimensions {
                 size: 4i8,
