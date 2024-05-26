@@ -9,21 +9,27 @@ This is a synth designed specifically for Monic Theory and is intended to be app
 
 As Monic Theory is a superset of MIDI, Raudio is also capable rendering any MIDI composition. 
 
-As of today this application does not accept MIDI as input. It does support inline MIDI, so it *could* accept MIDI as input if that is important to you. 
+As of today (May 25 2024) this application only accepts Monic playbooks as input. (See [test-tin-pan-score.json](test-tin-pan-score.json)).
 
-
-# Scope
+It does not accept MIDI as input. It does support inline MIDI, so it *could* accept MIDI as input if that is important to you. 
 
 This project has a few goals. It also has some explicit no-gos of conventional audio tasks. 
+
+The tl;dr is, 
+
+
+Monics only!!!
 
 ## Goals
 
 The Primary Objective is to have a synthesizer that creates dynamic harmonic content for any musical context. 
 
-The Supplementary objective is to provide a high level API for describing sound as a small (manageable) set of input parameters.
+The supplementary objective is to provide a high level API for describing sound as a small (manageable) set of input parameters.
+
+As a list,
 
   - Provide a high level API for creating and modulating sound in the frequency domain
-  - Provide a secure and safe environment for rendering audio files 
+  - Provide a secure and predictable environment for rendering audio files 
     - By definition, aliasing is not possible (haha bye FM synthesis)
   - Enable arbitrary fidelity for any sample rate
   - Provide support for time domain signal **analysis** (but not modulation)
@@ -31,10 +37,10 @@ The Supplementary objective is to provide a high level API for describing sound 
 
 ## Not Goals
 
-  - No support for composition. BYO score.
+  - No support for creating compositions. BYO score.
   - No support for time domain signal **modulation**
-    - Conventional lowpass and highpass filters not welcome here!
-    - Hey distortion, we've got cooler ways to do you
+    - "Conventional" lowpass and highpass filters not welcome here!
+    - Hey distortion, have you tried harmonic amplification? 
     - Reverb? more like stretchy harmonics
   - Does not provide support for sample-based music
     - Leave your sample packs at home kids, we gen our own
