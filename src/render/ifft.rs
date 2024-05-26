@@ -113,6 +113,7 @@ use crate::synth::SR;
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::files;
 
     #[test]
     fn test_applied() {
@@ -121,6 +122,7 @@ mod test {
             (500f32, 1f32, 0f32),  
             (600f32, 1f32, 0f32),  
         ];
+        files::with_dir(TEST_DIR);
         let filename = format!("{}/major-chord.wav", TEST_DIR);
 
         let signal = ifft(&mut freqs, SR, SR * 4);
