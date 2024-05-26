@@ -5,14 +5,11 @@ use std::fmt;
 use std::fs;
 use std::io;
 
-
 use crate::types::synthesis;
 use crate::types::synthesis::*;
 use crate::types::timbre;
 use crate::types::timbre::*;
 use crate::types::render::*;
-
-
 
 impl<'de> Deserialize<'de> for timbre::BaseOsc {
     fn deserialize<D>(deserializer: D) -> Result<BaseOsc, D::Error>
@@ -44,64 +41,6 @@ impl<'de> Deserialize<'de> for timbre::BaseOsc {
         deserializer.deserialize_str(BaseOscVisitor)
     }
 }
-// impl<'de> Deserialize<'de> for synthesis::Q {
-//     fn deserialize<D>(deserializer: D) -> Result<Q, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         struct QVisitor;
-
-//         impl<'de> Visitor<'de> for QVisitor {
-//             type Value = Q;
-
-//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//                 formatter.write_str("`O` or `Q`")
-//             }
-
-//             fn visit_str<E>(self, value: &str) -> Result<Q, E>
-//             where
-//                 E: de::Error,
-//             {
-//                 match value.to_lowercase().as_str() {
-//                     "o" => Ok(Q::O),
-//                     "u" => Ok(Q::U),
-//                     _ => Err(E::custom(format!("unknown variant `{}`, expected one of `O`, `Q`", value))),
-//                 }
-//             }
-//         }
-//         deserializer.deserialize_str(QVisitor)
-//     }
-// }
-
-// impl<'de> Deserialize<'de> for timbre::Fill {
-//     fn deserialize<D>(deserializer: D) -> Result<Fill, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         struct FillVisitor;
-
-//         impl<'de> Visitor<'de> for FillVisitor {
-//             type Value = Fill;
-
-//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//                 formatter.write_str("`frame`, `support`, or `focus``")
-//             }
-
-//             fn visit_str<E>(self, value: &str) -> Result<Fill, E>
-//             where
-//                 E: de::Error,
-//             {
-//                 match value.to_lowercase().as_str() {
-//                     "frame" => Ok(Fill::Frame),
-//                     "support" => Ok(Fill::Support),
-//                     "focus" => Ok(Fill::Focus),
-//                     _ => Err(E::custom(format!("unknown variant `{}`, expected one of `frame`, `support`, `focus` ", value))),
-//                 }
-//             }
-//         }
-//         deserializer.deserialize_str(FillVisitor)
-//     }
-// }
 
 impl<'de> Deserialize<'de> for timbre::Visibility {
     fn deserialize<D>(deserializer: D) -> Result<Visibility, D::Error>
@@ -352,6 +291,7 @@ impl<'de> Deserialize<'de> for timbre::Cube {
         deserializer.deserialize_str(CubeVisitor)
     }
 }
+
 pub fn load_score_from_file(filepath:&str) -> Result<Score, fmt::Error> {
     match fs::read_to_string(&filepath) {
         Ok(str) => {
@@ -361,6 +301,7 @@ pub fn load_score_from_file(filepath:&str) -> Result<Score, fmt::Error> {
         _ => Err(fmt::Error)
     }
 }
+
 mod test_unit {
     use super::*;
     use crate::types::render::Score;
@@ -368,15 +309,15 @@ mod test_unit {
     /// Verify raudio accepts input from external applications
     #[test]
     fn test_parse_tin_pan_score() {
-        let score_path = "test-tin-pan-score.json";
+        let input_score_path = "test-tin-pan-score.json";
 
-        match fs::read_to_string(&score_path) {
+        match fs::read_to_string(&input_score_path) {
             Ok(str) => {
                 let score:Score = serde_json::from_str(&str).expect("Bad parser");
                 assert!(true)
             },
             Err(msg) => {
-                println!("Missing test score 'test-score.json'");
+                println!("Missing test score {}", input_score_path);
                 assert!(false);
             }
         };
