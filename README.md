@@ -103,7 +103,17 @@ Some code herein writes to an `audio/demo` directory. This is intended to repres
 Some code herein writes to an `audio/music` directory. This is intended to be creative, original music! 
 You already have the results of the included ambient music generator [here](audio/music) :) 
 
-An example of how this can be used in the `Real World`,g
+An example of how this can be used in the `Real World`,
 Here's 4 hours of music synthesized with `raudio` circa May 2024
 
 https://www.youtube.com/watch?v=mFipUHqXrw0
+
+## License
+
+This repository is licensed under a custom license that encourages contribution and education
+
+Contributors who have made significant contributions by completing an approved GitHub issue or an approved independent pull request (PR) are granted additional ability to use the Software for commercial purposes. For more details, see the [LICENSE](LICENSE) file.
+
+Contributions are welcome and encouraged.
+
+Non-contributors are permitted to use and view the code for personal or educational purposes only. Modification, distribution, and commercial use are strictly prohibited for non-contributors.
