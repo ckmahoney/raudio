@@ -56,6 +56,7 @@ fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:f32, x:f32, d:f32) ->
     if maybe_cocktail.is_some() {
         let cocktail = maybe_cocktail.clone().unwrap();
         mix(k, x, d, &cocktail)
+
     } else {
         default
     }
@@ -107,7 +108,7 @@ pub fn blender(
             let frequency = m * fm * freq * mix_or(1f32, &modders[1], k, p, span.1);
             let amp = am * filter(p, frequency, bp) * mix_or(1f32, &modders[0], k, p, span.1);
             if amp != 0f32 {
-                let phase = frequency * pi2 * t + pm + mix_or(0f32, &modders[2], k, p, span.1); 
+                let phase = (frequency * pi2 * t) + pm + mix_or(0f32, &modders[2], k, p, span.1); 
                 v += amp * phase.sin();
             }
         }

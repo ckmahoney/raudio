@@ -13,7 +13,7 @@ fn muls_square(freq:f32) -> Vec<f32> {
 /// Produce the multipliers for a Fourier series triangle wave starting at `freq`
 fn muls_triangle(freq:f32) -> Vec<f32> {
     let n = (NFf / freq) as usize;
-    (1..n).filter(|i| i % 2 == 0).map(|x| x as f32).collect()
+    (1..n).filter(|i| i % 2 == 1).map(|x| x as f32).collect()
 }
 
 static c_square:f32 = 4f32/pi;
@@ -67,7 +67,6 @@ pub fn modders_triangle() -> Modders {
 }
 
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -77,35 +76,42 @@ mod test {
     use crate::render::engrave;
     use crate::synth::{SR};
 
+    fn max_mul(fund:f32, evens:bool) -> Vec<f32> {
+        let max_k = (NFf / fund) as usize;
+        if evens {
+            (1..max_k).map(|x| x as f32).collect()
+        } else {
+            (1..max_k).filter(|x| x % 2 == 1).map(|x| x as f32).collect()
+        }
+    }
 
-    fn nearly_none_square() -> Element {
+    fn nearly_none_square(fund:f32) -> Element {
         Element {
             mode: Mode::Melodic,
-            muls: vec![1.0, 3.0, 5.0, 7.0,9.0,11.0,13.0,15.0,17.0,19.0,21.0,23.0],
-            modders: melodic::modders_square(),
+            muls: max_mul(fund, false),
+            modders: modders_square(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
             thresh: (0f32, 1f32)
         }
     }
 
-
-    fn nearly_none_triangle() -> Element {
+    fn nearly_none_triangle(fund:f32) -> Element {
         Element {
             mode: Mode::Melodic,
-            muls: vec![1.0, 3.0, 5.0, 7.0,9.0,11.0,13.0,15.0,17.0,19.0,21.0,23.0],
-            modders: melodic::modders_triangle(),
+            muls: max_mul(fund, false),
+            modders: modders_triangle(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
             thresh: (0f32, 1f32)
         }
     }
 
-    fn nearly_none_sawtooth() -> Element {
+    fn nearly_none_sawtooth(fund:f32) -> Element {
         Element {
             mode: Mode::Melodic,
-            muls: vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0,12.0, 13.0,14.0, 15.0,16.0, 17.0,18.0, 19.0,20.0, 21.0,23.0],
-            modders: melodic::modders_triangle(),
+            muls: max_mul(fund, true),
+            modders: modders_triangle(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
             thresh: (0f32, 1f32)
@@ -120,14 +126,14 @@ mod test {
         let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
         let mut signal:SampleBuffer = Vec::new();
 
-        let druid:Druid = vec![
-            (1f32, nearly_none_square())
+        let elementor:Elementor = vec![
+            (1f32, nearly_none_square)
         ];
 
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &druid));
+            signal.append(&mut inflect(&frex, &at, &elementor));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
@@ -142,21 +148,19 @@ mod test {
         let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
         let mut signal:SampleBuffer = Vec::new();
 
-        let druid:Druid = vec![
-            (1f32, nearly_none_triangle())
+        let elementor:Elementor = vec![
+            (1f32, nearly_none_triangle)
         ];
 
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &druid));
+            signal.append(&mut inflect(&frex, &at, &elementor));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
         engrave::samples(SR, &signal, &filename);
     }
-
-
 
     #[test]
     fn test_blend_single_element_sawtooth() {
@@ -166,14 +170,14 @@ mod test {
         let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
         let mut signal:SampleBuffer = Vec::new();
 
-        let druid:Druid = vec![
-            (1f32, nearly_none_sawtooth())
+        let elementor:Elementor = vec![
+            (1f32, nearly_none_sawtooth)
         ];
 
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &druid));
+            signal.append(&mut inflect(&frex, &at, &elementor));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
@@ -188,18 +192,18 @@ mod test {
         let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
         let mut signal:SampleBuffer = Vec::new();
 
-        let druid:Druid = vec![
-            (0.44f32, nearly_none_triangle()),
-            (0.33f32, nearly_none_square()),
-            (0.33f32, nearly_none_sawtooth()),
+        let elementor:Elementor = vec![
+            (0.34f32, nearly_none_triangle),
+            (0.33f32, nearly_none_square),
+            (0.33f32, nearly_none_sawtooth),
         ];
 
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &druid));
+            signal.append(&mut inflect(&frex, &at, &elementor));
         }
-        
+
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
         engrave::samples(SR, &signal, &filename);

@@ -51,6 +51,7 @@ pub struct Element {
 /// 
 /// Weights of all elements must equal 1. 
 pub type Druid = Vec<(Weight, Element)>;
+pub type Elementor = Vec<(Weight, fn (f32) -> Element)>;
 
 
 /// convenience struct for naming computed values
@@ -59,7 +60,29 @@ pub struct ApplyAt {
     frex:Frex
 }
 
-fn inflect(frex:&Frex, at:&ApplyAt, druid:&Druid) -> SampleBuffer {
+fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor) -> SampleBuffer {
+    let n_samples:usize = time::samples_of_dur(at.span.0, at.span.1);
+    let druid:Druid = mentor.iter().map(|(weight, elementor)| 
+        (*weight, elementor(frex.2))
+    ).collect();
+    let mut sigs:Vec<SampleBuffer> = druid.iter().map(|(weight, element)|
+        blender(
+            frex, 
+            &element.expr, 
+            &at.span, 
+            &element.hplp, 
+            &element.muls, 
+            &element.modders, 
+            element.thresh.0
+        )
+    ).collect();
+    match mix_buffers(&mut sigs) {
+        Ok(signal) => signal,
+        Err(msg) => panic!("Error while inflecting druid: {}", msg)
+    }
+}
+
+fn inflect_bad(frex:&Frex, at:&ApplyAt, druid:&Druid) -> SampleBuffer {
     let n_samples:usize = time::samples_of_dur(at.span.0, at.span.1);
     let mut sigs:Vec<SampleBuffer> = druid.iter().map(|(weight, element)|
         blender(
@@ -120,7 +143,7 @@ mod test {
     use crate::render::engrave;
     use crate::synth::{SR};
 
-    fn nearly_none_enharmonic() -> Element {
+    fn nearly_none_enharmonic(fund:f32) -> Element {
         Element {
             mode: Mode::Enharmonic,
             muls: vec![1.0, 2.1, 5.3],
@@ -140,14 +163,14 @@ mod test {
         let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
         let mut signal:SampleBuffer = Vec::new();
 
-        let druid:Druid = vec![
-            (1f32, nearly_none_enharmonic())
+        let elementor:Elementor = vec![
+            (1f32, nearly_none_enharmonic)
         ];
 
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &druid));
+            signal.append(&mut inflect(&frex, &at, &elementor));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
