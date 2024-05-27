@@ -180,7 +180,7 @@ mod test {
 
 
 pub fn test_data() -> (Vec<f32>,Vec<f32>,Vec<Frex>) {
-    let freqs:c = vec![200f32, 250f32, 400f32, 350f32, 300f32];
+    let freqs:Vec<f32> = vec![200f32, 250f32, 400f32, 350f32, 300f32];
     let durs:Vec<f32> = vec![1f32, 2f32, 1f32, 2f32, 2f32];
     let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
     (freqs, durs, frexs)
