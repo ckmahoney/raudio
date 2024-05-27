@@ -61,24 +61,24 @@ fn generate_multipliers(fundamental: f32, num_multipliers: usize) -> Vec<f32> {
     }).collect()
 }
 
-
+/// this fails for current implementation because it is called per-frame 
+/// resulting in a noisy signal (random amp per frame in wide range of options)
 fn amp_bell(k:usize, x:f32, d:f32) -> f32 {
     let n = k - 1;
     match n {
         0 => gen_sub_weight(),
-        // 1 => gen_bass_weight(),
-        // 2 => gen_fundamental_weight(),
-        // 3 => gen_strike_weight(),
-        // 4 => gen_tierce_weight(),
-        // 5 => gen_quint_weight(),
-        // _ => gen_nominal_weight(), // Default case
-        _ => 0f32, // Default case
+        1 => gen_bass_weight(),
+        2 => gen_fundamental_weight(),
+        3 => gen_strike_weight(),
+        4 => gen_tierce_weight(),
+        5 => gen_quint_weight(),
+        _ => gen_nominal_weight(), // Default case
     }
 }
 
 fn modders_bell() -> Modders {
     [
-        Some(vec![(1f32, amp_bell)]), 
+        None,
         None,
         None,
     ]
