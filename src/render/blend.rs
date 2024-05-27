@@ -52,7 +52,7 @@ fn filter(p:f32, freq:f32, bandpass:&Bp) -> Range {
 
 /// Given a cocktail, apply it at (k,x,d) iff it exists 
 /// Otherwise apply the default value.
-fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:f32, x:f32, d:f32) -> f32 {
+fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:usize, x:f32, d:f32) -> f32 {
     if maybe_cocktail.is_some() {
         let cocktail = maybe_cocktail.clone().unwrap();
         mix(k, x, d, &cocktail)
@@ -104,7 +104,7 @@ pub fn blender(
         let mut v:f32 = 0f32;
 
         for (i, m) in multipliers.iter().enumerate() {
-            let k = (i + 1) as f32;
+            let k = i + 1;
             let frequency = m * fm * freq * mix_or(1f32, &modders[1], k, p, span.1);
             let amp = am * filter(p, frequency, bp) * mix_or(1f32, &modders[0], k, p, span.1);
             if amp != 0f32 {

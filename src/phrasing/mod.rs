@@ -205,7 +205,7 @@ mod test {
             let mut has_value = false;
             let mut not_one = false;
             for x in DOMAIN {
-                let y = ranger::mix(kf, x, d, &mixers);
+                let y = ranger::mix(k, x, d, &mixers);
                 if y > 0f32 && !has_value {
                     has_value = true
                 };

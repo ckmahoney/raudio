@@ -62,8 +62,8 @@ fn generate_multipliers(fundamental: f32, num_multipliers: usize) -> Vec<f32> {
 }
 
 
-fn amp_bell(k: f32, x:f32, d:f32) -> f32 {
-    let n = k as usize - 1;
+fn amp_bell(k:usize, x:f32, d:f32) -> f32 {
+    let n = k - 1;
     match n {
         0 => gen_sub_weight(),
         // 1 => gen_bass_weight(),

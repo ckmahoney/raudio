@@ -18,25 +18,25 @@ fn muls_triangle(freq:f32) -> Vec<f32> {
 
 static c_square:f32 = 4f32/pi;
 /// Expects to be applied in the context of odd k 1,3,5... but is actually given an index. Makes an internal adjustment
-fn amp_square(k:f32, x:f32, d:f32) -> f32 {
-    let n = k * 2f32 - 1f32;
+fn amp_square(k:usize, x:f32, d:f32) -> f32 {
+    let n = (k as f32) * 2f32 - 1f32;
     c_square/n
 }
 
 static c_triangle:f32 = 8f32/(pi*pi);
 /// Expects to be applied in the context of odd k 1,3,5... but is actually given an index. Makes an internal adjustment
 /// That is; no need to return 0 as only valued k should be given.
-fn amp_triangle(k:f32, x:f32, d:f32) -> f32 {
-    let n = k * 2f32 - 1f32;
+fn amp_triangle(k:usize, x:f32, d:f32) -> f32 {
+    let n = (k as f32) * 2f32 - 1f32;
     let sign = (-1f32).powf((n-1f32)/2f32);
     sign * c_triangle/(n * n)
 }
 
 static c_sawtooth:f32 = 2f32/pi;
 /// Expects to be applied in the context of all k 1,2,3,4...
-fn amp_sawtooth(k:f32, x:f32, d:f32) -> f32 {
-    let sign = (-1f32).powf(k+1f32);
-    sign * c_sawtooth/k
+fn amp_sawtooth(k:usize, x:f32, d:f32) -> f32 {
+    let sign = (-1f32).powf(k as f32+1f32);
+    sign * c_sawtooth/k as f32
 }
 
 /// Provides amplitude modulation to create a square wave (expecting odd-valued multipliers

@@ -45,7 +45,7 @@ static one:f32 = 1f32;
 static two:f32 = 2f32;
 static half:f32 = 0.5f32;
 
-pub type Ranger = fn(f32, f32, f32) -> f32;
+pub type Ranger = fn(usize, f32, f32) -> f32;
 pub type Mixer = (f32, Ranger);
 pub type Weight = f32;
 pub type Cocktail = Vec<(Weight, Ranger)>;
@@ -73,7 +73,7 @@ fn conform(y:f32) -> f32 {
 
 /// Given a point (k, x, d) and group of weighted rangers,
 /// Apply the weighted sum of all rangers at (k,x,d)
-pub fn mix(k:f32, x:f32, d:f32, mixers:&Cocktail) -> f32 {
+pub fn mix(k:usize, x:f32, d:f32, mixers:&Cocktail) -> f32 {
     let weight = mixers.iter().fold(0f32, |acc, w| acc + w.0);
     if weight > 1f32 {
         panic!("Cannot mix rangers whose total weight is more than 1. Got {}", weight)
@@ -85,32 +85,32 @@ pub fn mix(k:f32, x:f32, d:f32, mixers:&Cocktail) -> f32 {
 /// Model based on (1/x)
 /// Horizontal: left
 /// Vertical: bottom
-pub fn a(k:f32, x:f32, d:f32) -> f32 {
+pub fn a(k:usize, x:f32, d:f32) -> f32 {
     if x == 0f32 {
         return 1f32
     }
 
-    let y = one / (k * x * x.sqrt());
+    let y = one / (k as f32 * x * x.sqrt());
     conform(y)
 }
 
 /// Model based on (1/x^2)
 /// Horizontal: left
 /// Vertical: bottom
-pub fn b(k:f32, x:f32, d:f32) -> f32 {
+pub fn b(k:usize, x:f32, d:f32) -> f32 {
     if x == 0f32 {
         return 1f32
     }
 
-    let y = 0.1f32 * k.sqrt() / (x*x);
+    let y = 0.1f32 * (k as f32).sqrt() / (x*x);
     conform(y)
 }
 
 /// Model inspired by the logistic function
 /// Horizontal: left
 /// Vertical: bottom
-pub fn c(k:f32, x:f32, d:f32) -> f32 {
-    let p = -0.75f32 * (one + x * (half * k).log10());
+pub fn c(k:usize, x:f32, d:f32) -> f32 {
+    let p = -0.75f32 * (one + x * (half * k as f32).log10());
     let y = (two / (one - p.exp())) - one;
     conform(y)
 }
@@ -142,11 +142,10 @@ mod test {
     fn test_valid_range() {
         for (i, ranger) in (&options).iter().enumerate() {
             for k in MONICS {
-                let kf = k as f32;
                 let mut has_value = false;
                 let mut not_one = false;
                 for x in DOMAIN {
-                    let y = ranger(kf, x, d);
+                    let y = ranger(k, x, d);
                     if y > 0f32 && !has_value {
                         has_value = true
                     };
@@ -166,11 +165,10 @@ mod test {
     fn test_mix() {
         let mixers:Vec<Mixer> = (&options).iter().map(|ranger| (1f32/options.len() as f32, *ranger)).collect();
         for k in MONICS {
-            let kf = k as f32;
             let mut has_value = false;
             let mut not_one = false;
             for x in DOMAIN {
-                let y = mix(kf, x, d, &mixers);
+                let y = mix(k, x, d, &mixers);
                 if y > 0f32 && !has_value {
                     has_value = true
                 };
