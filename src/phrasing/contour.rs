@@ -3,14 +3,27 @@ use crate::synth::{pi,pi2,SampleBuffer};
 use crate::types::timbre::AmpContour;
 use crate::types::synthesis::{Range, Radian,Freq};
 
-const x:AmpContour = AmpContour::Fade;
-
+/// # Cont 
+/// 
+/// A list of contour values to be interpolated at gentime. Minimum length 1, no maximum.
 pub type Cont<T> = Vec<T>;
+/// # AmpCont 
+/// 
+/// A list of contour values for amplitude interpolation at gentime. Minimum length 1, no maximum.
 pub type AmpCont = Cont<Range>;
+/// # FreqCont 
+/// 
+/// A list of contour values for frequency interpolation at gentime. Minimum length 1, no maximum.
 pub type FreqCont = Cont<Freq>;
+/// # PhaseCont 
+/// 
+/// A list of contour values for phase interpolation at gentime. Minimum length 1, no maximum.
 pub type PhaseCont = Cont<Radian>;
 
+
+/// A collection of (amp, freq, phase) contours.
 pub type Expr = (AmpCont, FreqCont, PhaseCont);
+pub fn expr_none() ->Expr { (vec![1f32], vec![1f32], vec![0f32]) }
 
 pub struct Timeframe {
     pub n_cycles: f32,

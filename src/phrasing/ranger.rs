@@ -51,7 +51,7 @@ pub type Weight = f32;
 pub type Cocktail = Vec<(Weight, Ranger)>;
 
 /// Collection of optional xformers for amplitude, frequency, and phase.
-pub type Druid = [Option<Cocktail>;3]; 
+pub type Modders = [Option<Cocktail>;3]; 
 
 pub static options:[Ranger; 3] = [
     a,

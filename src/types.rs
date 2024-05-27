@@ -24,6 +24,7 @@ pub mod synthesis {
     pub type Mote = (Dur, Freq, Ampl);
     pub type Note = (Duration, Tone, Ampl);
     pub type Progression = Vec<(Duration, Place)>;
+    pub type Muls = Vec<Freq>;
     
     pub type Radian = f32;
     pub type Range = f32;
@@ -45,9 +46,10 @@ pub mod synthesis {
 
     
     pub type Bandpass = (f32, f32);
-    /// Contour vector for Highpass, Lowpass frequencies
-    /// Since inner vectors represent frequency cutoff values,
-    /// all must be in range of [MF, NF]
+    /// Contour vector for Highpass, Lowpass frequencies.
+    /// 
+    /// Minimum number of entries is 1 and can be the Minimum Frequency (MF) or Nyquist Frequency (NF).
+    /// Can have any number of entries and the highpass/lowpass vecs can have different lenghts. Gentime filter will interpolate
     pub type Bp = (Vec<f32>, Vec<f32>);
 }
 
@@ -191,11 +193,16 @@ pub mod timbre {
     pub type Ampex = (AmpLifespan, AmpContour);
 
 
+    /// - mode and role are the primary selectors for mebn druid
+    /// - register defines how much harmonic space is available
+    /// - visibility affects overall amplitude
+    /// - energy defines how much harmonic content is present
+    /// - presence is an envelope selector
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Contrib {
         pub mode: Mode,
-        pub register: u32,
         pub role: Role,
+        pub register: u32,
         pub visibility: Visibility,
         pub energy: Energy,
         pub presence: Presence,
@@ -221,6 +228,7 @@ pub mod timbre {
         Melodic,
         Enharmonic,
         Vagrant,
+        Bell,
         Noise
     }
 

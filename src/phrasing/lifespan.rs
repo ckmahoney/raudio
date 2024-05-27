@@ -105,11 +105,6 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
     modulator
 }
 
-#[test]
-fn do_test() {
-    println!("(-0.5f32).powf(0.6) {}", (-2f32).powf(2.3f32))
-}
-
 #[cfg(test)]
 mod test {
     use super::*;

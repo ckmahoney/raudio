@@ -3,7 +3,7 @@ use crate::types::synthesis::{Bp,Range, Direction, Duration, FilterPoint, Freq, 
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
-use crate::phrasing::ranger::{Druid, Mixer, Cocktail, mix};
+use crate::phrasing::ranger::{Modders, Mixer, Cocktail, mix};
 
 #[derive(Clone)]
 pub enum GlideLen {
@@ -14,8 +14,10 @@ pub enum GlideLen {
 }
 
 /// Context window for a frequency in series of frequencies, as in a melody. 
-/// Second, Third, and Fourth entries describe the frequencies being navigated.
-/// Centermost entry is the current frequency to perform.
+/// 
+/// - f32,f32,f32 Second, Third, and Fourth entries describe the frequencies being navigated.
+/// - f32 Centermost entry is the current frequency to perform.
+/// 
 /// The first and final f32 are the previous/next frequency.
 /// First and final GlideLen describe how to glide, 
 /// where the first GlideLen pairs with the "prev" frquency and the final GlideLen pairs with the "next" frquency.
@@ -67,9 +69,10 @@ fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:f32, x:f32, d:f32) ->
 /// * `expr` Contour buffers for amplitude, frequency, and phase. Sampled based on this note's progres and applied to the summed result (time-series) signal.
 /// * `span` Tuple of (cps, n_cycles, n_samples) 
 /// * `bp` Bandpass filter buffers. First entry is a list of highpass values; second entry is a list of lowpass values.
-/// * `multipliers` Frequencies for multiplying the curr frequency; to create a triangle wave, for example. Values must be in range of (0, NF/2]
-/// * `druid` Optional callbacks to apply for modulating amp, freq,and phase on each multiplier (by index + 1 as k).
-/// * `noise_thresh` Minimum allowed amplitude. Use 0 for an allpass. 
+/// * `multipliers` Frequencies for multiplying the curr frequency. For example, integer harmonics or bell partials. Values must be in range of (0, NF/2]
+/// * `rangers` Optional callbacks to apply for modulating amp, freq,and phase on each multiplier (by index + 1 as k).
+/// * `gate_thresh` Minimum allowed amplitude. Use 0 for an allpass. 
+/// * `clip_thresh` Maximum allowed amplitude, truncating larger values to `clip_thresh`. Use 1 for an allpass. 
 /// ### Returns
 /// A samplebuffer representing audio data of the specified event.
 pub fn blender(
@@ -78,8 +81,9 @@ pub fn blender(
     span: &Span,
     bp: &Bp,
     multipliers: &Vec<Freq>,
-    druid:&Druid,
-    noise_thresh: f32
+    modders:&Modders,
+    gate_thresh: f32,
+    // clip_thresh: f32
 ) -> SampleBuffer {
     let (_, prev, freq, next, _) = funds;
     let (acont, fcont, pcont) = expr;
@@ -100,17 +104,23 @@ pub fn blender(
 
         for (i, m) in multipliers.iter().enumerate() {
             let k = (i + 1) as f32;
-            let frequency = m * fm * freq * mix_or(1f32, &druid[1], k, p, span.1);
-            let amp = am * filter(p, frequency, bp) * mix_or(1f32, &druid[0], k, p, span.1);
+            let frequency = m * fm * freq * mix_or(1f32, &modders[1], k, p, span.1);
+            let amp = am * filter(p, frequency, bp) * mix_or(1f32, &modders[0], k, p, span.1);
             if amp != 0f32 {
-                let phase = frequency * pi2 * t + pm + mix_or(0f32, &druid[2], k, p, span.1); 
+                let phase = frequency * pi2 * t + pm + mix_or(0f32, &modders[2], k, p, span.1); 
                 v += amp * phase.sin();
             }
         }
 
-        if v.abs() >= noise_thresh {
+        // if v.abs() > clip_thresh {
+        //     let sign:f32 = if v > 0f32 { 1f32 } else { -1f32 };
+        //     sig[j] += sign * clip_thresh    
+        // }
+
+        if v.abs() >= gate_thresh {
             sig[j] += v
         }
+
     }
 
     sig
@@ -123,7 +133,7 @@ mod test {
     use crate::render::engrave;
 
     static TEST_DIR:&str = "dev-audio/blend";
-    static druid:Druid = [None,None,None];
+    static modders:Modders = [None,None,None];
 
     #[test]
     fn test_multipliers_overtones() {
@@ -135,7 +145,7 @@ mod test {
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let noise_thresh = 0f32;
+        let gate_thresh = 0f32;
 
         let signal = blender(
             funds,
@@ -143,8 +153,8 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            &druid,
-            noise_thresh
+            &modders,
+            gate_thresh
         );
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
@@ -161,7 +171,7 @@ mod test {
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| 1f32/x as f32).collect();
-        let noise_thresh = 0f32;
+        let gate_thresh = 0f32;
 
         let signal = blender(
             funds,
@@ -169,8 +179,8 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            &druid,
-            noise_thresh
+            &modders,
+            gate_thresh
         );
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
@@ -188,7 +198,7 @@ mod test {
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let noise_thresh = 0f32;
+        let gate_thresh = 0f32;
 
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let highpass_filter:Vec<f32> = (0..n_samples/4).map(|x|  x as f32).collect();
@@ -199,8 +209,8 @@ mod test {
             &span,
             &(highpass_filter, lowpass_filter),
             &multipliers,
-            &druid,
-            noise_thresh
+            &modders,
+            gate_thresh
         );
 
         files::with_dir(TEST_DIR);
@@ -219,8 +229,8 @@ mod test {
             &span,
             &(highpass_filter, lowpass_filter),
             &multipliers,
-            &druid,
-            noise_thresh
+            &modders,
+            gate_thresh
         );
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
@@ -244,7 +254,7 @@ mod test {
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let noise_thresh = 0f32;
+        let gate_thresh = 0f32;
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], small_f_modulator(span.0, n_samples), vec![0f32]);
 
@@ -254,8 +264,8 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            &druid,
-            noise_thresh
+            &modders,
+            gate_thresh
         );
 
         files::with_dir(TEST_DIR);
@@ -284,7 +294,7 @@ mod test {
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let noise_thresh = 0f32;
+        let gate_thresh = 0f32;
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], small_p_modulator(span.0, n_samples));
 
@@ -294,8 +304,8 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            &druid,
-            noise_thresh
+            &modders,
+            gate_thresh
         );
 
         files::with_dir(TEST_DIR);
@@ -306,7 +316,7 @@ mod test {
 
 
     #[test]
-    fn test_noise_thresh() {
+    fn test_gate_thresh() {
         let test_name = "blender-thresh";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
@@ -316,15 +326,15 @@ mod test {
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let noise_thresh = 0.7f32;
+        let gate_thresh = 0.7f32;
         let signal = blender(
             funds.clone(),
             expr.clone(),
             &span,
             &bp,
             &multipliers,
-            &druid,
-            noise_thresh
+            &modders,
+            gate_thresh
         );
 
         files::with_dir(TEST_DIR);
@@ -333,8 +343,8 @@ mod test {
     }
 
     #[test]
-    fn test_druid_amp() {
-        let test_name = "blender-druid-amp";
+    fn test_modders_amp() {
+        let test_name = "blender-modders-amp";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -343,8 +353,8 @@ mod test {
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let noise_thresh = 0f32;
-        let the_druid:Druid = [
+        let gate_thresh = 0f32;
+        let the_modders:Modders = [
             Some(phrasing::gen_cocktail(2)),
             None,
             None,
@@ -355,8 +365,8 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            &the_druid,
-            noise_thresh
+            &the_modders,
+            gate_thresh
         );
 
         files::with_dir(TEST_DIR);
@@ -365,8 +375,8 @@ mod test {
     }
 
     #[test]
-    fn test_druid_freq() {
-        let test_name = "blender-druid-freq";
+    fn test_modders_freq() {
+        let test_name = "blender-modders-freq";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -375,8 +385,8 @@ mod test {
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let noise_thresh = 0f32;
-        let the_druid:Druid = [
+        let gate_thresh = 0f32;
+        let the_modders:Modders = [
             None,
             Some(phrasing::gen_cocktail(2)),
             None,
@@ -387,8 +397,8 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            &the_druid,
-            noise_thresh
+            &the_modders,
+            gate_thresh
         );
 
         files::with_dir(TEST_DIR);
@@ -398,8 +408,8 @@ mod test {
 
 
     #[test]
-    fn test_druid_phase() {
-        let test_name = "blender-druid-phase";
+    fn test_modders_phase() {
+        let test_name = "blender-modders-phase";
         let funds:Frex = (
             GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
         );
@@ -408,8 +418,8 @@ mod test {
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let noise_thresh = 0f32;
-        let the_druid:Druid = [
+        let gate_thresh = 0f32;
+        let the_modders:Modders = [
             None,
             None,
             Some(phrasing::gen_cocktail(2)),
@@ -420,8 +430,8 @@ mod test {
             &span,
             &bp,
             &multipliers,
-            &the_druid,
-            noise_thresh
+            &the_modders,
+            gate_thresh
         );
 
         files::with_dir(TEST_DIR);
