@@ -66,7 +66,6 @@ pub fn modders_triangle() -> Modders {
     ]
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -121,9 +120,7 @@ mod test {
     #[test]
     fn test_blend_single_element_square() {
         let test_name:&str = "melodic-default-square";
-        let freqs:Vec<f32> = vec![200f32, 250f32, 400f32, 350f32, 300f32];
-        let durs:Vec<f32> = vec![1f32, 2f32, 1f32, 2f32, 2f32];
-        let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
+        let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
         let elementor:Elementor = vec![
@@ -143,9 +140,7 @@ mod test {
     #[test]
     fn test_blend_single_element_triangle() {
         let test_name:&str = "melodic-default-triangle";
-        let freqs:Vec<f32> = vec![200f32, 250f32, 400f32, 350f32, 300f32];
-        let durs:Vec<f32> = vec![1f32, 2f32, 1f32, 2f32, 2f32];
-        let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
+        let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
         let elementor:Elementor = vec![
@@ -165,9 +160,7 @@ mod test {
     #[test]
     fn test_blend_single_element_sawtooth() {
         let test_name:&str = "melodic-default-sawtooth";
-        let freqs:Vec<f32> = vec![200f32, 250f32, 400f32, 350f32, 300f32];
-        let durs:Vec<f32> = vec![1f32, 2f32, 1f32, 2f32, 2f32];
-        let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
+        let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
         let elementor:Elementor = vec![
@@ -187,9 +180,7 @@ mod test {
     #[test]
     fn test_blend_composite() {
         let test_name:&str = "melodic-composite";
-        let freqs:Vec<f32> = vec![200f32, 250f32, 400f32, 350f32, 300f32];
-        let durs:Vec<f32> = vec![1f32, 2f32, 1f32, 2f32, 2f32];
-        let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
+        let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
         let elementor:Elementor = vec![

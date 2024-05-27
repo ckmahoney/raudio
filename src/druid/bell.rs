@@ -95,8 +95,8 @@ mod test {
 
     fn nearly_none_bell(fund:f32) -> Element {
         Element {
-            mode: Mode::Melodic,
-            muls: generate_multipliers(fund, 2),
+            mode: Mode::Bell,
+            muls: generate_multipliers(fund, 6),
             modders: modders_bell(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
@@ -107,9 +107,7 @@ mod test {
     #[test]
     fn test_blend_single_element_bell() {
         let test_name:&str = "bell-default";
-        let freqs:Vec<f32> = vec![200f32, 250f32, 400f32, 350f32, 300f32];
-        let durs:Vec<f32> = vec![1f32, 2f32, 1f32, 2f32, 2f32];
-        let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
+        let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
         let druid:Elementor = vec![
