@@ -5,7 +5,7 @@ use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
 use crate::phrasing::ranger::{Modders, Mixer, Cocktail, mix};
 
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 pub enum GlideLen {
     None,
     Quarter,
@@ -31,7 +31,7 @@ pub enum GlideLen {
 /// and then for the second note, (GlideLen::None, C, E, G, GlideLen::None)
 /// 
 /// as of May 25 2024 the glide modulation logic is yet to be implemented in the ugen
-pub type Frex = (GlideLen, Freq, Freq, Freq, GlideLen);
+pub type Frex = (GlideLen, Option<Freq>, Freq, Option<Freq>, GlideLen);
 
 
 /// Returns an amplitude identity or cancellation value
@@ -76,8 +76,8 @@ fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:f32, x:f32, d:f32) ->
 /// ### Returns
 /// A samplebuffer representing audio data of the specified event.
 pub fn blender(
-    funds: Frex,
-    expr: Expr,
+    frex: &Frex,
+    expr: &Expr,
     span: &Span,
     bp: &Bp,
     multipliers: &Vec<Freq>,
@@ -85,7 +85,7 @@ pub fn blender(
     gate_thresh: f32,
     // clip_thresh: f32
 ) -> SampleBuffer {
-    let (_, prev, freq, next, _) = funds;
+    let (glide_from, maybe_prev, freq, maybe_next, glide_to) = frex;
     let (acont, fcont, pcont) = expr;
     let n_samples = crate::time::samples_of_cycles(span.0, span.1);
     let mut sig = vec![0f32; n_samples];
@@ -139,7 +139,7 @@ mod test {
     fn test_multipliers_overtones() {
         let test_name = "blender-overs";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
         let span:Span = (1.5, 2.0);
@@ -148,8 +148,8 @@ mod test {
         let gate_thresh = 0f32;
 
         let signal = blender(
-            funds,
-            expr,
+            &funds,
+            &expr,
             &span,
             &bp,
             &multipliers,
@@ -165,7 +165,7 @@ mod test {
     fn test_multipliers_undertones() {
         let test_name = "blender-unders";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
         let span:Span = (1.5, 2.0);
@@ -174,8 +174,8 @@ mod test {
         let gate_thresh = 0f32;
 
         let signal = blender(
-            funds,
-            expr,
+            &funds,
+            &expr,
             &span,
             &bp,
             &multipliers,
@@ -192,7 +192,7 @@ mod test {
     fn test_bp_filters() {
         let test_name = "blender-overs-highpass-filter";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
         let span:Span = (1.5, 2.0);
@@ -204,8 +204,8 @@ mod test {
         let highpass_filter:Vec<f32> = (0..n_samples/4).map(|x|  x as f32).collect();
         let lowpass_filter = vec![NFf];
         let signal = blender(
-            funds.clone(),
-            expr.clone(),
+            &funds,
+            &expr,
             &span,
             &(highpass_filter, lowpass_filter),
             &multipliers,
@@ -224,8 +224,8 @@ mod test {
         let lowpass_filter = (0..n_samples/4).map(|x| (15000 - x) as f32).collect();
 
         let signal = blender(
-            funds,
-            expr,
+            &funds,
+            &expr,
             &span,
             &(highpass_filter, lowpass_filter),
             &multipliers,
@@ -249,7 +249,7 @@ mod test {
     fn test_fmod() {
         let test_name = "blender-overs-fmod";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
@@ -259,8 +259,8 @@ mod test {
         let expr:Expr = (vec![1f32], small_f_modulator(span.0, n_samples), vec![0f32]);
 
         let signal = blender(
-            funds.clone(),
-            expr.clone(),
+            &funds,
+            &expr,
             &span,
             &bp,
             &multipliers,
@@ -289,7 +289,7 @@ mod test {
     fn test_pmod() {
         let test_name = "blender-overs-pmod";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
@@ -299,8 +299,8 @@ mod test {
         let expr:Expr = (vec![1f32], vec![1f32], small_p_modulator(span.0, n_samples));
 
         let signal = blender(
-            funds.clone(),
-            expr.clone(),
+            &funds,
+            &expr,
             &span,
             &bp,
             &multipliers,
@@ -319,7 +319,7 @@ mod test {
     fn test_gate_thresh() {
         let test_name = "blender-thresh";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
@@ -328,8 +328,8 @@ mod test {
         let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
         let gate_thresh = 0.7f32;
         let signal = blender(
-            funds.clone(),
-            expr.clone(),
+            &funds,
+            &expr,
             &span,
             &bp,
             &multipliers,
@@ -346,7 +346,7 @@ mod test {
     fn test_modders_amp() {
         let test_name = "blender-modders-amp";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
@@ -360,8 +360,8 @@ mod test {
             None,
         ];
         let signal = blender(
-            funds.clone(),
-            expr.clone(),
+            &funds,
+            &expr,
             &span,
             &bp,
             &multipliers,
@@ -378,7 +378,7 @@ mod test {
     fn test_modders_freq() {
         let test_name = "blender-modders-freq";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
@@ -392,8 +392,8 @@ mod test {
             None,
         ];
         let signal = blender(
-            funds.clone(),
-            expr.clone(),
+            &funds,
+            &expr,
             &span,
             &bp,
             &multipliers,
@@ -411,7 +411,7 @@ mod test {
     fn test_modders_phase() {
         let test_name = "blender-modders-phase";
         let funds:Frex = (
-            GlideLen::None, 400f32, 500f32, 600f32, GlideLen::None
+            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
         );
         let span:Span = (1.5, 2.0);
         let bp:Bp = (vec![MFf], vec![NFf]);
@@ -425,8 +425,8 @@ mod test {
             Some(phrasing::gen_cocktail(2)),
         ];
         let signal = blender(
-            funds.clone(),
-            expr.clone(),
+            &funds,
+            &expr,
             &span,
             &bp,
             &multipliers,

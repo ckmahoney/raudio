@@ -27,7 +27,7 @@ mod demo;
 mod engrave;
 mod envelope;
 mod files;
-mod mebn_druid;
+mod druid;
 mod midi;
 mod mix;
 mod modulate;

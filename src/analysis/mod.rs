@@ -2,6 +2,8 @@ pub mod sine_cache;
 pub mod transient;
 pub mod volume;
 
+use crate::synth::{pi,pi2};
+
 /// Double or halve a value `b` to be within 1 octave of `a`
 pub fn fit(a:f32, b:f32) -> f32 {
     if b >= a && b < (a*2.) {
