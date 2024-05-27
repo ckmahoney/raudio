@@ -104,6 +104,8 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
     sig
 }
 
+
+
 #[inline]
 fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mut Phrasing, mbs: &preset::SomeModulators) -> synth::SampleBuffer {
     let frequency = tone_to_freq(&note.1);

@@ -25,7 +25,7 @@ use crate::types::timbre::{Mode, Contrib};
 use crate::types::render::{Span};
 use crate::render::blend::{GlideLen,Frex, blender};
 use crate::render::realize::{mix_buffers};
-use crate::synth::{MFf, NFf, SampleBuffer};
+use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2};
 use crate::monic_theory::tone_to_freq;
 
 /// # Element
@@ -130,6 +130,7 @@ mod test {
             thresh: (0f32, 1f32)
         }
     }
+
 
     #[test]
     fn test_blend_single_element() {
