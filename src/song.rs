@@ -114,7 +114,6 @@ pub mod x_files {
                 visibility: Visibility::Foreground,
                 energy:Energy::High,
                 presence:Presence::Tenuto,
-                ampex: (AmpLifespan::Drone, AmpContour::Fade)
 
             },
             vec![PIANO_LINE.to_vec()]
@@ -128,7 +127,6 @@ pub mod x_files {
                 visibility: Visibility::Visible,
                 energy: Energy::High,
                 presence: Presence::Legato,
-                ampex: (AmpLifespan::Pluck, AmpContour::Fade)
 
             },
             vec![FLUTE_LINE.to_vec()]
@@ -221,7 +219,6 @@ pub mod happy_birthday {
                 visibility: Visibility::Visible,
                 energy: Energy::High,
                 presence: Presence::Tenuto,
-                ampex: (AmpLifespan::Pluck, AmpContour::Fade)
             },
             lead
         );

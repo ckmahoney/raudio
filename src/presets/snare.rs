@@ -3,7 +3,7 @@ use crate::synth::{pi, pi2, SampleBuffer};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::presets::{Ctx, Coords, AmpMod, PhaseMod,FreqMod, none, bell,noise};
 use crate::types::{Range, Radian};
-use crate::types::timbre::{Sound2, BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
+use crate::types::timbre::{Sound2, BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::time;
 
 static one:f32 = 1f32;

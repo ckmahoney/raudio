@@ -30,7 +30,7 @@ use rand::rngs::ThreadRng;
 use crate::synth::{pi, pi2, SR, MF, NF, SampleBuffer};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::*;
-use crate::types::timbre::{AmpContour,AmpLifespan,BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
+use crate::types::timbre::{AmpContour,AmpLifespan,BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::monic_theory::tone_to_freq;
 use crate::time;
 use crate::render;

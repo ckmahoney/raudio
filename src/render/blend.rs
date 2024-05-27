@@ -1,6 +1,6 @@
 use crate::synth::{SR, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
 use crate::types::synthesis::{Bp,Range, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
-use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
+use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
 use crate::phrasing::ranger::{Druid, Mixer, Cocktail, mix};

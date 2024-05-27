@@ -199,7 +199,6 @@ pub mod timbre {
         pub visibility: Visibility,
         pub energy: Energy,
         pub presence: Presence,
-        pub ampex: (AmpLifespan, AmpContour),
     }
 
     #[derive(Debug, Serialize)]

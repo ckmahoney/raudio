@@ -33,3 +33,21 @@ pub fn amod2(xyz:&Coords, ctx:&Ctx, snd:&Sound2, phr:&Phrasing) -> f32 {
 pub fn pmod2(xyz:&Coords, ctx:&Ctx, snd:&Sound2, phr:&Phrasing) -> f32 {
     0f32
 }
+
+
+/// RANGER
+pub fn amod3(k:f32, x:f32, d:f32) -> f32 {
+    1f32
+}
+
+
+/// RANGER
+pub fn fmod3(k:f32, x:f32, d:f32) -> f32 {
+    1f32
+}
+
+
+/// RANGER
+pub fn pmod3(k:f32, x:f32, d:f32) -> f32 {
+    0f32
+}

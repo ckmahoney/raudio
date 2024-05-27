@@ -1,7 +1,7 @@
-use crate::synth::{MF, NF,SampleBuffer};
+use crate::synth::{SR, MF, NF,SampleBuffer, pi, pi2};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::*;
-use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing, Ampex};
+use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 
 use crate::preset::{Modulators, Ctx, Coords};
 use crate::{decor, phrasing, AmpLifespan};
@@ -14,11 +14,6 @@ use crate::monic_theory::tone_to_freq;
 use crate::synth;
 use crate::time;
 pub use crate::analysis::fit;
-
-use std::f32::consts::PI;
-use crate::synth::SR;
-pub static pi2:f32 = PI*2.;
-pub static pi:f32 = PI;
 
 use crate::render::realize;
 use crate::render::normalize;
@@ -59,7 +54,7 @@ fn mgen_sine(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&m
             let p_extra = phr.note.p * phr.note.cycles / phr.line.cycles;
             if phrasing::bandpass_filter(&sound.bandpass,  f, phr.line.p + p_extra) {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
-                let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * pi2 * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
                 sig[j] += amp * phase.sin() / (k * k) as f32;
             } else {
                 continue
@@ -98,7 +93,7 @@ fn mgen_square(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:
             let f = frequency * k as f32 * (m8s.freq)(&coords, &ctx, &sound, &dir, &phr);
             if bandpass_filter(&sound.bandpass, phr, f, j, n_samples) {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
-                let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * pi2 * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
                 sig[j] += c * amp * phase.sin() / k as f32;
             } else {
                 continue
@@ -141,7 +136,7 @@ fn mgen_triangle(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
-                let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * pi2 * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
                 sig[j] += c * amp * phase.cos() / (k * k) as f32;
             }
         }
@@ -181,7 +176,7 @@ fn mgen_sawtooth(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, ph
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr) / k as f32;
-                let phase = f * sign * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * sign * pi2 * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
                 sig[j] += c * amp * phase.sin();
             }
         }
@@ -229,7 +224,7 @@ fn mgen_all(cps:f32, note:&Note, ext:usize, sound:&Sound, dir:Direction, phr:&mu
                 continue
             } else {
                 let amp = ampl * (m8s.amp)(&coords, &ctx, &sound, &dir, &phr);
-                let phase = f * 2.0 * PI * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
+                let phase = f * pi2 * (j as f32 / SR as f32) + (m8s.phase)(&coords, &ctx, &sound, &dir, &phr);
                 sig[j] += amp * phase.sin();
             }
         }
