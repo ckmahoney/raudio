@@ -88,6 +88,7 @@ mod test {
         Element {
             mode: Mode::Melodic,
             muls: max_mul(fund, false),
+            amps: vec![1f32; max_mul(fund, false).len()],
             modders: modders_square(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
@@ -99,6 +100,7 @@ mod test {
         Element {
             mode: Mode::Melodic,
             muls: max_mul(fund, false),
+            amps: vec![1f32; max_mul(fund, false).len()],
             modders: modders_triangle(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
@@ -110,6 +112,7 @@ mod test {
         Element {
             mode: Mode::Melodic,
             muls: max_mul(fund, true),
+            amps: vec![1f32; max_mul(fund, true).len()],
             modders: modders_triangle(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),

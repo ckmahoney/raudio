@@ -11,12 +11,12 @@ fn gen_float(min:f32, max:f32) -> f32 {
 
 /// Generates a soft but present sub x2 octave weight
 fn gen_sub_weight() -> f32 {
-    gen_float(0.005, 0.01)
+    gen_float(0.0001, 0.005)
 }
 
 /// Generates a soft but present sub octave weight
 fn gen_bass_weight() -> f32 {
-    gen_float(0.05, 0.1)
+    gen_float(0.001, 0.005)
 }
 
 /// Generates a wide variety of amplitude presence weight
@@ -31,23 +31,32 @@ fn gen_strike_weight() -> f32 {
 
 /// Generates a tierce weight
 fn gen_tierce_weight() -> f32 {
-    gen_float(0.001, 0.01)
+    gen_float(0.01, 0.1)
 }
 
 /// Generates a quint weight
 fn gen_quint_weight() -> f32 {
-    gen_float(0.0005, 0.002)
+    gen_float(0.01, 0.1)
 }
 
 /// Generates a nominal weight
 fn gen_nominal_weight() -> f32 {
-    gen_float(0.00001, 0.0001)
+    gen_float(0.01, 0.02)
 }
 
 
-fn generate_multipliers(fundamental: f32, num_multipliers: usize) -> Vec<f32> {
+/// Simulate transverse wave distortion 
+fn transverse_modulation(k:usize, x:f32, d:f32) -> f32 {
+    if k < 5 {
+        1f32
+    } else {
+        1.05f32.powi(k as i32-5i32)
+    }
+}
+
+fn generate_multipliers(fundamental: f32, n: usize) -> Vec<f32> {
     let max_k = NFf/fundamental;
-    (1..=num_multipliers).map(|k| {
+    (1..=n).map(|k| {
         match k {
             1 => 1f32 / 4.0, // Sub x2 octave
             2 => 1f32 / 2.0, // Sub octave
@@ -61,27 +70,44 @@ fn generate_multipliers(fundamental: f32, num_multipliers: usize) -> Vec<f32> {
     }).collect()
 }
 
+fn generate_coefficients(fund:f32, n:usize) -> Vec<f32> {
+    (1..=n).map(|i| amp_bell(i, 0f32, 0f32)).collect()
+}
+
 /// this fails for current implementation because it is called per-frame 
 /// resulting in a noisy signal (random amp per frame in wide range of options)
 fn amp_bell(k:usize, x:f32, d:f32) -> f32 {
-    let n = k - 1;
-    match n {
-        0 => gen_sub_weight(),
-        1 => gen_bass_weight(),
-        2 => gen_fundamental_weight(),
-        3 => gen_strike_weight(),
-        4 => gen_tierce_weight(),
-        5 => gen_quint_weight(),
+    match k {
+        1 => gen_sub_weight(),
+        2 => gen_bass_weight(),
+        3 => gen_fundamental_weight(),
+        4 => gen_strike_weight(),
+        5 => gen_tierce_weight(),
+        6 => gen_quint_weight(),
         _ => gen_nominal_weight(), // Default case
     }
 }
 
 fn modders_bell() -> Modders {
     [
-        None,
-        None,
+        Some(vec![(1f32, amod_three_voice)]),
+        Some(vec![(1f32, transverse_modulation)]),
         None,
     ]
+}
+
+/// Assign distinct contours for the three bell components
+fn amod_three_voice(k:usize, x:f32, d:f32) -> f32 {
+    if k == 1 || k == 2 {
+        // hum 
+        (-1f32 * (x).powi(4)) + 1f32
+    } else if k == 2 {
+        // strike 
+        (x - 1f32).powi(8)
+    } else {
+        // uppers
+        1f32 - x
+    }
 }
 
 #[cfg(test)]
@@ -97,6 +123,7 @@ mod test {
         Element {
             mode: Mode::Bell,
             muls: generate_multipliers(fund, 6),
+            amps: generate_coefficients(fund, 6),
             modders: modders_bell(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
@@ -110,14 +137,14 @@ mod test {
         let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
-        let druid:Elementor = vec![
+        let elementor:Elementor = vec![
             (1f32, nearly_none_bell)
         ];
 
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &druid));
+            signal.append(&mut inflect(&frex, &at, &elementor));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);

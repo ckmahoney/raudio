@@ -52,7 +52,7 @@ pub fn norm_scale(buffer: &mut Vec<f32>, scale:f32) {
     let max_amplitude = buffer.iter().map(|&sample| sample.abs()).fold(0.0, f32::max);
 
     if max_amplitude != 0.0 {
-        buffer.iter_mut().for_each(|sample| *sample /= (scale * max_amplitude));
+        buffer.iter_mut().for_each(|sample| *sample /= scale * max_amplitude);
     }
 }
 

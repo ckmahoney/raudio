@@ -13,14 +13,13 @@
 /// This model should be able to provide 95% of the sounds we want to use in music :)
 
 mod melodic;
-mod enharmonic;
 mod bell;
 mod noise;
 
 use crate::phrasing::ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
 use crate::time;
-use crate::types::synthesis::{Range,Freq,Bp,Muls, Note};
+use crate::types::synthesis::{Range,Freq,Bp,Muls, Amps, Note};
 use crate::types::timbre::{Mode, Contrib};
 use crate::types::render::{Span};
 use crate::render::blend::{GlideLen,Frex, blender};
@@ -38,6 +37,7 @@ use crate::monic_theory::tone_to_freq;
 /// `thresh` Gate and clip thresholds for distorting the signal. Applied to the summed signal (not per multiplier).
 pub struct Element {
     mode:Mode,
+    amps: Amps,
     muls: Muls,
     modders:Modders,
     expr:Expr,
@@ -72,8 +72,9 @@ fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor) -> SampleBuffer {
             &at.span, 
             &element.hplp, 
             &element.muls, 
+            &element.amps,
             &element.modders, 
-            element.thresh.0
+            element.thresh
         )
     ).collect();
     match mix_buffers(&mut sigs) {
@@ -91,8 +92,9 @@ fn inflect_bad(frex:&Frex, at:&ApplyAt, druid:&Druid) -> SampleBuffer {
             &at.span, 
             &element.hplp, 
             &element.muls, 
+            &element.amps,
             &element.modders, 
-            element.thresh.0
+            element.thresh
         )
     ).collect();
     match mix_buffers(&mut sigs) {
@@ -147,6 +149,7 @@ mod test {
         Element {
             mode: Mode::Enharmonic,
             muls: vec![1.0, 2.1, 5.3],
+            amps: vec![1f32, 1f32, 1f32],
             modders: [None, None, None],
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),

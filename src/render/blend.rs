@@ -13,6 +13,9 @@ pub enum GlideLen {
     Sixteenth
 }
 
+/// Amplitude threshold values for gating and clipping a signal
+pub type Clippers = (f32, f32);
+
 /// Context window for a frequency in series of frequencies, as in a melody. 
 /// 
 /// - f32,f32,f32 Second, Third, and Fourth entries describe the frequencies being navigated.
@@ -62,7 +65,6 @@ fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:usize, x:f32, d:f32) 
     }
 }
 
-
 /// Generates an expressive signal for a note. 
 /// 
 /// ### Arguments
@@ -71,9 +73,12 @@ fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:usize, x:f32, d:f32) 
 /// * `span` Tuple of (cps, n_cycles, n_samples) 
 /// * `bp` Bandpass filter buffers. First entry is a list of highpass values; second entry is a list of lowpass values.
 /// * `multipliers` Frequencies for multiplying the curr frequency. For example, integer harmonics or bell partials. Values must be in range of (0, NF/2]
+/// * `amplifiers` Amplitudes for each multiplier. Values must be in the range of [0, 1].
 /// * `rangers` Optional callbacks to apply for modulating amp, freq,and phase on each multiplier (by index + 1 as k).
 /// * `gate_thresh` Minimum allowed amplitude. Use 0 for an allpass. 
 /// * `clip_thresh` Maximum allowed amplitude, truncating larger values to `clip_thresh`. Use 1 for an allpass. 
+/// 
+/// 
 /// ### Returns
 /// A samplebuffer representing audio data of the specified event.
 pub fn blender(
@@ -82,15 +87,14 @@ pub fn blender(
     span: &Span,
     bp: &Bp,
     multipliers: &Vec<Freq>,
+    amplifiers: &Vec<Range>,
     modders:&Modders,
-    gate_thresh: f32,
-    // clip_thresh: f32
+    thresh: (f32, f32)
 ) -> SampleBuffer {
     let (glide_from, maybe_prev, freq, maybe_next, glide_to) = frex;
     let (acont, fcont, pcont) = expr;
     let n_samples = crate::time::samples_of_cycles(span.0, span.1);
     let mut sig = vec![0f32; n_samples];
-
     
     for j in 0..n_samples {
         let p:Range = j as f32 / n_samples as f32;
@@ -106,17 +110,22 @@ pub fn blender(
         for (i, m) in multipliers.iter().enumerate() {
             let k = i + 1;
             let frequency = m * fm * freq * mix_or(1f32, &modders[1], k, p, span.1);
-            let amp = am * filter(p, frequency, bp) * mix_or(1f32, &modders[0], k, p, span.1);
-            if amp != 0f32 {
-                let phase = (frequency * pi2 * t) + pm + mix_or(0f32, &modders[2], k, p, span.1); 
-                v += amp * phase.sin();
+            let amplifier = amplifiers[i];
+            if amplifier > 0f32 {
+                let amp = amplifier * am * filter(p, frequency, bp) * mix_or(1f32, &modders[0], k, p, span.1);
+                if amp != 0f32 {
+                    let phase = (frequency * pi2 * t) + pm + mix_or(0f32, &modders[2], k, p, span.1); 
+                    v += amp * phase.sin();
+                }
             }
         }
 
-        // if v.abs() > clip_thresh {
-        //     let sign:f32 = if v > 0f32 { 1f32 } else { -1f32 };
-        //     sig[j] += sign * clip_thresh    
-        // }
+        let (gate_thresh, clip_thresh) = thresh;
+
+        if v.abs() > clip_thresh {
+            let sign:f32 = if v > 0f32 { 1f32 } else { -1f32 };
+            sig[j] += sign * clip_thresh    
+        }
 
         if v.abs() >= gate_thresh {
             sig[j] += v
@@ -136,106 +145,111 @@ mod test {
     static TEST_DIR:&str = "dev-audio/blend";
     static modders:Modders = [None,None,None];
 
-    #[test]
-    fn test_multipliers_overtones() {
-        let test_name = "blender-overs";
-        let funds:Frex = (
+    fn test_frex() -> Frex {
+        (
             GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
-        let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let gate_thresh = 0f32;
+        )
+    }
 
-        let signal = blender(
-            &funds,
-            &expr,
-            &span,
-            &bp,
-            &multipliers,
-            &modders,
-            gate_thresh
-        );
+    fn test_expr() -> Expr {
+        (vec![1f32], vec![1f32], vec![0f32])
+    }
+
+    fn test_span() -> Span {
+        (1.5, 2.0)
+    }
+
+    fn test_bp() -> Bp {
+        (vec![MFf], vec![NFf])
+    }
+
+    fn test_thresh() -> Clippers {
+        (0f32, 1f32)
+    }
+
+    fn write_test_asset(signal:&SampleBuffer, test_name:&str) {
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
         engrave::samples(SR, &signal, &filename);
     }
 
     #[test]
-    fn test_multipliers_undertones() {
-        let test_name = "blender-unders";
-        let funds:Frex = (
-            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
-        let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| 1f32/x as f32).collect();
-        let gate_thresh = 0f32;
+    fn test_multipliers_overtones() {
+        let test_name = "blender-overs";
+        let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
 
         let signal = blender(
-            &funds,
-            &expr,
-            &span,
-            &bp,
+            &test_frex(),
+            &test_expr(),
+            &test_span(),
+            &test_bp(),
             &multipliers,
+            &amplifiers,
             &modders,
-            gate_thresh
+            test_thresh()
         );
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
+        write_test_asset(&signal, &test_name)
+    }
+
+    #[test]
+    fn test_multipliers_undertones() {
+        let test_name = "blender-unders";
+        let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| 1f32/x as f32).collect();
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+
+        let signal = blender(
+            &test_frex(),
+            &test_expr(),
+            &test_span(),
+            &test_bp(),
+            &multipliers,
+            &amplifiers,
+            &modders,
+            test_thresh()
+        );
+        write_test_asset(&signal, &test_name)
     }
 
 
     #[test]
     fn test_bp_filters() {
         let test_name = "blender-overs-highpass-filter";
-        let funds:Frex = (
-            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let gate_thresh = 0f32;
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let span = test_span();
 
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let highpass_filter:Vec<f32> = (0..n_samples/4).map(|x|  x as f32).collect();
         let lowpass_filter = vec![NFf];
         let signal = blender(
-            &funds,
-            &expr,
-            &span,
+            &test_frex(),
+            &test_expr(),
+            &test_span(),
             &(highpass_filter, lowpass_filter),
             &multipliers,
+            &amplifiers,
             &modders,
-            gate_thresh
+            test_thresh()
         );
+        write_test_asset(&signal, &test_name);
 
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
 
         let test_name = "blender-overs-lowpass-filter";
-        let bp:Bp = (vec![MFf], vec![NFf]);
-
         let highpass_filter = vec![MFf];
         let lowpass_filter = (0..n_samples/4).map(|x| (15000 - x) as f32).collect();
 
         let signal = blender(
-            &funds,
-            &expr,
-            &span,
+            &test_frex(),
+            &test_expr(),
+            &test_span(),
             &(highpass_filter, lowpass_filter),
             &multipliers,
+            &amplifiers,
             &modders,
-            gate_thresh
+            test_thresh()
         );
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
+        write_test_asset(&signal, &test_name);
     }
 
     fn small_f_modulator(cps:f32, n_samples:usize)-> SampleBuffer {
@@ -248,30 +262,24 @@ mod test {
 
     #[test]
     fn test_fmod() {
-        let test_name = "blender-overs-fmod";
-        let funds:Frex = (
-            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
+        let test_name = "blender-expr-fmod";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let gate_thresh = 0f32;
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let span = test_span();
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], small_f_modulator(span.0, n_samples), vec![0f32]);
 
         let signal = blender(
-            &funds,
+            &test_frex(),
             &expr,
-            &span,
-            &bp,
+            &test_span(),
+            &test_bp(),
             &multipliers,
+            &amplifiers,
             &modders,
-            gate_thresh
+            test_thresh()
         );
-
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
+        write_test_asset(&signal, &test_name)
     }
 
     fn small_p_modulator(cps:f32, n_samples:usize)-> SampleBuffer {
@@ -288,155 +296,122 @@ mod test {
 
     #[test]
     fn test_pmod() {
-        let test_name = "blender-overs-pmod";
-        let funds:Frex = (
-            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
+        let test_name = "blender-expr-pmod";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let gate_thresh = 0f32;
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let span = test_span();
+        let span = test_span();
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], vec![1f32], small_p_modulator(span.0, n_samples));
 
         let signal = blender(
-            &funds,
+            &test_frex(),
             &expr,
-            &span,
-            &bp,
+            &test_span(),
+            &test_bp(),
             &multipliers,
+            &amplifiers,
             &modders,
-            gate_thresh
+            test_thresh()
         );
-
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
+        write_test_asset(&signal, &test_name)
     }
-
 
 
     #[test]
     fn test_gate_thresh() {
         let test_name = "blender-thresh";
-        let funds:Frex = (
-            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
+
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let n_samples = crate::time::samples_of_cycles(span.0, span.1);
-        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let gate_thresh = 0.7f32;
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let span = test_span();
+        let thresh = (0.3f32, 0.7f32);
         let signal = blender(
-            &funds,
-            &expr,
-            &span,
-            &bp,
+            &test_frex(),
+            &test_expr(),
+            &test_span(),
+            &test_bp(),
             &multipliers,
+            &amplifiers,
             &modders,
-            gate_thresh
+            thresh
         );
 
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
+        write_test_asset(&signal, &test_name)
     }
 
     #[test]
     fn test_modders_amp() {
         let test_name = "blender-modders-amp";
-        let funds:Frex = (
-            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
+        
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let n_samples = crate::time::samples_of_cycles(span.0, span.1);
-        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let gate_thresh = 0f32;
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
         let the_modders:Modders = [
             Some(phrasing::gen_cocktail(2)),
             None,
             None,
         ];
         let signal = blender(
-            &funds,
-            &expr,
-            &span,
-            &bp,
+            &test_frex(),
+            &test_expr(),
+            &test_span(),
+            &test_bp(),
             &multipliers,
+            &amplifiers,
             &the_modders,
-            gate_thresh
+            test_thresh()
         );
 
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
+        write_test_asset(&signal, &test_name)
     }
+
 
     #[test]
     fn test_modders_freq() {
         let test_name = "blender-modders-freq";
-        let funds:Frex = (
-            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let n_samples = crate::time::samples_of_cycles(span.0, span.1);
-        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let gate_thresh = 0f32;
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
         let the_modders:Modders = [
             None,
             Some(phrasing::gen_cocktail(2)),
             None,
         ];
         let signal = blender(
-            &funds,
-            &expr,
-            &span,
-            &bp,
+            &test_frex(),
+            &test_expr(),
+            &test_span(),
+            &test_bp(),
             &multipliers,
+            &amplifiers,
             &the_modders,
-            gate_thresh
+            test_thresh()
         );
 
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
+        write_test_asset(&signal, &test_name)
     }
 
 
     #[test]
     fn test_modders_phase() {
         let test_name = "blender-modders-phase";
-        let funds:Frex = (
-            GlideLen::None, Some(400f32), 500f32, Some(600f32), GlideLen::None
-        );
-        let span:Span = (1.5, 2.0);
-        let bp:Bp = (vec![MFf], vec![NFf]);
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
-        let n_samples = crate::time::samples_of_cycles(span.0, span.1);
-        let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
-        let gate_thresh = 0f32;
+        let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
         let the_modders:Modders = [
             None,
             None,
             Some(phrasing::gen_cocktail(2)),
         ];
         let signal = blender(
-            &funds,
-            &expr,
-            &span,
-            &bp,
+            &test_frex(),
+            &test_expr(),
+            &test_span(),
+            &test_bp(),
             &multipliers,
+            &amplifiers,
             &the_modders,
-            gate_thresh
+            test_thresh()
         );
 
-        files::with_dir(TEST_DIR);
-        let filename = format!("{}/{}.wav", TEST_DIR, test_name);
-        engrave::samples(SR, &signal, &filename);
+        write_test_asset(&signal, &test_name)
     }
 }

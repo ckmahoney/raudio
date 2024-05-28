@@ -24,6 +24,7 @@ pub mod synthesis {
     pub type Mote = (Dur, Freq, Ampl);
     pub type Note = (Duration, Tone, Ampl);
     pub type Progression = Vec<(Duration, Place)>;
+    pub type Amps = Vec<Range>;
     pub type Muls = Vec<Freq>;
     
     pub type Radian = f32;
