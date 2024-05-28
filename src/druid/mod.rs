@@ -19,7 +19,7 @@ mod noise;
 use crate::phrasing::ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
 use crate::time;
-use crate::types::synthesis::{Range,Freq,Bp,Muls, Amps, Note};
+use crate::types::synthesis::{Range,Freq,Bp,Muls, Amps, Phases, Note};
 use crate::types::timbre::{Mode, Contrib};
 use crate::types::render::{Span};
 use crate::render::blend::{GlideLen,Frex, blender};
@@ -39,6 +39,7 @@ pub struct Element {
     mode:Mode,
     amps: Amps,
     muls: Muls,
+    phss: Phases,
     modders:Modders,
     expr:Expr,
     hplp: Bp,
@@ -73,6 +74,7 @@ fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor) -> SampleBuffer {
             &element.hplp, 
             &element.muls, 
             &element.amps,
+            &element.phss,
             &element.modders, 
             element.thresh
         )
@@ -93,6 +95,7 @@ fn inflect_bad(frex:&Frex, at:&ApplyAt, druid:&Druid) -> SampleBuffer {
             &element.hplp, 
             &element.muls, 
             &element.amps,
+            &element.phss,
             &element.modders, 
             element.thresh
         )
@@ -150,6 +153,7 @@ mod test {
             mode: Mode::Enharmonic,
             muls: vec![1.0, 2.1, 5.3],
             amps: vec![1f32, 1f32, 1f32],
+            phss: vec![pi2,pi2, pi2],
             modders: [None, None, None],
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),

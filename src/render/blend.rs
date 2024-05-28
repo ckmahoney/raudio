@@ -1,5 +1,5 @@
 use crate::synth::{SR, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
-use crate::types::synthesis::{Bp,Range, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
+use crate::types::synthesis::{Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
@@ -88,6 +88,7 @@ pub fn blender(
     bp: &Bp,
     multipliers: &Vec<Freq>,
     amplifiers: &Vec<Range>,
+    phases: &Vec<Radian>,
     modders:&Modders,
     thresh: (f32, f32)
 ) -> SampleBuffer {
@@ -114,7 +115,10 @@ pub fn blender(
             if amplifier > 0f32 {
                 let amp = amplifier * am * filter(p, frequency, bp) * mix_or(1f32, &modders[0], k, p, span.1);
                 if amp != 0f32 {
-                    let phase = (frequency * pi2 * t) + pm + mix_or(0f32, &modders[2], k, p, span.1); 
+                    let phase = (frequency * pi2 * t) 
+                        + phases[i]
+                        + pm 
+                        + mix_or(0f32, &modders[2], k, p, span.1); 
                     v += amp * phase.sin();
                 }
             }
@@ -178,6 +182,7 @@ mod test {
         let test_name = "blender-overs";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
 
         let signal = blender(
             &test_frex(),
@@ -186,6 +191,7 @@ mod test {
             &test_bp(),
             &multipliers,
             &amplifiers,
+            &phases,
             &modders,
             test_thresh()
         );
@@ -197,6 +203,7 @@ mod test {
         let test_name = "blender-unders";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| 1f32/x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
 
         let signal = blender(
             &test_frex(),
@@ -205,6 +212,7 @@ mod test {
             &test_bp(),
             &multipliers,
             &amplifiers,
+            &phases,
             &modders,
             test_thresh()
         );
@@ -217,6 +225,7 @@ mod test {
         let test_name = "blender-overs-highpass-filter";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let span = test_span();
 
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
@@ -229,6 +238,7 @@ mod test {
             &(highpass_filter, lowpass_filter),
             &multipliers,
             &amplifiers,
+            &phases,
             &modders,
             test_thresh()
         );
@@ -246,6 +256,7 @@ mod test {
             &(highpass_filter, lowpass_filter),
             &multipliers,
             &amplifiers,
+            &phases,
             &modders,
             test_thresh()
         );
@@ -265,6 +276,7 @@ mod test {
         let test_name = "blender-expr-fmod";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let span = test_span();
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
         let expr:Expr = (vec![1f32], small_f_modulator(span.0, n_samples), vec![0f32]);
@@ -276,6 +288,7 @@ mod test {
             &test_bp(),
             &multipliers,
             &amplifiers,
+            &phases,
             &modders,
             test_thresh()
         );
@@ -299,6 +312,7 @@ mod test {
         let test_name = "blender-expr-pmod";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let span = test_span();
         let span = test_span();
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
@@ -311,6 +325,7 @@ mod test {
             &test_bp(),
             &multipliers,
             &amplifiers,
+            &phases,
             &modders,
             test_thresh()
         );
@@ -324,6 +339,7 @@ mod test {
 
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let span = test_span();
         let thresh = (0.3f32, 0.7f32);
         let signal = blender(
@@ -333,6 +349,7 @@ mod test {
             &test_bp(),
             &multipliers,
             &amplifiers,
+            &phases,
             &modders,
             thresh
         );
@@ -346,6 +363,7 @@ mod test {
         
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let the_modders:Modders = [
             Some(phrasing::gen_cocktail(2)),
             None,
@@ -358,6 +376,7 @@ mod test {
             &test_bp(),
             &multipliers,
             &amplifiers,
+            &phases,
             &the_modders,
             test_thresh()
         );
@@ -371,6 +390,7 @@ mod test {
         let test_name = "blender-modders-freq";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let the_modders:Modders = [
             None,
             Some(phrasing::gen_cocktail(2)),
@@ -383,6 +403,7 @@ mod test {
             &test_bp(),
             &multipliers,
             &amplifiers,
+            &phases,
             &the_modders,
             test_thresh()
         );
@@ -396,6 +417,7 @@ mod test {
         let test_name = "blender-modders-phase";
         let multipliers:Vec<f32> = (1..15).step_by(2).map(|x| x as f32).collect();
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
+        let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let the_modders:Modders = [
             None,
             None,
@@ -408,6 +430,7 @@ mod test {
             &test_bp(),
             &multipliers,
             &amplifiers,
+            &phases,
             &the_modders,
             test_thresh()
         );

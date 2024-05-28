@@ -3,7 +3,6 @@ pub type BellPartial = (f32, f32);
 use rand;
 use rand::Rng;
 
-
 fn gen_float(min:f32, max:f32) -> f32 {
     let mut rng = rand::thread_rng();
     rng.gen_range(min..max)
@@ -44,7 +43,6 @@ fn gen_nominal_weight() -> f32 {
     gen_float(0.01, 0.02)
 }
 
-
 /// Simulate transverse wave distortion 
 fn transverse_modulation(k:usize, x:f32, d:f32) -> f32 {
     if k < 5 {
@@ -54,7 +52,7 @@ fn transverse_modulation(k:usize, x:f32, d:f32) -> f32 {
     }
 }
 
-fn generate_multipliers(fundamental: f32, n: usize) -> Vec<f32> {
+fn gen_multipliers(fundamental: f32, n: usize) -> Vec<f32> {
     let max_k = NFf/fundamental;
     (1..=n).map(|k| {
         match k {
@@ -70,7 +68,7 @@ fn generate_multipliers(fundamental: f32, n: usize) -> Vec<f32> {
     }).collect()
 }
 
-fn generate_coefficients(fund:f32, n:usize) -> Vec<f32> {
+fn gen_coefficients(fund:f32, n:usize) -> Vec<f32> {
     (1..=n).map(|i| amp_bell(i, 0f32, 0f32)).collect()
 }
 
@@ -122,8 +120,9 @@ mod test {
     fn nearly_none_bell(fund:f32) -> Element {
         Element {
             mode: Mode::Bell,
-            muls: generate_multipliers(fund, 6),
-            amps: generate_coefficients(fund, 6),
+            muls: gen_multipliers(fund, 6),
+            amps: gen_coefficients(fund, 6),
+            phss: vec![pi2; gen_coefficients(fund, 6).len()],
             modders: modders_bell(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
