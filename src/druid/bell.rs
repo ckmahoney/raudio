@@ -117,7 +117,14 @@ mod test {
     use crate::render::engrave;
     use crate::synth::{SR};
 
-    fn nearly_none_bell(fund:f32) -> Element {
+    fn test_vep() -> (Visibility, Energy, Presence) {
+        let energy = Energy::Low;
+        let presence = Presence::Staccatto;
+        let visibility = Visibility::Visible;
+        (visibility,energy,presence)
+    }
+
+    fn nearly_none_bell(fund:f32, v:&Visibility, e:&Energy, p:&Presence) -> Element {
         Element {
             mode: Mode::Bell,
             muls: gen_multipliers(fund, 6),
@@ -136,6 +143,7 @@ mod test {
         let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
+        let (vis, en, pre) = test_vep();
         let elementor:Elementor = vec![
             (1f32, nearly_none_bell)
         ];
@@ -143,7 +151,7 @@ mod test {
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &elementor));
+            signal.append(&mut inflect(&frex, &at, &elementor, &vis, &en, &pre));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);

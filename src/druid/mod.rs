@@ -18,13 +18,13 @@ mod noise;
 
 use crate::phrasing::ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
-use crate::time;
+use crate::{time, Presence, Visibility};
 use crate::types::synthesis::{Range,Freq,Bp,Muls, Amps, Phases, Note};
-use crate::types::timbre::{Mode, Contrib};
+use crate::types::timbre::{Mode, Contrib, Energy};
 use crate::types::render::{Span};
 use crate::render::blend::{GlideLen,Frex, blender};
 use crate::render::realize::{mix_buffers};
-use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2};
+use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2, SR};
 use crate::monic_theory::tone_to_freq;
 
 /// # Element
@@ -52,7 +52,7 @@ pub struct Element {
 /// 
 /// Weights of all elements must equal 1. 
 pub type Druid = Vec<(Weight, Element)>;
-pub type Elementor = Vec<(Weight, fn (f32) -> Element)>;
+pub type Elementor = Vec<(Weight, fn (f32, &Visibility, &Energy, &Presence) -> Element)>;
 
 
 /// convenience struct for naming computed values
@@ -61,10 +61,10 @@ pub struct ApplyAt {
     frex:Frex
 }
 
-fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor) -> SampleBuffer {
+fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor, vis:&Visibility, energy:&Energy, presence:&Presence) -> SampleBuffer {
     let n_samples:usize = time::samples_of_dur(at.span.0, at.span.1);
     let druid:Druid = mentor.iter().map(|(weight, elementor)| 
-        (*weight, elementor(frex.2))
+        (*weight, elementor(frex.2, vis, energy, presence))
     ).collect();
     let mut sigs:Vec<SampleBuffer> = druid.iter().map(|(weight, element)|
         blender(
@@ -148,7 +148,14 @@ mod test {
     use crate::render::engrave;
     use crate::synth::{SR};
 
-    fn nearly_none_enharmonic(fund:f32) -> Element {
+    fn test_vep() -> (Visibility, Energy, Presence) {
+        let energy = Energy::Low;
+        let presence = Presence::Staccatto;
+        let visibility = Visibility::Visible;
+        (visibility,energy,presence)
+    }
+
+    fn nearly_none_enharmonic(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
         Element {
             mode: Mode::Enharmonic,
             muls: vec![1.0, 2.1, 5.3],
@@ -173,11 +180,12 @@ mod test {
         let elementor:Elementor = vec![
             (1f32, nearly_none_enharmonic)
         ];
+        let (v,e,p) = test_vep();
 
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &elementor));
+            signal.append(&mut inflect(&frex, &at, &elementor, &v,&e,&p));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);

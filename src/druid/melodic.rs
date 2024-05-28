@@ -84,7 +84,14 @@ mod test {
         }
     }
 
-    fn nearly_none_square(fund:f32) -> Element {
+    fn test_vep() -> (Visibility, Energy, Presence) {
+        let energy = Energy::Low;
+        let presence = Presence::Staccatto;
+        let visibility = Visibility::Visible;
+        (visibility,energy,presence)
+    }
+
+    fn nearly_none_square(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
         Element {
             mode: Mode::Melodic,
             muls: max_mul(fund, false),
@@ -97,7 +104,7 @@ mod test {
         }
     }
 
-    fn nearly_none_triangle(fund:f32) -> Element {
+    fn nearly_none_triangle(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
         Element {
             mode: Mode::Melodic,
             muls: max_mul(fund, false),
@@ -110,7 +117,7 @@ mod test {
         }
     }
 
-    fn nearly_none_sawtooth(fund:f32) -> Element {
+    fn nearly_none_sawtooth(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
         Element {
             mode: Mode::Melodic,
             muls: max_mul(fund, true),
@@ -129,6 +136,7 @@ mod test {
         let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
+        let (vis, en, pre) = test_vep();
         let elementor:Elementor = vec![
             (1f32, nearly_none_square)
         ];
@@ -136,7 +144,7 @@ mod test {
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &elementor));
+            signal.append(&mut inflect(&frex, &at, &elementor, &vis, &en, &pre));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
@@ -149,6 +157,7 @@ mod test {
         let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
+        let (vis, en, pre) = test_vep();
         let elementor:Elementor = vec![
             (1f32, nearly_none_triangle)
         ];
@@ -156,7 +165,7 @@ mod test {
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &elementor));
+            signal.append(&mut inflect(&frex, &at, &elementor, &vis, &en, &pre));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
@@ -169,6 +178,7 @@ mod test {
         let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
+        let (vis, en, pre) = test_vep();
         let elementor:Elementor = vec![
             (1f32, nearly_none_sawtooth)
         ];
@@ -176,7 +186,7 @@ mod test {
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &elementor));
+            signal.append(&mut inflect(&frex, &at, &elementor, &vis, &en, &pre));
         }
         files::with_dir(test_dir);
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
@@ -189,6 +199,7 @@ mod test {
         let (freqs, durs, frexs) = test_data();
         let mut signal:SampleBuffer = Vec::new();
 
+        let (vis, en, pre) = test_vep();
         let elementor:Elementor = vec![
             (0.34f32, nearly_none_triangle),
             (0.33f32, nearly_none_square),
@@ -198,7 +209,7 @@ mod test {
         for (index, frex) in frexs.iter().enumerate() {
             let dur = durs[index];
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            signal.append(&mut inflect(&frex, &at, &elementor));
+            signal.append(&mut inflect(&frex, &at, &elementor, &vis, &en, &pre));
         }
 
         files::with_dir(test_dir);

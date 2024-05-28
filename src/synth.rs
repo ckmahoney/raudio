@@ -1,17 +1,19 @@
 use crate::render;
 use crate::types::*;
 
-pub static pi:f32 = std::f32::consts::PI;
-pub static pi2:f32 = pi*2f32;
+pub const pi:f32 = std::f32::consts::PI;
+pub const pi2:f32 = pi*2f32;
 
 
-pub static SR:usize = 44100;
+pub const SR:usize = 44100;
 // Maximum renderable frequency 
-pub static NF:usize = SR/2;
-pub static NFf:f32 = SR as f32/2f32;
+pub const NF:usize = SR/2;
+pub const NFf:f32 = SR as f32/2f32;
 /* The minimum supported frequency to render*/
-pub static MF:usize = 24;
-pub static MFf:f32 = 24f32;
+pub const MF:usize = 24;
+pub const MFf:f32 = 24f32;
+pub const MAX_REGISTER:i32 = 15;
+pub const MIN_REGISTER:i32 = 4;
 
 pub struct Renderable {
     pub composition_id: i32,
