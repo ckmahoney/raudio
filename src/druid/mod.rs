@@ -12,9 +12,9 @@
 /// 
 /// This model should be able to provide 95% of the sounds we want to use in music :)
 
-mod melodic;
-mod bell;
-mod noise;
+pub mod melodic;
+pub mod bell;
+pub mod noise;
 
 use crate::phrasing::ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
@@ -36,14 +36,14 @@ use crate::monic_theory::tone_to_freq;
 /// `hplp` Bandpass filters for the signal.
 /// `thresh` Gate and clip thresholds for distorting the signal. Applied to the summed signal (not per multiplier).
 pub struct Element {
-    mode:Mode,
-    amps: Amps,
-    muls: Muls,
-    phss: Phases,
-    modders:Modders,
-    expr:Expr,
-    hplp: Bp,
-    thresh: (Range, Range)
+    pub mode:Mode,
+    pub amps: Amps,
+    pub muls: Muls,
+    pub phss: Phases,
+    pub modders:Modders,
+    pub expr:Expr,
+    pub hplp: Bp,
+    pub thresh: (Range, Range)
 }
 
 /// # Druid
@@ -57,11 +57,11 @@ pub type Elementor = Vec<(Weight, fn (f32, &Visibility, &Energy, &Presence) -> E
 
 /// convenience struct for naming computed values
 pub struct ApplyAt {
-    span:Span,
-    frex:Frex
+    pub span:Span,
+    pub frex:Frex
 }
 
-fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor, vis:&Visibility, energy:&Energy, presence:&Presence) -> SampleBuffer {
+pub fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor, vis:&Visibility, energy:&Energy, presence:&Presence) -> SampleBuffer {
     let n_samples:usize = time::samples_of_dur(at.span.0, at.span.1);
     let druid:Druid = mentor.iter().map(|(weight, elementor)| 
         (*weight, elementor(frex.2, vis, energy, presence))
@@ -106,7 +106,7 @@ fn inflect_bad(frex:&Frex, at:&ApplyAt, druid:&Druid) -> SampleBuffer {
     }
 }
 
-fn freq_frexer(line: &Vec<f32>, glide_from: GlideLen, glide_to: GlideLen) -> Vec<Frex> {
+pub fn freq_frexer(line: &Vec<f32>, glide_from: GlideLen, glide_to: GlideLen) -> Vec<Frex> {
     let len = line.len();
     line.iter().enumerate().map(|(i, &freq)| {
         if i == 0 && (i + 1) == len {
@@ -122,7 +122,7 @@ fn freq_frexer(line: &Vec<f32>, glide_from: GlideLen, glide_to: GlideLen) -> Vec
     }).collect()
 }
 
-fn note_frexer(line:&Vec<Note>, glide_from:GlideLen, glide_to:GlideLen) -> Vec<Frex> {
+pub fn line_frexer(line:&Vec<Note>, glide_from:GlideLen, glide_to:GlideLen) -> Vec<Frex> {
     let len = line.len();
     line.iter().enumerate().map(|(i,(_, ref tone,_))|
         if i == 0 && (i + 1) == len {
@@ -136,6 +136,11 @@ fn note_frexer(line:&Vec<Note>, glide_from:GlideLen, glide_to:GlideLen) -> Vec<F
             (glide_from, Some(tone_to_freq(&line[i-1].1)), tone_to_freq(tone), Some(tone_to_freq(&line[i+1].1)), glide_to)
         }
     ).collect()
+}
+
+
+pub fn melody_frexer(melody:&Vec<Vec<Note>>, glide_from:GlideLen, glide_to:GlideLen) -> Vec<Vec<Frex>> {
+    melody.iter().map(|line| line_frexer(&line, glide_from, glide_to)).collect()
 }
 
 
@@ -199,4 +204,13 @@ pub fn test_data() -> (Vec<f32>,Vec<f32>,Vec<Frex>) {
     let durs:Vec<f32> = vec![1f32, 2f32, 1f32, 2f32, 2f32];
     let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
     (freqs, durs, frexs)
+}
+
+
+pub fn modders_none() -> Modders {
+    [
+        None,
+        None,
+        None
+    ]
 }

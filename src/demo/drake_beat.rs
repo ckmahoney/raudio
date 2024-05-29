@@ -5,13 +5,21 @@ use crate::files;
 use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
 use crate::types::synthesis::{Ampl, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::{Melody};
+use crate::render::blend::{GlideLen};
 use crate::types::timbre::{Visibility, Mode, Role, Contrib, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
-use presets::{PartialModulators, DModulators, kick, snare};
+use presets::{kick, snare, hats};
+
+use crate::phrasing::lifespan;
+use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
+
 
 static demo_name:&str = "drakebeat";
 
+fn make_synths() -> [Elementor; 3] {
+    [kick::synth(), snare::synth(), hats::synth()]
+}
 
 /// helper for making a test line of specific length with arbitrary pitch.
 fn make_line(durations:Vec<Duration>, registers:Vec<i8>, amps:Vec<Ampl>, overs:bool) -> Vec<Note> {
@@ -90,34 +98,6 @@ fn make_melodies() -> [Melody<Note>; 3] {
     ]
 }
 
-fn make_sounds() -> [Sound2; 3] {
-    let allpass = (FilterMode::Linear, FilterPoint::Constant, (MF as f32, NF as f32));
-
-    let sound_hats:Sound2= Sound2{
-        bandpass: allpass,
-        extension: 1usize
-    };
-
-    let sound_perc:Sound2= Sound2{
-        bandpass: allpass,
-        extension: 1usize
-    };
-
-    let sound_kick:Sound2= Sound2{
-        bandpass: allpass,
-        extension: 1usize
-    };
-
-    [   
-        sound_kick,
-        sound_perc, 
-        sound_hats
-    ]
-}
-
-fn make_synth(sound:&Sound2) {
-
-}
 
 fn get_contribs() -> [Contrib;3] {
     let kick:Contrib = Contrib {
@@ -155,29 +135,59 @@ fn demonstrate() {
     let cps:f32 = 1.15;
     let labels:Vec<&str> = vec!["kick", "perc", "hat"];
     let melodies = make_melodies();
-    let sounds = make_sounds();
-    // let synths = make_synths(&sounds);
+    let synths = make_synths();
+    let contribs = get_contribs();
 
-    // let mut buffs:Vec<SampleBuffer> = Vec::with_capacity(melodies.len());
+    files::with_dir(out_dir);
 
-    // files::with_dir(out_dir);
-    // for (i, label) in labels.iter().enumerate() {
-    //     let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
-        
-        
-    //     render::engrave::samples(SR, &signal, &filename);
-    //     buffs.push(signal);
-    //     println!("Rendered stem {}", filename);
-    // }
+    let mut stems:Vec<SampleBuffer> = Vec::with_capacity(melodies.len());
 
-    // match render::realize::mix_buffers(&mut buffs) {
-    //     Ok(mixdown) => {
-    //         let filename = format!("{}/{}.wav", out_dir, demo_name);
-    //         render::engrave::samples(SR, &mixdown, &filename);
-    //         println!("Rendered mixdown {}", filename);
-    //     },
-    //     Err(msg) => panic!("Error while preparing mixdown: {}", msg)
-    // }
+    for (i, label) in labels.iter().enumerate() {
+        let melody = &melodies[i];
+        let synth = &synths[i];
+        let contrib = &contribs[i];
+        let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
+        let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
+        let mut channels:Vec<SampleBuffer> = Vec::with_capacity(melody.len());
+
+        for (index, line_frexd) in melody_frexd.iter().enumerate() {
+            let mut line_buff:SampleBuffer = Vec::new();
+            let line = &melody[index];
+
+            for (jindex, frex) in line_frexd.iter().enumerate() {
+                let dur = time::duration_to_cycles(line[jindex].0);
+                let at = ApplyAt { frex: *frex, span: (cps, dur) };
+                line_buff.append(&mut inflect(
+                    &frex, 
+                    &at, 
+                    &synth, 
+                    &contrib.visibility,
+                    &contrib.energy,
+                    &contrib.presence
+                ));
+            }
+            channels.push(line_buff)
+        }
+
+        match render::realize::mix_buffers(&mut channels.clone()) {
+            Ok(mixdown) => {
+                let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
+                render::engrave::samples(SR, &mixdown, &filename);
+                println!("Rendered stem {}", filename);
+                stems.push(mixdown)
+            },
+            Err(msg) => panic!("Error while preparing mixdown: {}", msg)
+        }
+    }
+
+    match render::realize::mix_buffers(&mut stems) {
+        Ok(mixdown) => {
+            let filename = format!("{}/{}.wav", out_dir, demo_name);
+            render::engrave::samples(SR, &mixdown, &filename);
+            println!("Rendered mixdown {}", filename);
+        },
+        Err(msg) => panic!("Error while preparing mixdown: {}", msg)
+    }
 }
 
 #[test]

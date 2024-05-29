@@ -14,7 +14,6 @@ pub static lifespans:[AmpLifespan; 5] = [
 ];
 
 
-/// Given an index i in a sample buffer representing n_cycles,
 /// Produce amplitude modulation for a short form lifespan 
 /// May have local min/max, but always starts and ends near 0.
 /// Parameter "k" represents harmonic distance. Use "1" when fixing this to constant value.
@@ -24,7 +23,7 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
     let mut modulator:AmpModulation = vec![0f32; n_samples];
     let kf = k as f32;
 
-    // Set an approximated limit for maximum monic value, for use in (dk/K)
+    // Set an approximated limit for maximum monic value, for use in (k/K)
     let K = 80f32; 
     let one = 1f32;
     match lifespan {
@@ -35,7 +34,7 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
                 let t:f32 = i as f32 / n_samples as f32;
                 let y = 2f32 * ((t + k).powi(-1i32) - 0.5f32);
 
-                /* @art-choice:  scale bounce rate c with duration as a multiple of 2*/
+                // @art-choice:  scale bounce rate c with duration as a multiple of 2
                 let c:f32 = n_cycles.log2().min(2f32).max(6f32);
                 *sample = (y*c*pi2).sin().abs()
             }

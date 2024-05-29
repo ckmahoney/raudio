@@ -37,8 +37,8 @@ fn select_random_unique(n: usize, min: usize, max: usize) -> Vec<f32> {
 
 /// Produce a list of multipliers for the fundamental which may be higher or lower than the fundamental. 
 /// For midrange and high fundamentals, a distinct sound is produced for each of the "shortened", "degraded", and "full spectrum" methods implemented below.
-/// For low fundamentals, "Medum" and "High" behvae simliarly (since we can't include 18,000 multipliers per note).
-fn multipliers(freq:f32, energy:&Energy) -> Vec<f32> {
+/// For low fundamentals, "Medum" and "High" behave simliarly (since we can't include 18,000 multipliers per note).
+pub fn multipliers(freq:f32, energy:&Energy) -> Vec<f32> {
     let fund = freq.floor();
     let b = fund.log2();
     
@@ -86,21 +86,12 @@ impl NoiseColor {
     pub fn get_amp_mod(color: &NoiseColor, f:usize) -> f32 {
         match color {
             NoiseColor::Violet => (f as f32).powi(2),
-            NoiseColor::
-Blue => (f as f32).sqrt(),
+            NoiseColor::Blue => (f as f32).sqrt(),
             NoiseColor::Equal => 1.0,
             NoiseColor::Pink => 1.0 / (f as f32).sqrt(),
             NoiseColor::Red => 1.0 / (f as f32).powi(2),
         }
     }
-}
-
-fn modders_none() -> Modders {
-    [
-        None,
-        None,
-        None
-    ]
 }
 
 #[cfg(test)]
@@ -120,7 +111,6 @@ mod test {
     
     fn nearly_none_noise(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
         let muls = multipliers(fund, energy);
-        println!("Has this many muls for energy {} {:#?}", muls.len(), energy);
         let mut rng = rand::thread_rng();
         let phss = (0..muls.len()).map(|_| rng.gen::<f32>() * pi2).collect();
         Element {
@@ -131,6 +121,28 @@ mod test {
             phss,
             modders: modders_none(),
             expr: expr_none(),
+            hplp: (vec![MFf], vec![NFf]),
+            thresh: (0f32, 1f32)
+        }
+    }
+
+    fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
+        use crate::phrasing::lifespan;
+        use crate::timbre::AmpLifespan;
+
+        let muls = multipliers(fund, energy);
+        let mut rng = rand::thread_rng();
+        let phss = (0..muls.len()).map(|_| rng.gen::<f32>() * pi2).collect();
+        let contour = lifespan::mod_lifespan(10usize, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
+        let expr = (contour, vec![1f32], vec![0f32]);
+
+        Element {
+            mode: Mode::Noise,
+            amps: vec![1f32; muls.len()],
+            muls,
+            phss,
+            modders: modders_none(),
+            expr,
             hplp: (vec![MFf], vec![NFf]),
             thresh: (0f32, 1f32)
         }
@@ -202,4 +214,26 @@ mod test {
         engrave::samples(SR, &signal, &filename);
     }
 
+
+    #[test]
+    fn test_contour_noise() {
+        let test_name:&str = "noise-low-energy-contour-pluck";
+        let (freqs, durs, frexs) = test_data();
+        let mut signal:SampleBuffer = Vec::new();
+
+        let (vis, en, pre) = test_vep();
+        let elementor:Elementor = vec![
+            (1f32, noise_pluck)
+        ];
+        let energy = Energy::Low;
+
+        for (index, frex) in frexs.iter().enumerate() {
+            let dur = durs[index];
+            let at = ApplyAt { frex: *frex, span: (cps, dur) };
+            signal.append(&mut inflect(&frex, &at, &elementor, &vis, &en, &pre));
+        }
+        files::with_dir(test_dir);
+        let filename:String = format!("{}/{}.wav", test_dir, test_name);
+        engrave::samples(SR, &signal, &filename);
+    }
 }

@@ -52,7 +52,7 @@ fn transverse_modulation(k:usize, x:f32, d:f32) -> f32 {
     }
 }
 
-fn gen_multipliers(fundamental: f32, n: usize) -> Vec<f32> {
+pub fn multipliers(fundamental: f32, n: usize) -> Vec<f32> {
     let max_k = NFf/fundamental;
     (1..=n).map(|k| {
         match k {
@@ -68,7 +68,7 @@ fn gen_multipliers(fundamental: f32, n: usize) -> Vec<f32> {
     }).collect()
 }
 
-fn gen_coefficients(fund:f32, n:usize) -> Vec<f32> {
+pub fn coefficients(fund:f32, n:usize) -> Vec<f32> {
     (1..=n).map(|i| amp_bell(i, 0f32, 0f32)).collect()
 }
 
@@ -127,9 +127,9 @@ mod test {
     fn nearly_none_bell(fund:f32, v:&Visibility, e:&Energy, p:&Presence) -> Element {
         Element {
             mode: Mode::Bell,
-            muls: gen_multipliers(fund, 6),
-            amps: gen_coefficients(fund, 6),
-            phss: vec![pi2; gen_coefficients(fund, 6).len()],
+            muls: multipliers(fund, 6),
+            amps: coefficients(fund, 6),
+            phss: vec![pi2; coefficients(fund, 6).len()],
             modders: modders_bell(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
@@ -157,5 +157,4 @@ mod test {
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
         engrave::samples(SR, &signal, &filename);
     }
-
 }
