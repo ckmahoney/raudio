@@ -87,9 +87,9 @@ fn make_melodies() -> [Melody<Note>; 3] {
         1f32, 0.66f32, 0f32, 1f32
     ];
 
-    let register_hats:Vec<i8> = vec![10i8; amp_hats.len()];
+    let register_hats:Vec<i8> = vec![13i8; amp_hats.len()];
     let register_perc:Vec<i8> = vec![8i8; amp_perc.len()];
-    let register_kick:Vec<i8> = vec![5i8; amp_kick.len()];
+    let register_kick:Vec<i8> = vec![6i8; amp_kick.len()];
 
     [
         make_melody(tala_kick, register_kick, amp_kick, true),
