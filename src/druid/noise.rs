@@ -10,6 +10,10 @@
 /// Low -> shortened
 /// Medium -> degraded
 /// High -> full spectrum noise
+/// 
+/// Where a full spectrum signal is what you might usually thing of in terms of noise,
+/// A degraded signal has some elements removed from the full spectrum,
+/// and a shortened signal is a truncated version of the full spectrum signal.
 
 use super::*;
 use crate::types::timbre::{Energy};

@@ -120,7 +120,7 @@ mod test {
             mode: Mode::Melodic,
             muls: max_mul(fund, false),
             amps: vec![1f32; max_mul(fund, false).len()],
-            phss: vec![pi2;  max_mul(fund, false).len()],
+            phss: vec![0f32;  max_mul(fund, false).len()],
             modders: modders_triangle(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
