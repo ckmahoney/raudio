@@ -1,5 +1,11 @@
 use crate::synth::{SampleBuffer};
 
+/// Better for linear modulation of amplitude
+pub fn db_to_amp(db:f32) -> f32 {
+    10f32.powf(db/20f32)
+}
+
+
 /// Identify the RMS value of a signal slice.
 /// Intended for short form slices or samples
 pub fn rms(signal: &[f32]) -> f32 {

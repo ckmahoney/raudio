@@ -1,3 +1,4 @@
+pub mod monic_theory;
 pub mod sine_cache;
 pub mod transient;
 pub mod volume;
@@ -16,7 +17,6 @@ pub fn fit(a:f32, b:f32) -> f32 {
 }
 
 
-
 /// for function f(x) with range in [a, b]
 /// returns g(x) for a given value y representing f(x).
 pub fn map_range_lin(f_a:f32, f_b:f32, g_a:f32, g_b:f32, y:f32) -> f32 {
@@ -27,7 +27,6 @@ pub fn map_range_lin(f_a:f32, f_b:f32, g_a:f32, g_b:f32, y:f32) -> f32 {
     let linear_interp = range_g / range_f;
     mean_g + (linear_interp * y)
 }
-
 
 
 #[cfg(test)]
