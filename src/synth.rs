@@ -4,59 +4,21 @@ use crate::types::*;
 pub const pi:f32 = std::f32::consts::PI;
 pub const pi2:f32 = pi*2f32;
 
+pub use crate::types::synthesis::{SampleBuffer, RangeBuffer};
 
-pub const SR:usize = 44100;
-// Maximum renderable frequency 
+// Set the sample rate for the application
+pub const SR:usize = 48000;
+
+// Nyquist Frequency: Maximum renderable frequency 
 pub const NF:usize = SR/2;
 pub const NFf:f32 = SR as f32/2f32;
-/* The minimum supported frequency to render*/
+
+// Minimum Frequency: Minimum supported application frequency
 pub const MF:usize = 24;
 pub const MFf:f32 = 24f32;
-pub const MAX_REGISTER:i32 = 15;
+
+pub const MAX_REGISTER:i32 = 13;
 pub const MIN_REGISTER:i32 = 4;
-
-pub struct Renderable {
-    pub composition_id: i32,
-    pub samples: Vec<SampleBuffer>
-}
-
-
-impl Renderable {
-    pub fn render(self, mix_polypohonics:bool) -> SampleBuffer {
-        let buf:Vec<f32> = Vec::new();
-
-        if mix_polypohonics {
-            buf
-        } else {
-            buf
-        }
-    }
-}
-
-/// Sample values in -1 to 1
-pub type SampleBuffer = Vec<f32>;
-
-/// Sample values in 0 to 1 
-pub type RangeBuffer = Vec<f32>; 
-pub struct EnvelopeBuffer {
-    ys: RangeBuffer
-}
-
-impl EnvelopeBuffer {
-    pub fn new(minCps:f32, maxCps:f32, samples:SampleBuffer) -> SampleBuffer {
-        if samples.iter().any(|x| *x < 0f32) {
-            panic!("Cannot create an envelope with negative values")
-        }
-        samples
-    }
-}
-
-pub struct RenderConfig {
-    pub sample_rate: usize,
-    pub amplitude_scaling: f32,
-    pub cps: f32
-}
-
 
 
 /*

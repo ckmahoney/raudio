@@ -3,8 +3,6 @@ pub mod engrave;
 pub mod ifft;
 pub mod realize; 
 
-use crate::synth_config::SynthConfig;
-
 use self::realize::normalize_channels;
 
 
@@ -80,36 +78,4 @@ pub fn pad_and_mix_buffers(buffers: Vec<Vec<f32>>) -> Result<Vec<f32>, &'static 
     .collect();
 
     mix_and_normalize_buffers(padded_buffers)
-}
-
-
-pub fn samples(config: &SynthConfig, samples: &Vec<f32>, filename: &str) {
-    let spec = hound::WavSpec {
-        channels: 1,
-        sample_rate: config.sample_rate,
-        bits_per_sample: 32,
-        sample_format: hound::SampleFormat::Float,
-    };
-    let mut writer = hound::WavWriter::create(filename, spec).unwrap();
-    for &sample in samples {
-        writer.write_sample(sample).unwrap();
-    }
-    writer.finalize().unwrap();
-}
-
-
-pub fn samples_f32(sample_rate:usize, samples: &Vec<f32>, filename: &str) {
-    use std::path::Path;
-    let p:&Path = Path::new(filename);
-        let spec = hound::WavSpec {
-        channels: 1,
-        sample_rate: sample_rate as u32,
-        bits_per_sample: 32,
-        sample_format: hound::SampleFormat::Float,
-    };
-    let mut writer = hound::WavWriter::create(p, spec).unwrap();
-    for &sample in samples {
-        writer.write_sample(sample).unwrap();
-    }
-    writer.finalize().unwrap();
 }

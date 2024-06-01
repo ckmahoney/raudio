@@ -31,6 +31,13 @@ pub mod synthesis {
     pub type Radian = f32;
     pub type Range = f32;
 
+    /// Sample values in -1 to 1
+    pub type SampleBuffer = Vec<f32>;
+
+    /// Sample values in 0 to 1 
+    pub type RangeBuffer = Vec<f32>; 
+
+
     /// When in the melody does the filter activate
     #[derive(Debug, Clone, Copy)]
     pub enum FilterPoint {
@@ -70,6 +77,11 @@ pub mod render {
     pub type NSamples = usize;
     pub type Cps = f32;
     pub type Span = (Cps, NCycles);
+    pub type Duration = f32;
+    pub type MidiVal = i32;
+    pub type SignedByte = i8;
+
+pub type Midi = (Duration, MidiVal, SignedByte);
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct PlayerTrack<C> {

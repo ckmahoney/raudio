@@ -21,19 +21,15 @@ use crate::types::render::*;
 mod arg_parse;
 mod analysis;
 pub use analysis::monic_theory;
-mod synth_config;
 mod demo;
 mod files;
 mod druid;
-mod midi;
 mod music;
 mod phrasing;
-mod preset;
 mod presets;
 mod render;
-mod sequence;
 mod synth;
-mod time;
+pub use analysis::time;
 mod types;
 
 fn main() {

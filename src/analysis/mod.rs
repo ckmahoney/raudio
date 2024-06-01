@@ -1,5 +1,6 @@
 pub mod monic_theory;
 pub mod sine_cache;
+pub mod time;
 pub mod transient;
 pub mod volume;
 

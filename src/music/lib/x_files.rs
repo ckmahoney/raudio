@@ -1,7 +1,6 @@
-use crate::midi::{Midi};
 use crate::types::synthesis::{Note, Progression};
 use crate::types::timbre::{Role, Visibility, Energy, Mode, Presence, Cube, Contrib};
-use crate::types::render::{ScoreEntry, PlayerTrack, Melody, Conf, Dimensions};
+use crate::types::render::{Midi, ScoreEntry, PlayerTrack, Melody, Conf, Dimensions};
 
 /// MIDI representation of the X-Files theme
 /// This song is under copyright; be careful
