@@ -106,25 +106,33 @@ pub fn mod_micro(n_samples: usize, n_cycles: f32, micro: &MicroLifespan, k: usiz
     modulator
 }
 
-pub fn muls_micro(freq: f32) -> Vec<f32> {
-    let n = ((NFf / freq) as usize).max(MAX_MICRO_HEIGHT);
+fn micro_height(energy:&Energy) -> usize {
+    match energy {
+        Energy::Low => 8,
+        Energy::Medium => 31,
+        Energy::High => 131,
+    }
+}
+
+pub fn muls_micro(freq: f32, energy:&Energy) -> Vec<f32> {
+    let n = ((NFf / freq) as usize).min(micro_height(energy));
     (1..=n).map(|x| x as f32).collect()
 }
 
-pub fn amps_micro(freq: f32) -> Vec<f32> {
-    let n = ((NFf / freq) as usize).max(MAX_MICRO_HEIGHT);
+pub fn amps_micro(freq: f32, energy:&Energy) -> Vec<f32> {
+    let n = ((NFf / freq) as usize).min(micro_height(energy));
     vec![1f32; n]
 }
 
-pub fn phases_micro(freq: f32) -> Vec<f32> {
-    let n = ((NFf / freq) as usize).max(MAX_MICRO_HEIGHT);
+pub fn phases_micro(freq: f32, energy:&Energy) -> Vec<f32> {
+    let n = ((NFf / freq) as usize).min(micro_height(energy));
     vec![0f32; n]
 }
 
-pub fn set_micro(freq: f32) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let muls = muls_micro(freq);
-    let amps = muls_micro(freq);
-    let phases = muls_micro(freq);
+pub fn set_micro(freq: f32, energy:&Energy) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    let muls = muls_micro(freq, energy);
+    let amps = muls_micro(freq, energy);
+    let phases = muls_micro(freq, energy);
     (
         amps,
         muls,
@@ -234,7 +242,7 @@ mod test {
         static cps:f32 = 1.0f32;
 
         fn nearly_none_chiff(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-            let (amps, muls, phss) = set_micro(fund);
+            let (amps, muls, phss) = set_micro(fund, energy);
             Element {
                 mode: Mode::Noise,
                 amps,
@@ -248,7 +256,7 @@ mod test {
         }
 
         fn nearly_none_click(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-            let (amps, muls, phss) = set_micro(fund);
+            let (amps, muls, phss) = set_micro(fund, energy);
             Element {
                 mode: Mode::Noise,
                 amps,
@@ -262,7 +270,7 @@ mod test {
         }
 
         fn nearly_none_pop(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-            let (amps, muls, phss) = set_micro(fund);
+            let (amps, muls, phss) = set_micro(fund, energy);
             Element {
                 mode: Mode::Noise,
                 amps,
