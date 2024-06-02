@@ -121,7 +121,7 @@ impl PartialModulators {
 }
 
 pub fn microtransient_chiff(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-    let (amps, muls, phss) = micro::set_micro(fund);
+    let (amps, muls, phss) = micro::set_micro(fund, energy);
     Element {
         mode: Mode::Noise,
         amps,
@@ -135,7 +135,7 @@ pub fn microtransient_chiff(fund:f32, vis:&Visibility, energy:&Energy, presence:
 }
 
 pub fn microtransient_click(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-    let (amps, muls, phss) = micro::set_micro(fund);
+    let (amps, muls, phss) = micro::set_micro(fund, energy);
     Element {
         mode: Mode::Noise,
         amps,
@@ -149,7 +149,7 @@ pub fn microtransient_click(fund:f32, vis:&Visibility, energy:&Energy, presence:
 }
 
 pub fn microtransient_pop(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-    let (amps, muls, phss) = micro::set_micro(fund);
+    let (amps, muls, phss) = micro::set_micro(fund, energy);
     Element {
         mode: Mode::Noise,
         amps,

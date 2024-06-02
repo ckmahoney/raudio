@@ -15,15 +15,18 @@ use rand::Rng;
 
 static contour_resolution:usize = 1200;
 
+
 fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
     let muls = noise::multipliers(fund, energy);
     let mut rng = rand::thread_rng();
     let phss = (0..muls.len()).map(|_| rng.gen::<f32>() * pi2).collect();
-    let contour = lifespan::mod_lifespan(contour_resolution, 1f32, &AmpLifespan::Spring, 1usize, 0f32);
+    let contour = lifespan::mod_lifespan(contour_resolution, 1f32, &AmpLifespan::Burst, 1usize, 0f32);
+
     let expr = (contour, vec![1f32], vec![0f32]);
+    let highpass_animation = vec![MFf,MFf, NFf];
     let modders:Modders = [
         Some(vec![
-            (1f32, lifespan::mod_burst)
+            (0.3f32, lifespan::mod_snap),
         ]),
         None,
         None
@@ -36,7 +39,7 @@ fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) ->
         phss,
         modders,
         expr,
-        hplp: (vec![MFf], vec![NFf]),
+        hplp: (highpass_animation, vec![NFf]),
         thresh: (0f32, 1f32)
     }
 }
@@ -47,9 +50,11 @@ fn melodic_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) 
     let phss = vec![0f32; muls.len()];
     let contour = lifespan::mod_lifespan(contour_resolution, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
     let expr = (contour, vec![1f32], vec![0f32]);
+    let lowpass_animation = vec![NFf, MFf];
     let modders:Modders = [
         Some(vec![
-            (1f32, lifespan::mod_snap)
+            (0.65f32, lifespan::mod_snap),
+            (0.35f32, lifespan::mod_spring),
         ]),
         None,
         None
@@ -57,12 +62,12 @@ fn melodic_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) 
 
     Element {
         mode: Mode::Melodic,
-        amps: vec![1f32; muls.len()],
+        amps,
         muls,
         phss,
         modders,
         expr,
-        hplp: (vec![MFf], vec![NFf]),
+        hplp: (vec![MFf], lowpass_animation),
         thresh: (0f32, 1f32)
     }
 }
@@ -72,11 +77,11 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
     let muls = bell::multipliers(fund, n_partials);
     let amps = bell::coefficients(fund, n_partials);
     let phss = vec![0f32; muls.len()];
-    let contour = lifespan::mod_lifespan(contour_resolution, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
+    let contour = lifespan::mod_lifespan(contour_resolution, 1f32, &AmpLifespan::Burst, 1usize, 0f32);
     let expr = (contour, vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
-            (1f32, lifespan::mod_pluck)
+            (1f32, lifespan::mod_snap)
         ]),
         None,
         None
@@ -96,8 +101,8 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
 
 pub fn synth() -> Elementor {
     vec![
-        (0.2f32, bell_pluck),
-        (0.4f32, melodic_pluck),
+        (0.05f32, bell_pluck),
+        (0.65f32, melodic_pluck),
         (0.32f32, noise_pluck),
         (0.05f32, microtransient_click),
         (0.03f32, microtransient_pop),
