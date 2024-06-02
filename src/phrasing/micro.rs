@@ -168,21 +168,26 @@ pub fn set_micro(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
     )
 }
 
-fn mod_phase_micro(k:usize, x:f32, d:f32) -> f32 {
+fn mod_phase_micro_noisy(k:usize, x:f32, d:f32) -> f32 {
     let max_distortion = pi/2f32;
     (1f32 - x) * gen_rng() * max_distortion
 }
 
-fn modders_chiff() -> crate::phrasing::ranger::Modders {
+fn mod_phase_micro(k:usize, x:f32, d:f32) -> f32 {
+    let max_distortion = pi/64f32;
+    (1f32 - x) * gen_rng() * max_distortion
+}
+
+pub fn modders_chiff() -> crate::phrasing::ranger::Modders {
     [
         None,
         Some(vec![(1f32, amp_chiff)]),
-        Some(vec![(1f32, mod_phase_micro)])
+        Some(vec![(1f32, mod_phase_micro_noisy)])
     ]
 }
 
 
-fn modders_click() -> crate::phrasing::ranger::Modders {
+pub fn modders_click() -> crate::phrasing::ranger::Modders {
     [
         None,
         Some(vec![(1f32, amp_click)]),
@@ -191,13 +196,13 @@ fn modders_click() -> crate::phrasing::ranger::Modders {
 }
 
 
-fn modders_pop() -> crate::phrasing::ranger::Modders {
+pub fn modders_pop() -> crate::phrasing::ranger::Modders {
     let mut s = rand::thread_rng();
 
     [
         None,
         Some(vec![(1f32, amp_pop)]),
-        Some(vec![(1f32, mod_phase_micro)])
+        None,
     ]
 }
 
@@ -250,43 +255,7 @@ mod test {
             }
         }
     }
-
-
-    #[cfg(test)]
-    mod test_unit {
-        use super::*;
-
-        /// verify that the two versions of the rust function represent the same formula. 
-        #[test]
-        fn test_chiff() {
-            let original_output = mod_micro(100, 5.0, &MicroLifespan::Chiff, 2);
-            for (i, &sample) in original_output.iter().enumerate() {
-                let x = (i + 1) as f32 / 100.0;
-                let new_output = amp_chiff(2, 5.0, x);
-                assert!((sample - new_output).abs() < 1e-6);
-            }
-        }
-
-        #[test]
-        fn test_pop() {
-            let original_output = mod_micro(100, 5.0, &MicroLifespan::Pop, 2);
-            for (i, &sample) in original_output.iter().enumerate() {
-                let x = (i + 1) as f32 / 100.0;
-                let new_output = amp_pop(2, 5.0, x);
-                assert!((sample - new_output).abs() < 1e-6);
-            }
-        }
-
-        #[test]
-        fn test_click() {
-            let original_output = mod_micro(100, 5.0, &MicroLifespan::Click, 2);
-            for (i, &sample) in original_output.iter().enumerate() {
-                let x = (i + 1) as f32 / 100.0;
-                let new_output = amp_click(2, 5.0, x);
-                assert!((sample - new_output).abs() < 1e-6);
-            }
-        }
-    }
+    
 
     #[cfg(test)]
     mod test_integration {

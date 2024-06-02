@@ -74,12 +74,12 @@ fn conform(y:f32) -> f32 {
 /// Given a point (k, x, d) and group of weighted rangers,
 /// Apply the weighted sum of all rangers at (k,x,d)
 pub fn mix(k:usize, x:f32, d:f32, mixers:&Cocktail) -> f32 {
-    let weight = mixers.iter().fold(0f32, |acc, w| acc + w.0);
+    let weight = mixers.iter().fold(0f32, |acc, wr| acc + wr.0);
     if weight > 1f32 {
         panic!("Cannot mix rangers whose total weight is more than 1. Got {}", weight)
     };
 
-    mixers.iter().fold(0f32, |y, (w, ranger)| y + (w * ranger(k, x, d)))
+    mixers.iter().fold(0f32, |y, (w, ranger)| y + (*w * ranger(k, x, d)))
 }
 
 /// Model based on (1/x)

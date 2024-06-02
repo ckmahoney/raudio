@@ -1,10 +1,12 @@
 /// A synth snare from three components
 use crate::synth::{MFf, NFf, SampleBuffer, pi2};
 use crate::types::timbre::{Mode, Energy, Presence, Visibility};
-use crate::druid::{Element, Elementor, modders_none};
-use crate::druid::{melodic, bell, noise};
+use crate::druid::{Element, Elementor, modders_none, melodic, bell, noise};
 use crate::phrasing::lifespan;
+use crate::phrasing::contour::expr_none;
+use crate::phrasing::micro;
 use crate::timbre::AmpLifespan;
+use super::{microtransient_click, microtransient_pop};
 
 use rand;
 use rand::Rng;
@@ -71,7 +73,9 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
 pub fn synth() -> Elementor {
     vec![
         (0.2f32, bell_pluck),
-        (0.5f32, melodic_pluck),
-        (0.3f32, noise_pluck),
+        (0.4f32, melodic_pluck),
+        (0.32f32, noise_pluck),
+        (0.02f32, microtransient_click),
+        (0.01f32, microtransient_pop),
     ]
 }

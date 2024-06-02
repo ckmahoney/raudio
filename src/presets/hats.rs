@@ -5,6 +5,7 @@ use crate::druid::{Element, Elementor, modders_none};
 use crate::druid::{melodic, bell, noise};
 use crate::phrasing::lifespan;
 use crate::timbre::AmpLifespan;
+use super::{microtransient_click, microtransient_chiff, microtransient_pop};
 
 use rand;
 use rand::Rng;
@@ -72,6 +73,8 @@ pub fn synth() -> Elementor {
     vec![
         (0.3f32, bell_pluck),
         (0.1f32, melodic_pluck),
-        (0.6f32, noise_pluck),
+        (0.5f32, noise_pluck),
+        (0.05f32, microtransient_chiff),
+        (0.05f32, microtransient_pop),
     ]
 }

@@ -61,32 +61,19 @@ pub struct ApplyAt {
     pub frex:Frex
 }
 
+fn weighted_amps(weight:f32, amps:&Vec<f32>) -> Vec<f32> {
+    if weight < 0f32 {
+        panic!("Cannot negate amplitude")
+    }
+    amps.iter().map(|y| y * weight).collect()
+}
+
 pub fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor, vis:&Visibility, energy:&Energy, presence:&Presence) -> SampleBuffer {
     let n_samples:usize = time::samples_of_dur(at.span.0, at.span.1);
     let druid:Druid = mentor.iter().map(|(weight, elementor)| 
         (*weight, elementor(frex.2, vis, energy, presence))
     ).collect();
-    let mut sigs:Vec<SampleBuffer> = druid.iter().map(|(weight, element)|
-        blender(
-            frex, 
-            &element.expr, 
-            &at.span, 
-            &element.hplp, 
-            &element.muls, 
-            &element.amps,
-            &element.phss,
-            &element.modders, 
-            element.thresh
-        )
-    ).collect();
-    match mix_buffers(&mut sigs) {
-        Ok(signal) => signal,
-        Err(msg) => panic!("Error while inflecting druid: {}", msg)
-    }
-}
 
-fn inflect_bad(frex:&Frex, at:&ApplyAt, druid:&Druid) -> SampleBuffer {
-    let n_samples:usize = time::samples_of_dur(at.span.0, at.span.1);
     let mut sigs:Vec<SampleBuffer> = druid.iter().map(|(weight, element)|
         blender(
             frex, 
@@ -94,7 +81,7 @@ fn inflect_bad(frex:&Frex, at:&ApplyAt, druid:&Druid) -> SampleBuffer {
             &at.span, 
             &element.hplp, 
             &element.muls, 
-            &element.amps,
+            &weighted_amps(*weight, &element.amps),
             &element.phss,
             &element.modders, 
             element.thresh
