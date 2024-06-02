@@ -6,7 +6,7 @@ use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
 use crate::types::synthesis::{Ampl, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::{Melody};
 use crate::render::blend::{GlideLen};
-use crate::types::timbre::{Visibility, Mode, Role, Contrib, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
+use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
 use presets::{kick, snare, hats};
@@ -25,7 +25,7 @@ fn make_synths() -> [Elementor; 3] {
 fn make_line(durations:Vec<Duration>, registers:Vec<i8>, amps:Vec<Ampl>, overs:bool) -> Vec<Note> {
     let len = durations.len();
     if len != registers.len() || len != amps.len() {
-        panic!("Must provide the same number of components per contributor. Got actual lengths for duration {} register {} amp {}", len, registers.len(), amps.len());
+        panic!("Must provide the same number of components per arfutor. Got actual lengths for duration {} register {} amp {}", len, registers.len(), amps.len());
     }
 
     let mut line:Vec<Note> = Vec::with_capacity(len);
@@ -99,8 +99,8 @@ fn make_melodies() -> [Melody<Note>; 3] {
 }
 
 
-fn get_contribs() -> [Contrib;3] {
-    let kick:Contrib = Contrib {
+fn get_arfs() -> [Arf;3] {
+    let kick:Arf = Arf {
         mode: Mode::Melodic,
         role: Role::Kick,
         register: 5,
@@ -109,7 +109,7 @@ fn get_contribs() -> [Contrib;3] {
         presence: Presence::Legato,
     };
 
-    let snare:Contrib = Contrib {
+    let snare:Arf = Arf {
         mode: Mode::Melodic,
         role: Role::Kick,
         register: 5,
@@ -118,7 +118,7 @@ fn get_contribs() -> [Contrib;3] {
         presence: Presence::Legato,
     };
 
-    let hats:Contrib = Contrib {
+    let hats:Arf = Arf {
         mode: Mode::Melodic,
         role: Role::Kick,
         register: 5,
@@ -136,7 +136,7 @@ fn demonstrate() {
     let labels:Vec<&str> = vec!["kick", "perc", "hat"];
     let melodies = make_melodies();
     let synths = make_synths();
-    let contribs = get_contribs();
+    let arfs = get_arfs();
 
     files::with_dir(out_dir);
 
@@ -145,7 +145,7 @@ fn demonstrate() {
     for (i, label) in labels.iter().enumerate() {
         let melody = &melodies[i];
         let synth = &synths[i];
-        let contrib = &contribs[i];
+        let arf = &arfs[i];
         let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
         let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
         let mut channels:Vec<SampleBuffer> = Vec::with_capacity(melody.len());
@@ -161,9 +161,9 @@ fn demonstrate() {
                     &frex, 
                     &at, 
                     &synth, 
-                    &contrib.visibility,
-                    &contrib.energy,
-                    &contrib.presence
+                    &arf.visibility,
+                    &arf.energy,
+                    &arf.presence
                 ));
             }
             channels.push(line_buff)

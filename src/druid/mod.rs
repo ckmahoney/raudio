@@ -3,7 +3,7 @@
 /// 
 /// From the four elementary components
 /// Melodic, Enharmonic, Bell, and Noise
-/// We create a collection of elementary contributors.
+/// We create a collection of elementary arfutors.
 /// 
 /// Synthesizers are likely to feature one or two elements primarly 
 /// and attenuate or skip the remaining elements.
@@ -20,7 +20,7 @@ use crate::phrasing::ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
 use crate::{time, Presence, Visibility};
 use crate::types::synthesis::{Range,Freq,Bp,Muls, Amps, Phases, Note};
-use crate::types::timbre::{Mode, Contrib, Energy};
+use crate::types::timbre::{Mode, Arf, Energy};
 use crate::types::render::{Span};
 use crate::render::blend::{GlideLen,Frex, blender};
 use crate::render::realize::{mix_buffers};
@@ -31,7 +31,7 @@ use crate::monic_theory::tone_to_freq;
 /// 
 /// `mode` The type of signal this represents.
 /// `muls` A list of multipliers for a fundamental frequency. Minimum length 1.
-/// `modders` Gentime dynamic modulation. A major contributor for defining this Element's sound.
+/// `modders` Gentime dynamic modulation. A major arfutor for defining this Element's sound.
 /// `expr` Carrier signal for amplitude, frequency, and phase for a Note. For example, a pluck has an amplitude envelope rapidly falling and a none phase.
 /// `hplp` Bandpass filters for the signal.
 /// `thresh` Gate and clip thresholds for distorting the signal. Applied to the summed signal (not per multiplier).
@@ -48,7 +48,7 @@ pub struct Element {
 
 /// # Druid
 /// 
-/// A collection of weighted contributors for a syntehsizer.
+/// A collection of weighted arfutors for a syntehsizer.
 /// 
 /// Weights of all elements must equal 1. 
 pub type Druid = Vec<(Weight, Element)>;

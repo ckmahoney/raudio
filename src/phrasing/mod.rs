@@ -107,7 +107,7 @@ pub fn bandpass_filter(filter:&BandpassFilter, freq:f32, p:f32) -> bool {
 
     // increase the two components:
     // primary power which increases the min frequency logarithmically 
-    // additional contribution incrementing min frequency linearly (to reduce loss)
+    // additional arfution incrementing min frequency linearly (to reduce loss)
     // when p == 0 the min allowed value is min_frequency
     // when p == 1 the min allowed value is min_frequency + frequency
     

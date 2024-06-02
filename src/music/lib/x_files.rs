@@ -1,5 +1,5 @@
 use crate::types::synthesis::{Note, Progression};
-use crate::types::timbre::{Role, Visibility, Energy, Mode, Presence, Cube, Contrib};
+use crate::types::timbre::{Role, Visibility, Energy, Mode, Presence, Cube, Arf};
 use crate::types::render::{Midi, ScoreEntry, PlayerTrack, Melody, Conf, Dimensions};
 
 /// MIDI representation of the X-Files theme
@@ -104,7 +104,7 @@ let FLUTE_LINE: Vec<Midi> = vec![
 ];
 
     let piano:ScoreEntry<Midi> = (
-        Contrib {
+        Arf {
             role: Role::Bass,
             register: 5,
             mode: Mode::Melodic,
@@ -117,7 +117,7 @@ let FLUTE_LINE: Vec<Midi> = vec![
     );
 
     let flute:ScoreEntry<Midi> = (
-        Contrib {
+        Arf {
             role: Role::Lead,
             register: 8,
             mode: Mode::Melodic,

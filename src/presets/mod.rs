@@ -1,10 +1,8 @@
 pub mod kick;
 pub mod snare;
 pub mod hats;
-pub mod bell;
 pub mod noise;
 pub mod none;
-pub mod melodic;
 
 use crate::types::synthesis::{Freq, Note, Direction};
 use crate::types::timbre::{Sound, Sound2, Energy, Presence, Phrasing};

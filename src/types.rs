@@ -108,13 +108,13 @@ pub type Midi = (Duration, MidiVal, SignedByte);
     pub struct Template {
         conf: Conf,
         dimensions:Dimensions,
-        parts: Vec<timbre::Contrib>,
+        parts: Vec<timbre::Arf>,
     }
 
     pub type Melody<C> = Vec<Vec<C>>;
-    pub type ScoreEntry<C> = (timbre::Contrib, Melody<C>);
-    pub type Part = (timbre::Contrib, Melody<synthesis::Monae>);
-    pub type Entry = (timbre::Contrib, Melody<synthesis::Note>);
+    pub type ScoreEntry<C> = (timbre::Arf, Melody<C>);
+    pub type Part = (timbre::Arf, Melody<synthesis::Monae>);
+    pub type Entry = (timbre::Arf, Melody<synthesis::Note>);
 }
 
 pub mod timbre {
@@ -220,7 +220,7 @@ pub mod timbre {
     /// - energy defines how much harmonic content is present
     /// - presence is an envelope selector
     #[derive(Debug, Serialize, Deserialize)]
-    pub struct Contrib {
+    pub struct Arf {
         pub mode: Mode,
         pub role: Role,
         pub register: u32,

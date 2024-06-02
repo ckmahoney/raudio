@@ -1,5 +1,5 @@
 use crate::types::synthesis::{Note, Progression};
-use crate::types::timbre::{Role, Visibility, Energy, Mode, Presence, Cube, Contrib};
+use crate::types::timbre::{Role, Visibility, Energy, Mode, Presence, Cube, Arf};
 use crate::types::render::{Midi, ScoreEntry, PlayerTrack, Melody, Conf, Dimensions, Entry};
 
 
@@ -64,7 +64,7 @@ pub fn get_track() -> PlayerTrack<Note> {
     ];
 
     let flute:Entry = (
-        Contrib {
+        Arf {
             role: Role::Lead,
             register: 8,
             mode: Mode::Melodic,

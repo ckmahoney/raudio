@@ -67,10 +67,10 @@ fn main() {
 // }
 
 
-// fn contrib_to_osc(contrib:&Contrib) -> timbre::BaseOsc {
+// fn arf_to_osc(arf:&Arf) -> timbre::BaseOsc {
 //     use timbre::BaseOsc::*;
 //     let mut rng = thread_rng(); 
-//     let opts:Vec<timbre::BaseOsc> = match contrib.role {
+//     let opts:Vec<timbre::BaseOsc> = match arf.role {
 //         Role::Kick => {
 //             vec![Bell]
 //         },
@@ -93,25 +93,25 @@ fn main() {
 //     opts.choose(&mut rng).unwrap().clone()
 // }
 
-// /// Given a part to render as Contrib,
+// /// Given a part to render as Arf,
 // /// create a spectral domain bandpass filter
 // /// error: should also factor the root of composition as well
-// fn contrib_to_bandpass(contrib:&Contrib) -> BandpassFilter {
+// fn arf_to_bandpass(arf:&Arf) -> BandpassFilter {
 //     static min_supported_frequency:f32 = 22.0;
 //     static max_supported_frequency:f32 = 23998.0;
 
-//     let min_max = match contrib.visibility {
+//     let min_max = match arf.visibility {
 //         Visibility::Hidden => {
 //             // strict bandfiltering 
-//             (2f32.powi(contrib.register as i32), 2f32.powi((contrib.register + 2u32) as i32))
+//             (2f32.powi(arf.register as i32), 2f32.powi((arf.register + 2u32) as i32))
 //         },
 //         Visibility::Background => {
 //             // loose bandfiltering 
-//             (2f32.powi(contrib.register as i32 - 1i32), 2f32.powi((contrib.register + 3u32) as i32))
+//             (2f32.powi(arf.register as i32 - 1i32), 2f32.powi((arf.register + 3u32) as i32))
 //         },
 //         Visibility::Foreground => {
 //             // some bandfiltering 
-//             (2f32.powi(contrib.register as i32 - 1i32), 2f32.powi((contrib.register + 4u32) as i32))
+//             (2f32.powi(arf.register as i32 - 1i32), 2f32.powi((arf.register + 4u32) as i32))
 //         },
 //         Visibility::Visible => {
 //             // functional bandfiltering 

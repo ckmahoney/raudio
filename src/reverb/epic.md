@@ -52,7 +52,7 @@ As a developer, I need to compute the frequency-dependent amplitude decay of sou
 
 ### US-005: Sum Reflections Over Time
 **Description:**  
-As a developer, I need to sum the contributions of direct sound and all reflections over time to create an accurate reverb tail, continuing until all reflections have decayed.
+As a developer, I need to sum the arfutions of direct sound and all reflections over time to create an accurate reverb tail, continuing until all reflections have decayed.
 
 **Acceptance Criteria:**
 - Sum direct and reflected sound waves for each time step.
