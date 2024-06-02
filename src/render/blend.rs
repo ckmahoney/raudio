@@ -110,7 +110,8 @@ pub fn blender(
 
         for (i, m) in multipliers.iter().enumerate() {
             let k = i + 1;
-            let frequency = m * fm * freq * mix_or(1f32, &modders[1], k, p, span.1);
+            let aaa = mix_or(1f32, &modders[1], k, p, span.1);
+            let frequency = m * fm * freq * aaa;
             let amplifier = amplifiers[i];
             if amplifier > 0f32 {
                 let amp = amplifier * am * filter(p, frequency, bp) * mix_or(1f32, &modders[0], k, p, span.1);

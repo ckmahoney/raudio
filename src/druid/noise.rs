@@ -218,7 +218,6 @@ mod test {
         engrave::samples(SR, &signal, &filename);
     }
 
-
     #[test]
     fn test_contour_noise() {
         let test_name:&str = "noise-low-energy-contour-pluck";

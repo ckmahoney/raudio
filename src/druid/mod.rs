@@ -18,9 +18,9 @@ pub mod noise;
 
 use crate::phrasing::ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
-use crate::{time, Presence, Visibility};
+use crate::{time};
 use crate::types::synthesis::{Range,Freq,Bp,Muls, Amps, Phases, Note};
-use crate::types::timbre::{Mode, Arf, Energy};
+use crate::types::timbre::{Mode, Arf, Energy,Presence, Visibility};
 use crate::types::render::{Span};
 use crate::render::blend::{GlideLen,Frex, blender};
 use crate::render::realize::{mix_buffers};
@@ -205,7 +205,16 @@ pub fn test_data() -> (Vec<f32>,Vec<f32>,Vec<Frex>) {
     let frexs = freq_frexer(&freqs, GlideLen::Sixteenth, GlideLen::Eigth);
     (freqs, durs, frexs)
 }
+pub fn test_frex() -> (Vec<f32>,Vec<f32>,Vec<Frex>) {
+    test_data()
+}
 
+pub fn test_vep() -> (Visibility, Energy, Presence) {
+    let energy = Energy::Low;
+    let presence = Presence::Staccatto;
+    let visibility = Visibility::Visible;
+    (visibility,energy,presence)
+}
 
 pub fn modders_none() -> Modders {
     [

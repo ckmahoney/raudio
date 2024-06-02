@@ -115,13 +115,6 @@ mod test {
         }
     }
 
-    fn test_vep() -> (Visibility, Energy, Presence) {
-        let energy = Energy::Low;
-        let presence = Presence::Staccatto;
-        let visibility = Visibility::Visible;
-        (visibility,energy,presence)
-    }
-
     fn nearly_none_square(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
         let (amps, muls, phss) = square(fund);
         Element {
@@ -226,6 +219,7 @@ mod test {
         let filename:String = format!("{}/{}.wav", test_dir, test_name);
         engrave::samples(SR, &signal, &filename);
     }
+
 
     #[test]
     fn test_blend_composite() {
