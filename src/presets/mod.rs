@@ -4,9 +4,13 @@ pub mod hats;
 pub mod noise;
 pub mod none;
 
+use crate::synth::{MFf, NFf, SampleBuffer, pi2};
 use crate::types::synthesis::{Freq, Note, Direction};
-use crate::types::timbre::{Sound, Sound2, Energy, Presence, Phrasing};
+use crate::types::timbre::{Mode,  Visibility, Sound, Sound2, Energy, Presence, Phrasing};
 use crate::types::{Range, Radian};
+use crate::druid::{Element, Elementor};
+use crate::phrasing::contour::expr_none;
+use crate::phrasing::micro;
 
 pub type Modulator<T> = fn (xyz:&Coords, ctx:&Ctx, snd:&Sound2, phr:&Phrasing) -> T;
 pub type DynModulator<T> = Box<dyn Fn (&Coords, &Ctx, &Sound2, &Phrasing) -> T>;
@@ -113,5 +117,47 @@ impl PartialModulators {
             amp: amod,
             phase: pmod
         }
+    }
+}
+
+pub fn microtransient_chiff(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
+    let (amps, muls, phss) = micro::set_micro(fund);
+    Element {
+        mode: Mode::Noise,
+        amps,
+        muls,
+        phss,
+        modders: micro::modders_chiff(),
+        expr: expr_none(),
+        hplp: (vec![MFf], vec![NFf]),
+        thresh: (0f32, 1f32)
+    }
+}
+
+pub fn microtransient_click(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
+    let (amps, muls, phss) = micro::set_micro(fund);
+    Element {
+        mode: Mode::Noise,
+        amps,
+        muls,
+        phss,
+        modders: micro::modders_chiff(),
+        expr: expr_none(),
+        hplp: (vec![MFf], vec![NFf]),
+        thresh: (0f32, 1f32)
+    }
+}
+
+pub fn microtransient_pop(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
+    let (amps, muls, phss) = micro::set_micro(fund);
+    Element {
+        mode: Mode::Noise,
+        amps,
+        muls,
+        phss,
+        modders: micro::modders_chiff(),
+        expr: expr_none(),
+        hplp: (vec![MFf], vec![NFf]),
+        thresh: (0f32, 1f32)
     }
 }
