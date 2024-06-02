@@ -13,14 +13,33 @@ pub fn muls_sine(freq:f32) -> Vec<f32> {
 
 
 /// Produce the multipliers for a Fourier series square wave starting at `freq`
+static four_pi:f32 = 4f32/pi;
 pub fn muls_square(freq:f32) -> Vec<f32> {
-    muls_triangle(freq) // they are both odd k series
+    let n = (NFf / freq) as usize;
+    (1..n).map(|i| if i % 2 == 0 { 1f32 } else { n as f32 }).collect()
 }
 
-/// Produce the multipliers for a Fourier series triangle wave starting at `freq`
 pub fn muls_triangle(freq:f32) -> Vec<f32> {
     let n = (NFf / freq) as usize;
-    (1..n).filter(|i| i % 2 == 1).map(|x| x as f32).collect()
+    (1..n).map(|i| if i % 2 == 0 { 1f32 } else { n as f32 }).collect()
+}
+
+
+pub fn amps_square(freq:f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..n).map(|i| if i % 2 == 0 { 1f32 } else { four_pi / i as f32 }).collect()
+}
+
+pub fn amps_sawtooth(freq:f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..n).map(|i| four_pi / (pi * i as f32) ).collect()
+}
+
+static eight_pis:f32 = 8f32 / (pi * pi);
+/// Produce the multipliers for a Fourier series triangle wave starting at `freq`
+pub fn amps_triangle(freq:f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..n).map(|i| if i % 2 == 0 { 0f32 } else { eight_pis * (-1f32).powf((i as f32-1f32)/2f32) / (i as f32* i as f32) }).collect()
 }
 
 static c_square:f32 = 4f32/pi;
@@ -48,6 +67,40 @@ pub fn amp_sawtooth(k:usize, x:f32, d:f32) -> f32 {
 
 pub fn amps_sine(freq:f32) -> Vec<f32> {
     vec![1f32, 0.33f32, 0.125f32]    
+}
+
+
+fn square(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
+    let muls = muls_square(freq);
+    let amps = amps_square(freq);
+    let phases = vec![0f32; muls.len()];
+    (
+        amps,
+        muls,
+        phases
+    )
+}
+
+fn sawtooth(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
+    let muls = muls_sawtooth(freq);
+    let amps = amps_sawtooth(freq);
+    let phases = vec![0f32; muls.len()];
+    (
+        amps,
+        muls,
+        phases
+    )
+}
+
+fn triangle(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
+    let muls = muls_triangle(freq);
+    let amps = amps_triangle(freq);
+    let phases = vec![0f32; muls.len()];
+    (
+        amps,
+        muls,
+        phases
+    )
 }
 
 /// Provides amplitude modulation to create a square wave (expecting odd-valued multipliers
@@ -103,12 +156,13 @@ mod test {
     }
 
     fn nearly_none_square(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
+        let (amps, muls, phss) = square(fund);
         Element {
             mode: Mode::Melodic,
-            muls: max_mul(fund, false),
-            amps: vec![1f32; max_mul(fund, false).len()],
-            phss: vec![pi2;  max_mul(fund, false).len()],
-            modders: modders_square(),
+            muls,
+            amps,
+            phss,
+            modders: modders_none(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
             thresh: (0f32, 1f32)
@@ -116,12 +170,13 @@ mod test {
     }
 
     fn nearly_none_triangle(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
+        let (amps, muls, phss) = triangle(fund);
         Element {
             mode: Mode::Melodic,
-            muls: max_mul(fund, false),
-            amps: vec![1f32; max_mul(fund, false).len()],
-            phss: vec![0f32;  max_mul(fund, false).len()],
-            modders: modders_triangle(),
+            muls,
+            amps,
+            phss,
+            modders: modders_none(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
             thresh: (0f32, 1f32)
@@ -129,12 +184,13 @@ mod test {
     }
 
     fn nearly_none_sawtooth(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
+        let (amps, muls, phss) = sawtooth(fund);
         Element {
             mode: Mode::Melodic,
-            muls: max_mul(fund, true),
-            amps: vec![1f32; max_mul(fund, true).len()],
-            phss: vec![pi2;  max_mul(fund, true).len()],
-            modders: modders_triangle(),
+            muls,
+            amps,
+            phss,
+            modders: modders_none(),
             expr: expr_none(),
             hplp: (vec![MFf], vec![NFf]),
             thresh: (0f32, 1f32)
