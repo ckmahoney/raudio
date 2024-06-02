@@ -1,73 +1,66 @@
 use super::*;
 
-pub fn muls_sawtooth(freq:f32) -> Vec<f32> {
-    let n = (NFf / freq) as usize;
-    (1..n).map(|x| x as f32).collect()
-}
+/// Constant for square wave amplitude calculation
+static C_SQUARE: f32 = 4f32 / pi;
 
+/// Constant for triangle wave amplitude calculation
+static C_TRIANGLE: f32 = 8f32 / (pi * pi);
 
-pub fn muls_sine(freq:f32) -> Vec<f32> {
-    let n = (NFf / freq) as usize;
-    vec![1f32, 2f32, 3f32]
-}
-
-
-/// Produce the multipliers for a Fourier series square wave starting at `freq`
-static four_pi:f32 = 4f32/pi;
-pub fn muls_square(freq:f32) -> Vec<f32> {
-    let n = (NFf / freq) as usize;
-    (1..n).map(|i| if i % 2 == 0 { 1f32 } else { n as f32 }).collect()
-}
-
-pub fn muls_triangle(freq:f32) -> Vec<f32> {
-    let n = (NFf / freq) as usize;
-    (1..n).map(|i| if i % 2 == 0 { 1f32 } else { n as f32 }).collect()
-}
-
-
-pub fn amps_square(freq:f32) -> Vec<f32> {
-    let n = (NFf / freq) as usize;
-    (1..n).map(|i| if i % 2 == 0 { 1f32 } else { four_pi / i as f32 }).collect()
-}
-
-pub fn amps_sawtooth(freq:f32) -> Vec<f32> {
-    let n = (NFf / freq) as usize;
-    (1..n).map(|i| four_pi / (pi * i as f32) ).collect()
-}
-
-static eight_pis:f32 = 8f32 / (pi * pi);
-/// Produce the multipliers for a Fourier series triangle wave starting at `freq`
-pub fn amps_triangle(freq:f32) -> Vec<f32> {
-    let n = (NFf / freq) as usize;
-    (1..n).map(|i| if i % 2 == 0 { 0f32 } else { eight_pis * (-1f32).powf((i as f32-1f32)/2f32) / (i as f32* i as f32) }).collect()
-}
-
-static c_square:f32 = 4f32/pi;
-/// Expects to be applied in the context of odd k 1,3,5... but is actually given an index. Makes an internal adjustment
-pub fn amp_square(k:usize, x:f32, d:f32) -> f32 {
-    let n = (k as f32) * 2f32 - 1f32;
-    c_square/n
-}
-
-static c_triangle:f32 = 8f32/(pi*pi);
-/// Expects to be applied in the context of odd k 1,3,5... but is actually given an index. Makes an internal adjustment
-/// That is; no need to return 0 as only valued k should be given.
-pub fn amp_triangle(k:usize, x:f32, d:f32) -> f32 {
-    let n = (k as f32) * 2f32 - 1f32;
-    let sign = (-1f32).powf((n-1f32)/2f32);
-    sign * c_triangle/(n * n)
-}
-
-static c_sawtooth:f32 = 2f32/pi;
-/// Expects to be applied in the context of all k 1,2,3,4...
-pub fn amp_sawtooth(k:usize, x:f32, d:f32) -> f32 {
-    let sign = (-1f32).powf(k as f32+1f32);
-    sign * c_sawtooth/k as f32
-}
 
 pub fn amps_sine(freq:f32) -> Vec<f32> {
     vec![1f32, 0.33f32, 0.125f32]    
 }
+    
+/// Generates multipliers for a Fourier series sine wave starting at `freq`
+pub fn muls_sine(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    vec![1f32, 2f32, 3f32]
+}
+/// Generates multipliers for a Fourier series sawtooth wave starting at `freq`
+pub fn muls_sawtooth(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..=n).map(|x| x as f32).collect()
+}
+
+/// Generates amplitudes for a Fourier series sawtooth wave starting at `freq`
+pub fn amps_sawtooth(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..=n).map(|i| 2f32 / (pi * i as f32)).collect()
+}
+
+/// Generates phases for a Fourier series sawtooth wave starting at `freq`
+pub fn phases_sawtooth(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..=n).map(|i| if i % 2 == 0 { pi } else { 0f32 }).collect()
+}
+
+/// Generates multipliers for a Fourier series square wave starting at `freq`
+pub fn muls_square(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..=n).filter(|&i| i % 2 != 0).map(|i| i as f32).collect()
+}
+
+/// Generates amplitudes for a Fourier series square wave starting at `freq`
+pub fn amps_square(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..=n).filter(|&i| i % 2 != 0).map(|i| 4f32 / (pi * i as f32)).collect()
+}
+
+/// Generates multipliers for a Fourier series triangle wave starting at `freq`
+pub fn muls_triangle(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..=n).filter(|i| i % 2 != 0).map(|i| i as f32).collect()
+}
+
+/// Generates amplitudes for a Fourier series triangle wave starting at `freq`
+pub fn amps_triangle(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..=n).filter(|i| i % 2 != 0).map(|i| {
+        let sign = if (i - 1) / 2 % 2 == 0 { 1f32 } else { -1f32 };
+        sign * 8f32 / (pi * pi * (i as f32).powi(2))
+    }).collect()
+}
+
 
 
 fn square(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
@@ -103,32 +96,6 @@ fn triangle(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
     )
 }
 
-/// Provides amplitude modulation to create a square wave (expecting odd-valued multipliers
-pub fn modders_square() -> Modders {
-    [
-        Some(vec![(1f32, amp_square)]),
-        None,
-        None
-    ]
-}
-
-/// Provides amplitude modulation to create a sawtooth wave (expecting odd-valued multipliers)
-pub fn modders_sawtooth() -> Modders {
-    [
-        Some(vec![(1f32, amp_sawtooth)]),
-        None,
-        None
-    ]
-}
-
-/// Provides amplitude modulation to create a sawtooth wave (expecting odd-valued multipliers)
-pub fn modders_triangle() -> Modders {
-    [
-        Some(vec![(1f32, amp_triangle)]),
-        None,
-        None
-    ]
-}
 
 #[cfg(test)]
 mod test {
