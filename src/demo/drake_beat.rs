@@ -143,6 +143,10 @@ fn demonstrate() {
     let mut stems:Vec<SampleBuffer> = Vec::with_capacity(melodies.len());
 
     for (i, label) in labels.iter().enumerate() {
+        if i != 1 {
+            println!("Skipping test perc {}",i);
+            continue
+        }
         let melody = &melodies[i];
         let synth = &synths[i];
         let arf = &arfs[i];

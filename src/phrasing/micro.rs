@@ -8,15 +8,16 @@
 /// 
 /// https://www.desmos.com/calculator/tbaam3xtsd
 
-use crate::synth::{pi, pi2, e, epi, NFf, MFf,SR};
+use crate::synth::{pi, pi2, e, epi, NFf, MFf, SR};
 use crate::phrasing::AmpModulation;
 use crate::types::synthesis::SampleBuffer;
-use crate::types::timbre::{MicroLifespan, Mode, Arf, Energy,Presence, Visibility};
+use crate::types::timbre::{MicroLifespan, Mode, Arf, Energy, Presence, Visibility};
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::cell::RefCell;
 use std::thread_local;
-const MAX_MICRO_HEIGHT:usize = 21;
+
+const MAX_MICRO_HEIGHT: usize = 21;
 
 thread_local! {
     static RNG: RefCell<ThreadRng> = RefCell::new(rand::thread_rng());
@@ -26,37 +27,34 @@ fn gen_rng() -> f32 {
     RNG.with(|rng| rng.borrow_mut().gen::<f32>())
 }
 
-pub static micros:[MicroLifespan; 3] = [
+pub static micros: [MicroLifespan; 3] = [
     MicroLifespan::Pop,
     MicroLifespan::Chiff,
     MicroLifespan::Click,
 ];
 
-// Set an approximated limit for maximum monic value, for use in (k/K). Adding/subtracting from K requires a call to .max(1) to prevent negative indexing.
-static K:f32 = 200f32; 
-static one:f32 = 1f32;
-static neg:f32 = -1f32;
-static half:f32 = 0.5f32;
-static threshold_x_cutoff:f32 = 0.015f32;
+static K: f32 = 200f32;
+static one: f32 = 1f32;
+static neg: f32 = -1f32;
+static half: f32 = 0.5f32;
+static threshold_x_cutoff: f32 = 0.015f32;
 
 #[inline]
-fn n_root(n:usize, x:f32) -> f32 {
+fn n_root(n: usize, x: f32) -> f32 {
     x.powf(1f32 / n as f32)
 }
 
 #[inline]
-/// Expecting a value representing a duration in cycles in the range of [1/32, 32]
-/// Returns a value in [0, 1]
-fn conform_duration(d:f32) -> f32 {
+fn conform_duration(d: f32) -> f32 {
     (32f32 * d - one) / 1023f32
 }
 
-static thousand_pi:f32 = 1000f32*pi;
-static offset_x:f32 = 0.0125f32;
+static thousand_pi: f32 = 1000f32 * pi;
+static offset_x: f32 = 0.0125f32;
+
 #[inline]
-/// For unnatural decay, coerces positive values to 0.
-fn conform_tail(x:f32) -> f32 {
-    neg * half*(thousand_pi*(x - offset_x)).tanh() + half
+fn conform_tail(x: f32) -> f32 {
+    neg * half * (thousand_pi * (x - offset_x)).tanh() + half
 }
 
 /// Amplitude modulation for chiff
@@ -79,85 +77,51 @@ pub fn amp_pop(k: usize, x: f32, d: f32) -> f32 {
 
 /// Amplitude modulation for click
 pub fn amp_click(k: usize, x: f32, d: f32) -> f32 {
-    let d_scale = 10f32 * conform_duration(n_root(3, d*d));
+    let d_scale = 10f32 * conform_duration(n_root(3, d * d));
     let exponent = 0.001f32 + 0.01f32 * (K - k as f32).max(1f32).sqrt() / K.sqrt();
     let y = neg * x.powf(d_scale * exponent) + one;
     y * conform_tail(x)
 }
 
-
-/// Produce amplitude modulation for a short form micro 
+/// Produce amplitude modulation for a short form micro
 /// May have local min/max, but always starts and ends near 0.
 /// 
 /// ## Arguments
 /// `n_samples` The length of buffer to create and fill.
 /// `n_cycles` represents the duration in cycles, currently designed for an equal distribution in [1/32, 32]
 /// `k` represents the 0 based index of the list
-pub fn mod_micro(n_samples:usize, n_cycles:f32, micro:&MicroLifespan, k:usize) -> AmpModulation {
-    use MicroLifespan::*;
-    let mut modulator:AmpModulation = vec![0f32; n_samples];
+pub fn mod_micro(n_samples: usize, n_cycles: f32, micro: &MicroLifespan, k: usize) -> AmpModulation {
+    let mut modulator: AmpModulation = vec![0f32; n_samples];
     let ns = n_samples as f32;
-    let kf = k as f32;
-    
-    match micro {
-        Chiff => {
-            for (i, sample) in modulator.iter_mut().enumerate() {
-                let x = (i+1) as f32 / ns;
-                let d_scale = -200f32 + 100f32*conform_duration(n_cycles);
-                let k_scale = n_root(3, kf/16f32);
-                let exponent = epi * x;
-                let y = (d_scale * k_scale * exponent).exp();
-                *sample = y * conform_tail(x)
-            }
-        },
-        Pop => {
-            for (i, sample) in modulator.iter_mut().enumerate() {
-                let x = (i+1) as f32 / ns;
-                let d_scale = 10f32 * conform_duration(100f32*n_cycles);
-                let k_scale = n_root(3, kf);
-                let exponent = (x - 0.005) - (0.01*kf/K);
-                let y = neg * (d_scale * k_scale * exponent).exp() + one;
-                *sample = y.max(0f32)
-            }
-        },
-        Click => {
-            for (i, sample) in modulator.iter_mut().enumerate() {
-                let x = (i+1) as f32 / ns;
-                let d_scale = 10f32 * conform_duration(n_root(3, n_cycles*n_cycles));
-                let exponent = 0.001f32 + 0.01f32 * (K - kf).max(1f32).sqrt()/K.sqrt();
-                let y = neg * x.powf(d_scale * exponent) + one;
 
-                *sample = y * conform_tail(x)
-            }
-        }
-    };
+    for (i, sample) in modulator.iter_mut().enumerate() {
+        let x = (i + 1) as f32 / ns;
+        *sample = match micro {
+            MicroLifespan::Chiff => amp_chiff(k, x, n_cycles),
+            MicroLifespan::Pop => amp_pop(k, x, n_cycles),
+            MicroLifespan::Click => amp_click(k, x, n_cycles),
+        };
+    }
+
     modulator
 }
 
-
-/// Provide a medium size of frequencies for producing microtransients
 pub fn muls_micro(freq: f32) -> Vec<f32> {
     let n = ((NFf / freq) as usize).max(MAX_MICRO_HEIGHT);
     (1..=n).map(|x| x as f32).collect()
 }
 
-
-/// Provide an identity vector for microtransient amplitude
 pub fn amps_micro(freq: f32) -> Vec<f32> {
     let n = ((NFf / freq) as usize).max(MAX_MICRO_HEIGHT);
     vec![1f32; n]
 }
 
-
-/// Provide an identity vector for microtransient phase
 pub fn phases_micro(freq: f32) -> Vec<f32> {
     let n = ((NFf / freq) as usize).max(MAX_MICRO_HEIGHT);
     vec![0f32; n]
 }
 
-
-/// Collection of amplitude, frequency, and phase vectors for a microtransient.
-pub fn set_micro(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
+pub fn set_micro(freq: f32) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
     let muls = muls_micro(freq);
     let amps = muls_micro(freq);
     let phases = muls_micro(freq);
@@ -168,13 +132,13 @@ pub fn set_micro(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
     )
 }
 
-fn mod_phase_micro_noisy(k:usize, x:f32, d:f32) -> f32 {
-    let max_distortion = pi/2f32;
+fn mod_phase_micro_noisy(k: usize, x: f32, d: f32) -> f32 {
+    let max_distortion = pi / 2f32;
     (1f32 - x) * gen_rng() * max_distortion
 }
 
-fn mod_phase_micro(k:usize, x:f32, d:f32) -> f32 {
-    let max_distortion = pi/64f32;
+fn mod_phase_micro(k: usize, x: f32, d: f32) -> f32 {
+    let max_distortion = pi / 64f32;
     (1f32 - x) * gen_rng() * max_distortion
 }
 
@@ -186,7 +150,6 @@ pub fn modders_chiff() -> crate::phrasing::ranger::Modders {
     ]
 }
 
-
 pub fn modders_click() -> crate::phrasing::ranger::Modders {
     [
         None,
@@ -194,7 +157,6 @@ pub fn modders_click() -> crate::phrasing::ranger::Modders {
         Some(vec![(1f32, mod_phase_micro)])
     ]
 }
-
 
 pub fn modders_pop() -> crate::phrasing::ranger::Modders {
     let mut s = rand::thread_rng();
@@ -205,6 +167,7 @@ pub fn modders_pop() -> crate::phrasing::ranger::Modders {
         None,
     ]
 }
+
 
 
 #[cfg(test)]

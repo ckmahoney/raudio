@@ -79,7 +79,7 @@ pub fn mix(k:usize, x:f32, d:f32, mixers:&Cocktail) -> f32 {
         panic!("Cannot mix rangers whose total weight is more than 1. Got {}", weight)
     };
 
-    mixers.iter().fold(0f32, |y, (w, ranger)| y + (*w * ranger(k, x, d)))
+    mixers.iter().fold(0f32, |y, (w, ranger)| y + (w * ranger(k, x, d)))
 }
 
 /// Model based on (1/x)
