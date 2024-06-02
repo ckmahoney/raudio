@@ -85,7 +85,7 @@ pub fn tone_to_freq(tone:&Tone) -> f32 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::song::happy_birthday;
+    use crate::music::lib::happy_birthday;
 
     #[test]
     fn test_check_notes() {

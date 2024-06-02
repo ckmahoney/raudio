@@ -108,9 +108,6 @@ pub fn mod_lifespan(n_samples:usize, n_cycles:f32, lifespan:&AmpLifespan, k:usiz
 mod test {
     use super::*;
     use crate::analysis;
-    static min_allowed_mod:f32 = 0f32;
-    static max_allowed_mod:f32 = 0f32;
-
 
     fn assert_lifespan_mod(lifespan:&AmpLifespan,mod_signal:&Vec<f32>) {
         for (i, y) in mod_signal.iter().enumerate() {

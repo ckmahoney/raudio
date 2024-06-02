@@ -8,6 +8,7 @@ use crate::synthesis::FilterPoint;
 
 pub mod contour;
 pub mod lifespan;
+pub mod micro;
 pub mod ranger;
 
 use crate::synth::{pi2, SR};

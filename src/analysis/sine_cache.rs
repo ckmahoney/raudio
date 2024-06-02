@@ -107,7 +107,7 @@ mod test_sine_cache {
                 let filename = format!("{}/test-std-n_samples-{}-sine-{}-cost-{:#?}.wav", test_dir,n_samples, freq,duration);
                 match render::pad_and_mix_buffers(vec![samples]) {
                     Ok(signal) => {
-                        render::samples_f32(44100, &signal, &filename);
+                        // render::samples_f32(44100, &signal, &filename);
                     },
                     Err(msg) => {
                         panic!("Failed to mix and render audio: {}", msg)
@@ -119,7 +119,7 @@ mod test_sine_cache {
                 let filename = format!("{}/test-cached-n_samples-{}-sine-{}-cost-{:#?}.wav", test_dir,n_samples, freq,duration);
                 match render::pad_and_mix_buffers(vec![samples]) {
                     Ok(signal) => {
-                        render::samples_f32(44100, &signal, &filename);
+                        // render::samples_f32(44100, &signal, &filename);
                     },
                     Err(msg) => {
                         panic!("Failed to mix and render audio: {}", msg)

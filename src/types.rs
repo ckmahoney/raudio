@@ -194,6 +194,13 @@ pub mod timbre {
         Pad,
         Drone,
     }
+
+    #[derive(Debug, Serialize)]
+    pub enum MicroLifespan {
+        Pop,
+        Chiff,
+        Click
+    }
     
     #[derive(Debug, Serialize)]
     pub enum AmpContour {
