@@ -225,7 +225,7 @@ pub mod timbre {
     pub struct Arf {
         pub mode: Mode,
         pub role: Role,
-        pub register: u32,
+        pub register: i8,
         pub visibility: Visibility,
         pub energy: Energy,
         pub presence: Presence,
@@ -238,7 +238,7 @@ pub mod timbre {
         Vast
     }
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, Copy, Clone)]
     pub enum Visibility {
         Foreground,
         Visible,
@@ -246,7 +246,7 @@ pub mod timbre {
         Hidden,
     }
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, Copy, Clone)]
     pub enum Mode {
         Melodic,
         Enharmonic,
@@ -255,7 +255,7 @@ pub mod timbre {
         Noise
     }
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Serialize, Copy, Clone)]
     pub enum Role {
         Kick,
         Perc,
