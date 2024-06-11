@@ -18,20 +18,33 @@ static neg: f32 = -1f32;
 static six: f32 = 6f32;
 static three: f32 = 3f32;
 static twenty:f32 = 20f32;
-static K: f32 = 200f32;
+static K: f32 = 2000f32;
 static epsilon: f32 = 0.000001f32;
 
 static min_db:f32 = 180f32;
 fn view_db(y:f32) -> f32 {
     (y + min_db)/min_db
 } 
-
+/// the below three decibel cast and render methods are useful for plotting the 
+/// amplitudes in a range that make sense to our eyes. 
+/// All _db_ functions are designed in desmos to expected relative contours of our ear.
 fn into_db(y:f32) -> f32{
     twenty * (y+epsilon).log10()
 }
 
+fn from_decibel(x: f32) -> f32 {
+    20.0 * (x + epsilon).log10()
+}
+
 fn render(y:f32) -> f32 {
     view_db(into_db(y))
+}
+#[test]
+fn test_render() {
+    for x in vec![0f32,0.001f32,0.01f32,0.5f32,0.99f32, 0.999f32,1f32] { 
+        let val = render(x);
+        println!("x {} val {}", x, val)
+    }
 }
 
 fn pluck_a(k: f32, x: f32) -> f32 {
@@ -121,12 +134,15 @@ fn h_entry(y:f32) -> f32 {
 fn h_exit(y:f32) -> f32 {
     neg * (-0.35*y).exp() * h_entry(y-one)
 }
-
+use crate::synth::SR;
 static e_at_some_limit:f32 = 1.718;
 pub fn mod_db_fall(k:usize, x:f32, d:f32) -> f32 {
     let a:f32 = (x * (one - (one/(k as f32+one).sqrt()))).exp();
-    let y:f32 = one - (a - one)/e_at_some_limit;
-    h_entry(x) * render(y*y) * h_exit(x)
+    let b:f32 = one - (a - one)/e_at_some_limit;
+    let d:f32 = ((K-k as f32) as f32/K as f32)*(b*b)/((k as f32).powi(4i32));
+    let y:f32 = h_entry(x) * d  * h_exit(x);
+    
+    y           
 }
     
 #[test]
@@ -190,7 +206,7 @@ mod test {
     fn verify_valid_modulation_range() {
         let n_samples = 48000 * 90usize;
         let n_cycles = 64f32;
-        for lifespan in &lifespans {
+        for lifespan in &lifespans {    
             let mod_signal = mod_lifespan(n_samples, n_cycles, &lifespan, 1usize, 0f32);
             assert_lifespan_mod(&lifespan, &mod_signal);
             println!("Passes lifespan mod test {:#?}", &lifespan)

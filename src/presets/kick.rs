@@ -13,11 +13,11 @@ use rand::Rng;
 static contour_length:usize  = 2000usize;
 
 fn sine_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-    let muls = melodic::muls_sine(fund);
     let amps = melodic::amps_sine(fund);
+    let muls = melodic::muls_sine(fund);
     let phss = vec![0f32; muls.len()];
-    let contour = lifespan::mod_lifespan(contour_length, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
-    let expr = (contour, vec![1f32], vec![0f32]);
+    let amp_env = lifespan::mod_lifespan(contour_length, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
+    let expr = (amp_env, vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
             (1f32, lifespan::mod_pad),
@@ -62,12 +62,10 @@ fn triangle_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence)
     let muls = melodic::muls_square(fund);
     let amps = bell::coefficients(fund, n_partials);
     let phss = vec![0f32; muls.len()];
-    let contour = lifespan::mod_lifespan(1000usize, 1f32, &AmpLifespan::Burst, 1usize, 0f32);
-    let expr = (contour,vec![1f32], vec![0f32]);
+    let expr = (vec![1f32],vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
-            (0.5f32, lifespan::mod_snap),
-            (0.5f32, lifespan::mod_pluck),
+            (1f32, lifespan::mod_db_fall),
         ]),
         None,
         None
@@ -108,12 +106,11 @@ fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) ->
         thresh: (0f32, 1f32)
     }
 }
-
 pub fn synth() -> Elementor {
     vec![
-        (0.01f32, triangle_pluck),
-        (0.49f32, noise_pluck),
-        (0.35f32, sine_pluck),
-        (0.15f32, microtransient_pop),
+        (1f32, triangle_pluck),
+        // (0.01f32, noise_pluck),
+        // (0.98f32, sine_pluck),
+        // (0.01f32, microtransient_pop),
     ]
 }
