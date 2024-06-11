@@ -14,7 +14,22 @@ static one: f32 = 1f32;
 static neg: f32 = -1f32;
 static six: f32 = 6f32;
 static three: f32 = 3f32;
+static twenty:f32 = 20f32;
 static K: f32 = 200f32;
+static epsilon: f32 = 0.000001f32;
+
+static min_db:f32 = 180f32;
+fn view_db(y:f32) -> f32 {
+    (y + min_db)/min_db
+} 
+
+fn into_db(y:f32) -> f32{
+    twenty * (y+epsilon).log10()
+}
+
+fn render(y:f32) -> f32 {
+    view_db(into_db(y))
+}
 
 fn pluck_a(k: f32, x: f32) -> f32 {
     let scaled_x = pi * x - (pi / k);
@@ -91,7 +106,40 @@ pub fn mod_drone(k: usize, x: f32, d: f32) -> f32 {
     let y: f32 = (4f32 * (d + one) * t).tanh();
     let a: f32 = one;
     let b: f32 = -(pi2 * (t - one) * (2f32 + d).sqrt()).tanh();
-    a * y * b
+    a * y * b 
+}
+
+fn h_entry(y:f32) -> f32 {
+    let p = 24f32*pi*y;
+    one + neg * 2f32 /(one + p.exp())
+}
+
+/// Depends on the fact that this h_entry is a steep tanh contour whose integral is near 1. 
+fn h_exit(y:f32) -> f32 {
+    neg * (-0.35*y).exp() * h_entry(y-one)
+}
+
+static e_at_some_limit:f32 = 1.718;
+pub fn mod_db_fall(k:usize, x:f32, d:f32) -> f32 {
+    let a:f32 = (x * (one - (one/(k as f32+one).sqrt()))).exp();
+    let y:f32 = one - (a - one)/e_at_some_limit;
+    h_entry(x) * render(y*y) * h_exit(x)
+}
+    
+#[test]
+fn test_shaper_entry() {
+    let start = 0f32;
+    let end = 1f32;
+    assert!(h_entry(start) == 0f32, "Entry shaper must a zeroing effect at the start of the signal");
+    assert!(h_entry(end) == 1f32, "Entry shaper must have no effect at the end of the signal")
+}
+    
+#[test]
+fn test_shaper_exit() {
+    let start = 0f32;
+    let end = 1f32;
+    assert!(h_exit(start) == 1f32, "Exit shaper must no effect at the start of the signal");
+    assert!(h_exit(end) == 0f32, "Exit shaper must have a zeroing effect at the end of the signal")
 }
 
 pub fn mod_lifespan(n_samples: usize, n_cycles: f32, lifespan: &AmpLifespan, k: usize, d: f32) -> AmpModulation {
