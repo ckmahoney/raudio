@@ -2,11 +2,14 @@ use rustfft::num_complex::Complex;
 use crate::phrasing::AmpModulation;
 use crate::types::timbre::AmpLifespan;
 use crate::synth::{pi, pi2, epi, SampleBuffer};
-pub static lifespans: [AmpLifespan; 5] = [
-    AmpLifespan::Pad,
+pub static lifespans: [AmpLifespan; 8] = [
+    AmpLifespan::Fall,
+    AmpLifespan::Burst,
+    AmpLifespan::Snap,
     AmpLifespan::Spring,
     AmpLifespan::Pluck,
     AmpLifespan::Bloom,
+    AmpLifespan::Pad,
     AmpLifespan::Drone,
 ];
 
@@ -149,6 +152,7 @@ pub fn mod_lifespan(n_samples: usize, n_cycles: f32, lifespan: &AmpLifespan, k: 
     for (i, sample) in modulator.iter_mut().enumerate() {
         let x = (i + 1) as f32 / ns;
         *sample = match lifespan {
+            AmpLifespan::Fall => mod_db_fall(k, x, n_cycles),
             AmpLifespan::Burst => mod_burst(k, x, n_cycles),
             AmpLifespan::Snap => mod_snap(k, x, n_cycles),
             AmpLifespan::Spring => mod_spring(k, x, n_cycles),
@@ -189,6 +193,7 @@ mod test {
         for lifespan in &lifespans {
             let mod_signal = mod_lifespan(n_samples, n_cycles, &lifespan, 1usize, 0f32);
             assert_lifespan_mod(&lifespan, &mod_signal);
+            println!("Passes lifespan mod test {:#?}", &lifespan)
         }
     }
 
