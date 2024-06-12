@@ -188,6 +188,7 @@ pub mod timbre {
 
     #[derive(Debug, Serialize)]
     pub enum AmpLifespan {
+        Fall,
         Snap,
         Spring,
         Pluck,
