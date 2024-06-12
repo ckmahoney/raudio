@@ -68,9 +68,9 @@ fn weighted_amps(weight:f32, amps:&Vec<f32>) -> Vec<f32> {
     amps.iter().map(|y| y * weight).collect()
 }
 
-pub fn inflect(frex:&Frex, at:&ApplyAt, mentor:&Elementor, vis:&Visibility, energy:&Energy, presence:&Presence) -> SampleBuffer {
+pub fn inflect(frex:&Frex, at:&ApplyAt, synth:&Elementor, vis:&Visibility, energy:&Energy, presence:&Presence) -> SampleBuffer {
     let n_samples:usize = time::samples_of_dur(at.span.0, at.span.1);
-    let druid:Druid = mentor.iter().map(|(weight, elementor)| 
+    let druid:Druid = synth.iter().map(|(weight, elementor)| 
         (*weight, elementor(frex.2, vis, energy, presence))
     ).collect();
 
