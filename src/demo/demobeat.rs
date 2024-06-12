@@ -128,8 +128,8 @@ fn make_specs<'hyper>() -> [Coverage<'hyper>; 3] {
 
     let snare = Coverage {
         label: "snare",
-        // mode: vec![Noise, Enharmonic],
-        mode: vec![],
+        mode: vec![Noise, Enharmonic],
+        // mode: vec![],
         role: vec![Perc],
         register: vec![7,8,9,10],
         visibility: vec![Visibility::Visible,Visibility::Hidden],
@@ -274,7 +274,7 @@ fn render_arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> Vec<S
 }
 
 
-fn demonstrate() {
+fn demonstrate(selection:Option<usize>) {
     let cps:f32 = 1.15;
     let labels:Vec<&str> = vec!["kick", "perc", "hat"];
     let melodies = make_melodies();
@@ -285,8 +285,9 @@ fn demonstrate() {
 
     let mut stems:Vec<SampleBuffer> = Vec::with_capacity(melodies.len());
 
+
     for (i, label) in labels.iter().enumerate() {
-        if i != 1 {
+        if selection.is_some() && selection.unwrap()!= i {
             println!("Skipping test perc {}",i);
             continue
         }
@@ -342,7 +343,7 @@ mod test {
     use super::*;
     #[test]
     fn test() {
-        // demonstrate();
-        enumerate();
+        demonstrate(Some(0));
+        // enumerate();
     }
 }

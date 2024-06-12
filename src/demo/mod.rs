@@ -1,3 +1,3 @@
-mod drake_beat;
+mod demobeat;
 
 static out_dir:&str = "audio/demo";

@@ -13,10 +13,11 @@ pub static lifespans: [AmpLifespan; 8] = [
     AmpLifespan::Drone,
 ];
 
-static one: f32 = 1f32;
 static neg: f32 = -1f32;
-static six: f32 = 6f32;
+static one: f32 = 1f32;
+static two: f32 = 2f32;
 static three: f32 = 3f32;
+static six: f32 = 6f32;
 static twenty:f32 = 20f32;
 static K: f32 = 2000f32;
 static epsilon: f32 = 0.000001f32;
@@ -39,6 +40,15 @@ fn from_decibel(x: f32) -> f32 {
 fn render(y:f32) -> f32 {
     view_db(into_db(y))
 }
+
+static relu_coeff:f32 = 0.38;
+fn relu(y:f32)-> f32 {
+    let p_a = three * (relu_coeff - y);
+    let p_b  = one - (two * relu_coeff);
+    let denom:f32 = one + (p_a/p_b).exp();
+    y/denom
+}
+
 #[test]
 fn test_render() {
     for x in vec![0f32,0.001f32,0.01f32,0.5f32,0.99f32, 0.999f32,1f32] { 
@@ -99,6 +109,19 @@ pub fn mod_bloom(k: usize, x: f32, d: f32) -> f32 {
     a * y * b
 }
 
+
+fn entry_bloom(x:f32, k:usize) -> f32 {
+    one + (neg*two/(one + (10f32 * pi * x * (k as f32).sqrt()).exp()))
+}
+
+///View on desmos:
+///https://www.desmos.com/calculator/hreww2fasr
+pub fn mod_db_bloom(k:usize, x:f32, d:f32) -> f32 {
+    let a = (two * k as f32).sqrt();
+    let y = (x*a - a).exp()/k as f32;
+    entry_bloom(x, k) * y 
+}
+
 pub fn mod_pad(k: usize, x: f32, d: f32) -> f32 {
     let t = x;
     let stable_amp = 0.9;
@@ -134,15 +157,39 @@ fn h_entry(y:f32) -> f32 {
 fn h_exit(y:f32) -> f32 {
     neg * (-0.35*y).exp() * h_entry(y-one)
 }
+
+
 use crate::synth::SR;
 static e_at_some_limit:f32 = 1.718;
 pub fn mod_db_fall(k:usize, x:f32, d:f32) -> f32 {
     let a:f32 = (x * (one - (one/(k as f32+one).sqrt()))).exp();
     let b:f32 = one - (a - one)/e_at_some_limit;
-    let d:f32 = ((K-k as f32) as f32/K as f32)*(b*b)/((k as f32).powi(4i32));
-    let y:f32 = h_entry(x) * d  * h_exit(x);
+    let d:f32 = ((K-k as f32) as f32/K as f32)*(b*b)/((k as f32).powi(2i32));
+    let y:f32 =  d  * h_exit(x);
     
-    y           
+    y.max(0f32)           
+}
+
+fn translate_pluck(k:usize) -> f32 {
+    let kf = k as f32;
+    0.5 - 0.5* (kf/K)
+}
+
+fn scale_pluck(k:usize) -> f32 {
+    let kf = k as f32;
+    ( neg*pi*kf/K ) + pi 
+}
+
+fn pluck_exit(k:usize, x:f32) -> f32 {
+    let kf  = k as f32;
+    one - x*(kf*kf-one).powf(one/three)
+}
+
+pub fn mod_db_pluck(k:usize, x:f32, d:f32) -> f32 {
+    let m_x = scale_pluck(k)*(x -translate_pluck(k));
+     let a = (m_x ).tanh();
+     let y = neg*(a/2f32)+0.5f32;
+    relu(y*pluck_exit(k,x))
 }
     
 #[test]
@@ -169,10 +216,10 @@ pub fn mod_lifespan(n_samples: usize, n_cycles: f32, lifespan: &AmpLifespan, k: 
         let x = (i + 1) as f32 / ns;
         *sample = match lifespan {
             AmpLifespan::Fall => mod_db_fall(k, x, n_cycles),
-            AmpLifespan::Burst => mod_burst(k, x, n_cycles),
+            AmpLifespan::Burst => mod_pluck(k, x, n_cycles),
             AmpLifespan::Snap => mod_snap(k, x, n_cycles),
             AmpLifespan::Spring => mod_spring(k, x, n_cycles),
-            AmpLifespan::Pluck => mod_pluck(k, x, n_cycles),
+            AmpLifespan::Pluck => mod_db_pluck(k, x, n_cycles),
             AmpLifespan::Bloom => mod_bloom(k, x, n_cycles),
             AmpLifespan::Pad => mod_pad(k, x, n_cycles),
             AmpLifespan::Drone => mod_drone(k, x, n_cycles),

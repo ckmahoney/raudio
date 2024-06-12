@@ -5,6 +5,10 @@ pub fn db_to_amp(db:f32) -> f32 {
     10f32.powf(db/20f32)
 }
 
+fn amplitude_to_db(amplitude: f32) -> f32 {
+    20.0 * amplitude.log10()
+}
+    
 
 /// Identify the RMS value of a signal slice.
 /// Intended for short form slices or samples
@@ -20,7 +24,7 @@ pub fn rms(signal: &[f32]) -> f32 {
 /// Intended for long form time varying singles.
 pub fn root_mean_squared(signal: &SampleBuffer, window_len: usize) -> SampleBuffer {
     let mut result = vec![0f32; signal.len()];
-    for i in 0..signal.len() {
+    for i in 0..signal.len() {  
         let k = if i + window_len > signal.len() {
             signal.len() - i
         } else {

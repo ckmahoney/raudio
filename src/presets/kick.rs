@@ -65,7 +65,7 @@ fn triangle_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence)
     let expr = (vec![1f32],vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
-            (1f32, lifespan::mod_db_fall),
+            (1f32, lifespan::mod_db_bloom),
         ]),
         None,
         None
