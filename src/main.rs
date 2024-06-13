@@ -36,7 +36,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        eprintln!(r#"Usage: raudio "/abs/to/playbook.json" "/abs/to/audio.wav""#);
+        eprintln!(r#"Usage: raudio "/abspath/in/to/playbook.json" "/abspath/out/to/audio.wav""#);
         process::exit(1);
     }
 
