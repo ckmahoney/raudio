@@ -1,3 +1,6 @@
+/// This module currently contains a lot of ad hoc functions.
+/// Most of them have been predesigned in Desmos and then ported here. 
+/// Static variables for number names (eg one, six, twenty) are used to help identify the meaningful parts (x, y) of the expressions more easily. It also helps since these are universal constants that are read thousands of times per sample.
 use rustfft::num_complex::Complex;
 use crate::phrasing::AmpModulation;
 use crate::types::timbre::AmpLifespan;
@@ -42,6 +45,7 @@ fn render(y:f32) -> f32 {
 }
 
 static relu_coeff:f32 = 0.38;
+/// C
 fn relu(y:f32)-> f32 {
     let p_a = three * (relu_coeff - y);
     let p_b  = one - (two * relu_coeff);
@@ -158,12 +162,11 @@ fn h_exit(y:f32) -> f32 {
     neg * (-0.35*y).exp() * h_entry(y-one)
 }
 
-
 use crate::synth::SR;
-static e_at_some_limit:f32 = 1.718;
+static e_at_selected_x:f32 = 1.718;
 pub fn mod_db_fall(k:usize, x:f32, d:f32) -> f32 {
     let a:f32 = (x * (one - (one/(k as f32+one).sqrt()))).exp();
-    let b:f32 = one - (a - one)/e_at_some_limit;
+    let b:f32 = one - (a - one)/e_at_selected_x;
     let d:f32 = ((K-k as f32) as f32/K as f32)*(b*b)/((k as f32).powi(2i32));
     let y:f32 =  d  * h_exit(x);
     
@@ -216,7 +219,7 @@ pub fn mod_lifespan(n_samples: usize, n_cycles: f32, lifespan: &AmpLifespan, k: 
         let x = (i + 1) as f32 / ns;
         *sample = match lifespan {
             AmpLifespan::Fall => mod_db_fall(k, x, n_cycles),
-            AmpLifespan::Burst => mod_pluck(k, x, n_cycles),
+            AmpLifespan::Burst => mod_burst(k, x, n_cycles),
             AmpLifespan::Snap => mod_snap(k, x, n_cycles),
             AmpLifespan::Spring => mod_spring(k, x, n_cycles),
             AmpLifespan::Pluck => mod_db_pluck(k, x, n_cycles),

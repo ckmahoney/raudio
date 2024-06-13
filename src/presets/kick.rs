@@ -2,7 +2,7 @@
 use crate::synth::{MFf, NFf, SampleBuffer, pi2};
 use crate::types::timbre::{Mode, Energy, Presence, Visibility};
 use crate::druid::{Element, Elementor, modders_none};
-use crate::phrasing::ranger::{Modders,Ranger};
+use crate::phrasing::ranger::{Modders,Ranger,Cocktail};
 use crate::druid::{melodic, bell, noise};
 use crate::phrasing::{contour, lifespan};
 use crate::timbre::{AmpContour,AmpLifespan};
@@ -16,18 +16,17 @@ fn sine_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
     let amps = melodic::amps_sine(fund);
     let muls = melodic::muls_sine(fund);
     let phss = vec![0f32; muls.len()];
-    let amp_env = lifespan::mod_lifespan(contour_length, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
-    let expr = (amp_env, vec![1f32], vec![0f32]);
+    let expr = (vec![1f32], vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
-            (1f32, lifespan::mod_pad),
+            (1f32, lifespan::mod_snap),
         ]),
         None,
         None
     ];
     Element {
         mode: Mode::Melodic,
-        amps: vec![1f32; muls.len()],
+        amps,
         muls,
         phss,
         modders,
@@ -42,15 +41,20 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
     let muls = bell::multipliers(fund, n_partials);
     let amps = bell::coefficients(fund, n_partials);
     let phss = vec![0f32; muls.len()];
-    let contour = lifespan::mod_lifespan(contour_length, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
-    let expr = (contour, vec![1f32], vec![0f32]);
-
+    let expr = (vec![  0.5f32],vec![1f32], vec![0f32]);
+    let modders:Modders = [
+        Some(vec![
+            (1f32, lifespan::mod_db_pluck),
+        ]),
+        None,
+        None
+    ];
     Element {
         mode: Mode::Bell,
         amps: vec![1f32; muls.len()],
         muls,
         phss,
-        modders: modders_none(),
+        modders,
         expr,
         hplp: (vec![MFf], vec![NFf]),
         thresh: (0f32, 1f32)
@@ -58,21 +62,36 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
 }
 
 fn triangle_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-    let n_partials = 6;
-    let muls = melodic::muls_square(fund);
-    let amps = bell::coefficients(fund, n_partials);
+    let muls = match energy { 
+        Energy::High =>  melodic::muls_triangle(fund),
+        Energy::Medium =>  melodic::muls_square(fund),
+        Energy::Low =>  melodic::muls_square(fund)
+    };
+    let amps = match energy { 
+        Energy::High =>  melodic::amps_sawtooth(fund),
+        Energy::Medium =>  melodic::amps_square(fund),
+        Energy::Low =>  melodic::amps_triangle(fund)
+    };
     let phss = vec![0f32; muls.len()];
-    let expr = (vec![1f32],vec![1f32], vec![0f32]);
+    let expr = (vec![0.5f32],vec![1f32], vec![0f32]);
+    let a_modu:Option<Cocktail> = Some(
+        match presence {
+            Presence::Staccatto => vec![(1f32, lifespan::mod_db_pluck)],
+            Presence::Legato => vec![(1f32, lifespan::mod_db_fall)],
+            Presence::Tenuto => vec![
+                (0.66f32, lifespan::mod_db_pluck),
+                (0.33f32, lifespan::mod_db_bloom),
+            ]           
+        }
+    );
     let modders:Modders = [
-        Some(vec![
-            (1f32, lifespan::mod_db_bloom),
-        ]),
+        a_modu,
         None,
         None
     ];
     Element {
         mode: Mode::Melodic,
-        amps: vec![1f32; muls.len()],
+        amps,
         muls,
         phss,
         modders,
@@ -86,18 +105,17 @@ fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) ->
     let muls = noise::multipliers(fund, energy);
     let mut rng = rand::thread_rng();
     let phss = vec![0f32; muls.len()];
-    let contour = lifespan::mod_lifespan(contour_length, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
-    let expr = (contour, vec![1f32], vec![0f32]);
+    let expr = (vec![1f32], vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
-            (1f32, lifespan::mod_snap),
+            (1f32, lifespan::mod_db_pluck),
         ]),
         None,
         None
     ];
     Element {
         mode: Mode::Noise,
-        amps: vec![1f32; muls.len()],
+        amps: vec![0.01f32; muls.len()],
         muls,
         phss,
         modders,
@@ -108,9 +126,9 @@ fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) ->
 }
 pub fn synth() -> Elementor {
     vec![
-        (1f32, triangle_pluck),
-        // (0.01f32, noise_pluck),
-        // (0.98f32, sine_pluck),
-        // (0.01f32, microtransient_pop),
+        (0.6f32, sine_pluck),
+        (0.3f32, triangle_pluck),
+        (0.06f32, noise_pluck),
+        (0.003f32, microtransient_pop),
     ]
 }

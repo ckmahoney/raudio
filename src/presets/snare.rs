@@ -2,7 +2,7 @@
 use crate::synth::{MFf, NFf, SampleBuffer, pi2};
 use crate::types::timbre::{Mode, Energy, Presence, Visibility};
 use crate::druid::{Element, Elementor, modders_none, melodic, bell, noise};
-use crate::phrasing::ranger::{Modders,Ranger};
+use crate::phrasing::ranger::{Modders,Ranger,Cocktail};
 use crate::phrasing::lifespan;
 use crate::phrasing::lifespan::mod_snap;
 use crate::phrasing::contour::expr_none;
@@ -17,24 +17,38 @@ static contour_resolution:usize = 1200;
 
 
 fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
-    let muls = noise::multipliers(fund, energy);
+    let muls = noise::multipliers(fund, &Energy::Low);
     let mut rng = rand::thread_rng();
-    let phss = (0..muls.len()).map(|_| rng.gen::<f32>() * pi2).collect();
-    let contour = lifespan::mod_lifespan(contour_resolution, 1f32, &AmpLifespan::Burst, 1usize, 0f32);
-
-    let expr = (contour, vec![1f32], vec![0f32]);
+    let phss = vec![0f32; muls.len()]; 
+    let amps = match energy { 
+        Energy::High =>  muls.iter().map(|x| 1f32/x).collect(),
+        _ =>  muls.iter().map(|x| 1f32/(x*x)).collect()
+    };
+    let expr = (vec![1f32], vec![1f32], vec![0f32]);
     let highpass_animation = vec![MFf,MFf, NFf];
+    
+
+    let a_modu:Option<Cocktail> = Some(
+        match presence {
+            Presence::Staccatto => vec![(1f32, lifespan::mod_db_pluck)],
+            Presence::Legato => vec![
+                (0.8f32, lifespan::mod_db_pluck),
+                (0.2f32, lifespan::mod_db_fall),
+            ],
+            Presence::Tenuto => vec![
+                (0.66f32, lifespan::mod_db_fall),
+                (0.33f32, lifespan::mod_db_pluck),
+            ]           
+        }
+    );
     let modders:Modders = [
-        Some(vec![
-            (0.3f32, lifespan::mod_snap),
-        ]),
+        a_modu,
         None,
         None
     ];
-
     Element {
         mode: Mode::Noise,
-        amps: vec![1f32; muls.len()],
+        amps,
         muls,
         phss,
         modders,
@@ -47,14 +61,17 @@ fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) ->
 fn melodic_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
     let muls = melodic::muls_sine(fund);
     let amps = melodic::amps_sine(fund);
-    let phss = vec![0f32; muls.len()];
+    let mut rng = rand::thread_rng();
+    let phss = match energy { 
+        Energy::High =>  (0..muls.len()).map(|_| rng.gen::<f32>() * pi2).collect(),
+        _ =>  vec![0f32; muls.len()]
+    };
     let contour = lifespan::mod_lifespan(contour_resolution, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
     let expr = (contour, vec![1f32], vec![0f32]);
     let lowpass_animation = vec![NFf, MFf];
     let modders:Modders = [
         Some(vec![
-            (0.65f32, lifespan::mod_snap),
-            (0.35f32, lifespan::mod_spring),
+            (0.65f32, lifespan::mod_snap)
         ]),
         None,
         None
@@ -81,7 +98,7 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
     let expr = (contour, vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
-            (1f32, lifespan::mod_snap)
+            (1f32, lifespan::mod_db_pluck)
         ]),
         None,
         None
@@ -101,10 +118,10 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
 
 pub fn synth() -> Elementor {
     vec![
-        (0.05f32, bell_pluck),
-        (0.65f32, melodic_pluck),
-        (0.32f32, noise_pluck),
-        (0.05f32, microtransient_click),
-        (0.03f32, microtransient_pop),
+        (0.35f32, melodic_pluck),
+        (0.636f32, noise_pluck),
+        (0.002f32, bell_pluck),
+        (0.001f32, bell_pluck),
+        (0.057f32, microtransient_click),
     ]
 }
