@@ -3,7 +3,7 @@ use serde::de::{self, Visitor};
 use std::fmt;
  
 use std::fs;
-use std::io;
+use std::io;    
 
 use crate::types::synthesis;
 use crate::types::synthesis::*;
@@ -295,7 +295,7 @@ impl<'de> Deserialize<'de> for timbre::Cube {
 pub fn load_score_from_file(filepath:&str) -> Result<Score, fmt::Error> {
     match fs::read_to_string(&filepath) {
         Ok(str) => {
-            let score:Score = serde_json::from_str(&str).expect("Bad parser");
+            let score:Score = serde_json::from_str(&str).expect(&format!("Failed to parse score from file at path {}", filepath));
             Ok(score)
         },
         _ => Err(fmt::Error)
