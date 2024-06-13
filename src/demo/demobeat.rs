@@ -120,10 +120,11 @@ fn make_specs<'hyper>() -> [Coverage<'hyper>; 3] {
         mode: vec![Melodic, Enharmonic],
         // mode: vec![],
         role: vec![Kick],
-        register: vec![5,6,7],
-        visibility: vec![Visibility::Visible, Visibility::Hidden],
-        energy: vec![&Energy::Low, &Energy::Medium, &Energy::High],
-        presence: vec![&Presence::Staccatto, &Presence::Tenuto],
+        // register: vec![5,6,7],
+        register: vec![5],
+        visibility: vec![Visibility::Visible],
+        energy: vec![&Energy::Low,&Energy::High],
+        presence: vec![&Presence::Staccatto, &Presence::Tenuto, &Presence::Legato],
     };
 
     let snare = Coverage {
@@ -131,20 +132,22 @@ fn make_specs<'hyper>() -> [Coverage<'hyper>; 3] {
         mode: vec![Noise, Enharmonic],
         // mode: vec![],
         role: vec![Perc],
-        register: vec![7,8,9,10],
+        // register: vec![7,8,9],
+        register: vec![8],
         visibility: vec![Visibility::Visible,Visibility::Hidden],
-        energy: vec![&Energy::Low, &Energy::Medium, &Energy::High],
-        presence: vec![&Presence::Staccatto, &Presence::Tenuto],
+        energy: vec![&Energy::Low, &Energy::High],
+        presence: vec![&Presence::Staccatto, &Presence::Tenuto, &Presence::Legato],
     };
 
     let hats = Coverage {
         label: "hats",
         mode: vec![Bell],
         role: vec![Hats],
-        register: vec![10,11,12],
+        // register: vec![10,11,12],
+        register: vec![10],
         visibility: vec![Visibility::Visible, Visibility::Hidden],
-        energy: vec![&Energy::Low, &Energy::Medium, &Energy::High],
-        presence: vec![&Presence::Staccatto, &Presence::Tenuto],
+        energy: vec![&Energy::Low, &Energy::High],
+        presence: vec![&Presence::Staccatto, &Presence::Tenuto, &Presence::Legato],
     };
 
     [kick, snare, hats]
@@ -226,10 +229,7 @@ fn enumerate() {
     let specs = make_specs();
 
     for (i, spec) in specs.iter().enumerate() {
-        if i != 0 {
-            println!("Skipping test perc {}",i);
-            continue
-        }
+        
         let labelled_arfs = gen_arfs(&spec);
         for (label, arf) in labelled_arfs {
             let mut channels:Vec<SampleBuffer> = render_arf(cps, &melodies[i], &synths[i], arf);
@@ -343,7 +343,7 @@ mod test {
     use super::*;
     #[test]
     fn test() {
-        demonstrate(Some(0));
-        // enumerate();
+        // demonstrate(None);
+        enumerate();
     }
 }
