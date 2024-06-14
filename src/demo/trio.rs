@@ -17,8 +17,8 @@ use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 
 static demo_name:&str = "trio";
 
-fn make_synths() -> [Elementor; 3] {
-    [bass::synth(), chords::synth(), lead::synth()]
+fn make_synths(arfs:&[Arf;3]) -> [Elementor; 3] {
+    [bass::synth(&arfs[0]), chords::synth(&arfs[0]), lead::synth(&arfs[0])]
 }
 
 /// helper for making a test line of specific length with arbitrary pitch.
@@ -225,7 +225,8 @@ fn enumerate() {
     let cps:f32 = 1.15;
     let labels:Vec<&str> = vec!["kick", "perc", "hat"];
     let melodies = make_melodies();
-    let synths = make_synths();
+    let arfs = get_arfs();
+    let synths = make_synths(&arfs);
     let specs = make_specs();
 
     for (i, spec) in specs.iter().enumerate() {
@@ -278,8 +279,8 @@ fn demonstrate(selection:Option<usize>) {
     let cps:f32 = 1.15;
     let labels:Vec<&str> = vec!["bass", "chords", "lead"];
     let melodies = make_melodies();
-    let synths = make_synths();
     let arfs = get_arfs();
+    let synths = make_synths(&arfs);
 
     files::with_dir(out_dir);
 

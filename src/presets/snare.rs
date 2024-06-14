@@ -102,7 +102,7 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
     }
 }
 
-pub fn synth() -> Elementor {
+pub fn synth(arf:&Arf) -> Elementor {
     vec![
         (0.35f32, melodic_pluck),
         (0.636f32, noise_pluck),

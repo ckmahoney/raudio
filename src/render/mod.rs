@@ -79,3 +79,43 @@ pub fn pad_and_mix_buffers(buffers: Vec<Vec<f32>>) -> Result<Vec<f32>, &'static 
 
     mix_and_normalize_buffers(padded_buffers)
 }
+
+use crate::time;
+use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
+use crate::types::render::{Melody};
+use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
+use crate::render::blend::{GlideLen};
+use crate::types::timbre::Arf;
+use crate::types::synthesis::Note;
+
+pub fn arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> SampleBuffer {
+    let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
+    let mut channels:Vec<SampleBuffer> = Vec::with_capacity(melody.len());
+        
+    for (index, line_frexd) in melody_frexd.iter().enumerate() {
+        let mut line_buff:SampleBuffer = Vec::new();
+        let line = &melody[index];
+
+        for (jindex, frex) in line_frexd.iter().enumerate() {
+            let dur = time::duration_to_cycles(line[jindex].0);
+            let amp = line[jindex].2;
+            let at = ApplyAt { frex: *frex, span: (cps, dur) };
+            let applied:Elementor = synth.iter().map(|(w, r)| (*w * amp, *r)).collect();
+            line_buff.append(&mut inflect(
+                &frex, 
+                &at, 
+                &applied, 
+                &arf.visibility,
+                &arf.energy,
+                &arf.presence
+            ));
+        }
+        channels.push(line_buff)
+    }
+
+    match realize::mix_buffers(&mut channels) {
+        Ok(mixdown) => mixdown,
+        Err(msg) => panic!("Error while preparing mixdown: {}", msg)
+    }
+
+}

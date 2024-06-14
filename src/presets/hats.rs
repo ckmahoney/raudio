@@ -1,15 +1,5 @@
 /// A synth hihat from three components
-use crate::synth::{MFf, NFf, SampleBuffer, pi2};
-use crate::types::timbre::{Mode, Energy, Presence, Visibility};
-use crate::druid::{Element, Elementor, modders_none};
-use crate::druid::{melodic, bell, noise};
-use crate::phrasing::ranger::{Modders,Ranger,Cocktail};
-use crate::phrasing::lifespan;
-use crate::timbre::AmpLifespan;
-use super::{microtransient_click, microtransient_chiff, microtransient_pop};
-
-use rand;
-use rand::Rng;
+use super::*;
 
 fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
     let muls = noise::multipliers(fund, energy);
@@ -74,7 +64,7 @@ fn bell_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
     }
 }
 
-pub fn synth() -> Elementor {
+pub fn synth(arf:&Arf) -> Elementor {
     vec![
         (0.875f32, noise_pluck),
         (0.005f32, bell_pluck),

@@ -29,7 +29,7 @@ fn melodic_el(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
     }
 }
 
-pub fn synth() -> Elementor {
+pub fn synth(arf:&Arf) -> Elementor {
     vec![
         (1f32, melodic_el),
     ]

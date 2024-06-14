@@ -139,15 +139,6 @@ pub mod timbre {
     }
 
     #[derive(Debug, Serialize, Clone)] // requires custom serde Deserialize
-    pub enum MelodicOsc {
-        Sine,
-        Square,
-        Sawtooth,
-        Triangle,
-        All
-    }
-
-    #[derive(Debug, Serialize, Clone)] // requires custom serde Deserialize
     pub enum BaseOsc {
         Sine,
         Square,
@@ -159,7 +150,7 @@ pub mod timbre {
         All
     }
 
-    pub type BandpassFilter =  (FilterMode, synthesis::FilterPoint, synthesis::Bandpass);
+    pub type BandpassFilter = (FilterMode, synthesis::FilterPoint, synthesis::Bandpass);
 
     #[derive(Debug)]
     pub struct Sound {
@@ -168,6 +159,7 @@ pub mod timbre {
         pub presence: Presence,
         pub pan: f32
     }
+
     #[derive(Debug)]
     pub struct Sound2 {
         pub bandpass:BandpassFilter,
@@ -227,7 +219,7 @@ pub mod timbre {
     /// - visibility affects overall amplitude
     /// - energy defines how much harmonic content is present
     /// - presence is an envelope selector
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
     pub struct Arf {
         pub mode: Mode,
         pub register: i8,

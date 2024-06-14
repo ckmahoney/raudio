@@ -1,16 +1,5 @@
 /// A synth snare from three components
-use crate::synth::{MFf, NFf, SampleBuffer, pi2};
-use crate::types::timbre::{Mode, Energy, Presence, Visibility};
-use crate::druid::{Element, Elementor, modders_none};
-use crate::phrasing::ranger::{Modders,Ranger,Cocktail};
-use crate::druid::{melodic, bell, noise};
-use crate::phrasing::{contour, lifespan};
-use crate::timbre::{AmpContour,AmpLifespan};
-use super::{microtransient_click, microtransient_chiff, microtransient_pop};
-
-use rand;
-use rand::Rng;
-static contour_length:usize  = 2000usize;
+use super::*;
 
 fn sine_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
     let amps = melodic::amps_sine(fund);
@@ -124,7 +113,8 @@ fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) ->
         thresh: (0f32, 1f32)
     }
 }
-pub fn synth() -> Elementor {
+
+pub fn synth(arf:&Arf) -> Elementor {
     vec![
         (0.6f32, sine_pluck),
         (0.3f32, triangle_pluck),
