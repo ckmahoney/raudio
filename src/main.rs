@@ -117,3 +117,9 @@ pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::
         }
     }
 }
+
+
+#[test]
+fn test_render_playbook() {
+    render_playbook("src/demo/test-druidic-render.wav", "src/demo/test-druidic-score.json")
+}
