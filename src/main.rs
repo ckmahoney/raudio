@@ -103,15 +103,15 @@ fn main() {
 //     let min_max = match arf.visibility {
 //         Visibility::Hidden => {
 //             // strict bandfiltering 
-//             (2f32.powi(arf.register as i32), 2f32.powi((arf.register + 2u32) as i32))
+//             (2f32.powi(arf.register as i32), 2f32.powi((arf.register + 2i8) as i32))
 //         },
 //         Visibility::Background => {
 //             // loose bandfiltering 
-//             (2f32.powi(arf.register as i32 - 1i32), 2f32.powi((arf.register + 3u32) as i32))
+//             (2f32.powi(arf.register as i32 - 1i32), 2f32.powi((arf.register + 3i8) as i32))
 //         },
 //         Visibility::Foreground => {
 //             // some bandfiltering 
-//             (2f32.powi(arf.register as i32 - 1i32), 2f32.powi((arf.register + 4u32) as i32))
+//             (2f32.powi(arf.register as i32 - 1i32), 2f32.powi((arf.register + 4i8) as i32))
 //         },
 //         Visibility::Visible => {
 //             // functional bandfiltering 
@@ -122,3 +122,87 @@ fn main() {
 // }
 
 
+
+// pub fn render_score(filename:&str, score:Score) -> Result<(), core::fmt::Error> {
+//     files::with_dir(filename);
+//     let lens:Vec::<f32> = (&score.parts).iter()
+//     .map(|(_, melody)| 
+//         melody[0].iter()
+//         .fold(0f32, |acc, note| acc + time::dur(score.conf.cps, &note.0)) 
+//     ).collect();
+
+//     let mut phr = Phrasing { 
+//         cps: score.conf.cps,
+//         form: Timeframe {
+//             cycles: lens[0],
+//             p: 0f32,
+//             instance: 0
+//         },
+//         arc: Timeframe {
+//             cycles: lens[0],
+//             p: 0f32,
+//             instance: 0
+//         },
+//         line: Timeframe {
+//             cycles: lens[0],
+//             p: 0f32,
+//             instance: 0
+//         },
+//         note: Timeframe {
+//             cycles: -1.0,
+//             p: 0f32,
+//             instance: 0
+//         }
+//     };
+// use crate::types::timbre::Role;
+// use presets::{kick, snare, hats};
+// let mut pre_mix_buffs:Vec<synth::SampleBuffer> = Vec::new();
+//     for (arf, melody) in &score.parts {
+//         let preset = match arf.role {
+//             Role::Kick => kick::synth(),
+//             Role::Perc => snare::synth(),
+//             Role::Hats => hats::synth(),
+//             _ => panic!("Need to finish this match handler"),
+//         };
+//         let osc:BaseOsc = contrib_to_osc(&contrib);
+//         let sound = Sound {
+//             bandpass: contrib_to_bandpass(&contrib),
+//             energy: contrib.energy,
+//             presence : contrib.presence,
+//             pan: 0f32,
+//         };
+//         //@art-choice Create modulators in a diferent way
+//         let mbs:preset::SomeModulators = preset::SomeModulators {
+//             amp: Some(match contrib.ampex.0 {
+//                 AmpLifespan::Drone => {
+//                     preset::drone::amod
+//                 },
+//                 AmpLifespan::Pluck => {
+//                     preset::pluck::amod_tanh
+//                 },
+//                 _ => {
+//                     preset::none::amod
+//                 }   
+//             }),
+//             freq: None,
+//             phase: None,
+//         };
+//         for line in melody {
+//             let mut line_buff:synth::SampleBuffer = engrave::color_line(score.conf.cps, &line, &osc, &sound, &mut phr, &mbs)
+//                 .into_iter()
+//                 .flatten()
+//                 .collect();
+//             pre_mix_buffs.push(line_buff)
+//         }
+//     }
+
+//     match render::pad_and_mix_buffers(pre_mix_buffs) {
+//         Ok(signal) => {
+//             render::samples_f32(44100, &signal, &filename);
+//             Ok(())
+//         },
+//         Err(msg) => {
+//             panic!("Failed to mix and render audio: {}", msg)
+//         }
+//     }
+// }

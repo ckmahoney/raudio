@@ -4,7 +4,6 @@ use crate::synth::{SR, MF, NF,SampleBuffer, pi, pi2};
 use crate::types::timbre::{AmpContour,AmpLifespan,BandpassFilter, Energy, Presence, BaseOsc, Sound2, FilterMode, Timeframe, Phrasing, Ampex};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::monic_theory::tone_to_freq;
-use crate::presets::{Modulators, Ctx, Coords, DModulators};
 use crate::synth;
 use crate::phrasing::bandpass_filter;
 
@@ -20,74 +19,8 @@ pub fn dur_to(line:&Vec<Note>, pos:usize) -> f32 {
     }
 }
 
-/// Render a time varying line of notes.
-pub fn render_line(line: &Vec<Note>, sound:&Sound2, phr:&mut Phrasing, preset: &DModulators) -> SampleBuffer {
-    let dir = Direction::Constant;
-    let n_cycles = line.iter().fold(0f32, |acc, note| acc + time::duration_to_cycles(note.0));
-    let ext = 1;
-    phr.line.cycles = n_cycles;
-    
-    let mut buff:SampleBuffer = Vec::new();
-
-    for (index, &note) in line.iter().enumerate() {
-        //@bug not correct implementation of p. needs to be decided by accumulative position not index
-        phr.line.p = dur_to(&line, index) / n_cycles;
-        buff.append(&mut mgen_overs(&note, &sound, phr, preset))
-    }
-    buff
-}
 
 
-
-#[inline]
-/// Iterates over all available overtones for the given note to produce an audio sample.
-pub fn mgen_overs(note:&Note, sound:&Sound2, phr:&mut Phrasing, m8s: &DModulators) -> synth::SampleBuffer {
-    let dur = &note.0;
-    let fund = tone_to_freq(&note.1);
-    let ampl = &note.2;
-    let ks = ((SR as f32 / fund) as usize).max(1);
-    let n_samples = time::samples_of_duration(phr.cps, dur);
-    let mut sig:Vec<f32> = vec![0.0; n_samples];
-
-    let fmod = m8s.freq.as_ref().unwrap();
-    let ctx = Ctx { 
-        root: fund, 
-        dur_seconds: time::dur(phr.cps, dur), 
-        extension: sound.extension 
-    };
-    
-    for j in 0..n_samples {
-        phr.note.p = j as f32 / n_samples as f32;
-        for k in 1..=ks {
-            let coords = Coords { cps:phr.cps, k, i: j};
-            
-            let freq = if m8s.freq.is_some() {
-                fund * k as f32 * (m8s.freq.as_ref().unwrap())(&coords, &ctx, &sound, &phr)
-            } else {
-                fund * k as f32
-            };
-            if !bandpass_filter(&sound.bandpass, freq, j as f32 / n_samples as f32) {
-                continue
-            } else {
-                let amp = if m8s.amp.is_some() {
-                    ampl * (m8s.amp.as_ref().unwrap())(&coords, &ctx, &sound, &phr)
-                } else {
-                    *ampl
-                };
-
-                let phase = if m8s.phase.is_some() {
-                    freq * pi2 * (j as f32 / SR as f32) + (m8s.phase.as_ref().unwrap())(&coords, &ctx, &sound,  &phr)
-                } else {
-                    freq * pi2 * (j as f32 / SR as f32)
-                };
-
-                sig[j] += amp * phase.sin();
-            }
-        }
-    }
-    normalize(&mut sig);
-    sig
-}
 
 /// Allow zero padding buffers to some degree, 
 /// Oer error if over the given threshold. 
