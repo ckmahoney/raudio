@@ -1,5 +1,5 @@
 use crate::types::synthesis::{Note, Progression};
-use crate::types::timbre::{Role, Visibility, Energy, Mode, Presence, Cube, Arf};
+use crate::types::timbre::{Role, Visibility, Energy, Mode, Presence, Arf};
 use crate::types::render::{Midi, ScoreEntry, PlayerTrack, Melody, Conf, Dimensions};
 
 /// MIDI representation of the X-Files theme
@@ -132,8 +132,7 @@ let FLUTE_LINE: Vec<Midi> = vec![
     PlayerTrack {
         conf: Conf {
             root: 1.3f32,
-            cps: 1.2f32,
-            cube: Cube::Room
+            cps: 1.2f32
         },
         duration: 132f32,
         dimensions: Dimensions {

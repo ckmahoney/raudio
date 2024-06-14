@@ -15,7 +15,7 @@ use crate::phrasing::lifespan;
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 
 
-static demo_name:&str = "demobeat";
+static demo_name:&str = "beat";
 
 fn make_synths() -> [Elementor; 3] {
     [kick::synth(), snare::synth(), hats::synth()]

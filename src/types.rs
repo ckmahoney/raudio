@@ -81,7 +81,7 @@ pub mod render {
     pub type MidiVal = i32;
     pub type SignedByte = i8;
 
-pub type Midi = (Duration, MidiVal, SignedByte);
+    pub type Midi = (Duration, MidiVal, SignedByte);
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct PlayerTrack<C> {
@@ -99,11 +99,18 @@ pub type Midi = (Duration, MidiVal, SignedByte);
     }
 
     #[derive(Debug, Serialize, Deserialize)]
+    pub struct DruidicScore {
+        pub conf: Conf,
+        pub dimensions: Dimensions,
+        pub parts: Vec<DruidicScoreEntry<synthesis::Note>>,
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
     pub struct Conf {
         pub cps: f32,
-        pub root: f32,
-        pub cube: timbre::Cube,
+        pub root: f32
     }
+
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Template {
         conf: Conf,
@@ -113,6 +120,7 @@ pub type Midi = (Duration, MidiVal, SignedByte);
 
     pub type Melody<C> = Vec<Vec<C>>;
     pub type ScoreEntry<C> = (timbre::Arf, Melody<C>);
+    pub type DruidicScoreEntry<C> = (timbre::AmpContour, timbre::Arf, Melody<C>);
     pub type Part = (timbre::Arf, Melody<synthesis::Monae>);
     pub type Entry = (timbre::Arf, Melody<synthesis::Note>);
 }
@@ -214,9 +222,6 @@ pub mod timbre {
         Flutter,
     }
 
-    pub type Ampex = (AmpLifespan, AmpContour);
-
-
     /// - mode and role are the primary selectors for mebn druid
     /// - register defines how much harmonic space is available
     /// - visibility affects overall amplitude
@@ -225,18 +230,11 @@ pub mod timbre {
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Arf {
         pub mode: Mode,
-        pub role: Role,
         pub register: i8,
+        pub role: Role,
         pub visibility: Visibility,
         pub energy: Energy,
         pub presence: Presence,
-    }
-
-    #[derive(Debug, Serialize)]
-    pub enum Cube {
-        Room,
-        Hall, 
-        Vast
     }
 
     #[derive(Debug, Serialize, Copy, Clone)]

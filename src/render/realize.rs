@@ -1,7 +1,7 @@
 use hound::Sample;
 
 use crate::synth::{SR, MF, NF,SampleBuffer, pi, pi2};
-use crate::types::timbre::{AmpContour,AmpLifespan,BandpassFilter, Energy, Presence, BaseOsc, Sound2, FilterMode, Timeframe, Phrasing, Ampex};
+use crate::types::timbre::{AmpContour,AmpLifespan,BandpassFilter, Energy, Presence, BaseOsc, Sound2, FilterMode, Timeframe, Phrasing};
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::monic_theory::tone_to_freq;
 use crate::synth;
@@ -18,8 +18,6 @@ pub fn dur_to(line:&Vec<Note>, pos:usize) -> f32 {
         notes.iter().fold(0f32, |acc, &note| acc + time::duration_to_cycles(note.0))
     }
 }
-
-
 
 
 /// Allow zero padding buffers to some degree, 

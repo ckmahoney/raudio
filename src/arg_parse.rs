@@ -11,34 +11,13 @@ use crate::types::timbre;
 use crate::types::timbre::*;
 use crate::types::render::*;
 
-impl<'de> Deserialize<'de> for timbre::BaseOsc {
-    fn deserialize<D>(deserializer: D) -> Result<BaseOsc, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct BaseOscVisitor;
-
-        impl<'de> Visitor<'de> for BaseOscVisitor {
-            type Value = BaseOsc;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("`sine`, `square`, `sawtooth`, or `triangle`")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<BaseOsc, E>
-            where
-                E: de::Error,
-            {
-                match value.to_lowercase().as_str() {
-                    "sine" => Ok(BaseOsc::Sine),
-                    "square" => Ok(BaseOsc::Square),
-                    "sawtooth" => Ok(BaseOsc::Sawtooth),
-                    "triangle" => Ok(BaseOsc::Triangle),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `sine`, `square`, `sawtooth`, `triangle`", value))),
-                }
-            }
-        }
-        deserializer.deserialize_str(BaseOscVisitor)
+pub fn load_score_from_file(filepath:&str) -> Result<DruidicScore, fmt::Error> {
+    match fs::read_to_string(&filepath) {
+        Ok(str) => {
+            let score:DruidicScore = serde_json::from_str(&str).expect(&format!("Failed to parse score from file at path {}", filepath));
+            Ok(score)
+        },
+        _ => Err(fmt::Error)
     }
 }
 
@@ -65,7 +44,7 @@ impl<'de> Deserialize<'de> for timbre::Visibility {
                     "visible" => Ok(Visibility::Visible),
                     "background" => Ok(Visibility::Background),
                     "hidden" => Ok(Visibility::Hidden),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `foreground`, `visible`, `background`, `hidden`", value))),
+                    _ => Err(E::custom(format!("unknown Visibility variant `{}`, expected one of `foreground`, `visible`, `background`, `hidden`", value))),
                 }
             }
         }
@@ -96,7 +75,7 @@ impl<'de> Deserialize<'de> for timbre::Mode {
                     "enharmonic" => Ok(Mode::Enharmonic),
                     "vagrant" => Ok(Mode::Vagrant),
                     "noise" => Ok(Mode::Noise),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `melodic`, `enharmonic`, `vagrant`, `noise`", value))),
+                    _ => Err(E::custom(format!("unknown Mode variant `{}`, expected one of `melodic`, `enharmonic`, `vagrant`, `noise`", value))),
                 }
             }
         }
@@ -130,7 +109,7 @@ impl<'de> Deserialize<'de> for timbre::Role {
                     "bass" => Ok(Role::Bass),
                     "chords" => Ok(Role::Chords),
                     "lead" => Ok(Role::Lead),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `kick`, `perc`, `hats`, `bass`, `chords`, or `lead`", value))),
+                    _ => Err(E::custom(format!("unknown Role variant `{}`, expected one of `kick`, `perc`, `hats`, `bass`, `chords`, or `lead`", value))),
                 }
             }
         }
@@ -149,7 +128,7 @@ impl<'de> Deserialize<'de> for AmpLifespan {
             type Value = AmpLifespan;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("`spring`, `pluck`, `bloom`, `pad`, or `drone`")
+                formatter.write_str("`fall`, `snap`, `spring`, `pluck`, `bloom`, `burst`, `pad`, or `drone`")
             }
 
             fn visit_str<E>(self, value: &str) -> Result<AmpLifespan, E>
@@ -157,12 +136,15 @@ impl<'de> Deserialize<'de> for AmpLifespan {
                 E: de::Error,
             {
                 match value.to_lowercase().as_str() {
+                    "fall" => Ok(AmpLifespan::Fall),
+                    "snap" => Ok(AmpLifespan::Snap),
                     "spring" => Ok(AmpLifespan::Spring),
                     "pluck" => Ok(AmpLifespan::Pluck),
                     "bloom" => Ok(AmpLifespan::Bloom),
+                    "burst" => Ok(AmpLifespan::Burst),
                     "pad" => Ok(AmpLifespan::Pad),
                     "drone" => Ok(AmpLifespan::Drone),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `spring`, `pluck`, `bloom`, `pad`, or `drone`", value))),
+                    _ => Err(E::custom(format!("Unknown AmpLifespan variant `{}`, expected one of `fall`, `snap`, `spring`, `pluck`, `bloom`, `burst`, `pad`, or `drone`", value))),
                 }
             }
         }
@@ -194,7 +176,7 @@ impl<'de> Deserialize<'de> for AmpContour {
                     "surge" => Ok(AmpContour::Surge),
                     "chops" => Ok(AmpContour::Chops),
                     "flutter" => Ok(AmpContour::Flutter),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `fade`, `throb`, `surge`, `chops`, or `flutter`", value))),
+                    _ => Err(E::custom(format!("Unknown AmpContour variant `{}`, expected one of `fade`, `throb`, `surge`, `chops`, or `flutter`", value))),
                 }
             }
         }
@@ -262,65 +244,23 @@ impl<'de> Deserialize<'de> for timbre::Presence {
     }
 }
 
-impl<'de> Deserialize<'de> for timbre::Cube {
-    fn deserialize<D>(deserializer: D) -> Result<Cube, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct CubeVisitor;
-
-        impl<'de> Visitor<'de> for CubeVisitor {
-            type Value = Cube;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("`room`, `hall`, or `vast`")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Cube, E>
-            where
-                E: de::Error,
-            {
-                match value.to_lowercase().as_str() {
-                    "room" => Ok(Cube::Room),
-                    "hall" => Ok(Cube::Hall),
-                    "vast" => Ok(Cube::Vast),
-                    _ => Err(E::custom(format!("unknown variant `{}`, expected one of `room`, `hall`, or `vast`", value))),
-                }
-            }
-        }
-        deserializer.deserialize_str(CubeVisitor)
-    }
-}
-
-pub fn load_score_from_file(filepath:&str) -> Result<Score, fmt::Error> {
-    match fs::read_to_string(&filepath) {
-        Ok(str) => {
-            let score:Score = serde_json::from_str(&str).expect(&format!("Failed to parse score from file at path {}", filepath));
-            Ok(score)
-        },
-        _ => Err(fmt::Error)
-    }
-}
 
 mod test_unit {
     use super::*;
     use crate::types::render::Score;
+    use serde_json::Error as SerdeError;
 
     /// Verify raudio accepts input from external applications
     #[test]
     fn test_parse_tin_pan_score() {
-        let input_score_path = "test-tin-pan-score.json";
+        let input_score_path = "src/demo/test-druidic-score.json";
 
-        match fs::read_to_string(&input_score_path) {
-            Ok(str) => {
-                let score:Score = serde_json::from_str(&str).expect("Bad parser");
-                assert!(true)
-            },
-            Err(msg) => {
-                println!("Missing test score {}", input_score_path);
-                assert!(false);
-            }
-        };
+        let file_content = fs::read_to_string(&input_score_path)
+            .expect(&format!("Failed to read file {}", input_score_path));
+        
+        let score: Result<DruidicScore, SerdeError> = serde_json::from_str(&file_content);
+
+        assert!(score.is_ok(), "Failed to parse a druidic score from {}", input_score_path);
     }
 }
 
