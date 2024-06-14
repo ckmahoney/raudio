@@ -1,16 +1,26 @@
 pub mod kick;
 pub mod snare;
 pub mod hats;
-pub mod noise;
+pub mod bass;
+pub mod chords;
+pub mod lead;
 pub mod none;
 
+static contour_resolution:usize = 1200;
+use rand;
+use rand::Rng;
+
 use crate::synth::{MFf, NFf, SampleBuffer, pi2};
+use crate::phrasing::ranger::{Modders,Ranger,Cocktail};
+use crate::phrasing::lifespan;
+use crate::phrasing::micro;
+use crate::timbre::AmpLifespan;
+
 use crate::types::synthesis::{Freq, Note, Direction};
 use crate::types::timbre::{Mode,  Visibility, Sound, Sound2, Energy, Presence, Phrasing};
 use crate::types::{Range, Radian};
-use crate::druid::{Element, Elementor};
+use crate::druid::{Element, Elementor, melodic, bell, noise};
 use crate::phrasing::contour::expr_none;
-use crate::phrasing::micro;
 
 pub type Modulator<T> = fn (xyz:&Coords, ctx:&Ctx, snd:&Sound2, phr:&Phrasing) -> T;
 pub type DynModulator<T> = Box<dyn Fn (&Coords, &Ctx, &Sound2, &Phrasing) -> T>;

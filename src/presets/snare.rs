@@ -1,19 +1,5 @@
 /// A synth snare from three components
-use crate::synth::{MFf, NFf, SampleBuffer, pi2};
-use crate::types::timbre::{Mode, Energy, Presence, Visibility};
-use crate::druid::{Element, Elementor, modders_none, melodic, bell, noise};
-use crate::phrasing::ranger::{Modders,Ranger,Cocktail};
-use crate::phrasing::lifespan;
-use crate::phrasing::lifespan::mod_snap;
-use crate::phrasing::contour::expr_none;
-use crate::phrasing::micro;
-use crate::timbre::AmpLifespan;
-use super::{microtransient_click, microtransient_pop};
-
-use rand;
-use rand::Rng;
-
-static contour_resolution:usize = 1200;
+use super::*;
 
 
 fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
