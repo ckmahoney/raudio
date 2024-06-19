@@ -84,6 +84,14 @@ pub mod render {
     pub type Midi = (Duration, MidiVal, SignedByte);
 
     #[derive(Debug, Serialize, Deserialize)]
+    pub struct Marker {
+        tag: String,
+        start: f32,
+        end:f32, 
+        instance:usize
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
     pub struct PlayerTrack<C> {
         pub conf: Conf,
         pub duration: f32,
@@ -103,6 +111,7 @@ pub mod render {
         pub conf: Conf,
         pub dimensions: Dimensions,
         pub parts: Vec<DruidicScoreEntry<synthesis::Note>>,
+        pub markers:Vec<Marker>
     }
 
     #[derive(Debug, Serialize, Deserialize)]

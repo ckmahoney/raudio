@@ -82,6 +82,7 @@ pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::
         let preset = presets::select(&arf);
         let synth = preset(&arf);
         let sample = render::arf(score.conf.cps, &melody, &synth, *arf);
+        
         pre_mix_buffs.push(sample)
     }
 

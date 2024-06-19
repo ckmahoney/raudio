@@ -52,6 +52,7 @@ impl<'de> Deserialize<'de> for timbre::Visibility {
     }
 }
 
+
 impl<'de> Deserialize<'de> for timbre::Mode {
     fn deserialize<D>(deserializer: D) -> Result<Mode, D::Error>
     where
@@ -249,6 +250,7 @@ mod test_unit {
     use super::*;
     use crate::types::render::Score;
     use serde_json::Error as SerdeError;
+    use std::fs;
 
     /// Verify raudio accepts input from external applications
     #[test]
@@ -260,7 +262,11 @@ mod test_unit {
         
         let score: Result<DruidicScore, SerdeError> = serde_json::from_str(&file_content);
 
-        assert!(score.is_ok(), "Failed to parse a druidic score from {}", input_score_path);
+        assert!(
+            score.is_ok(),
+            "Failed to parse a druidic score from {}: {}",
+            input_score_path,
+            score.unwrap_err()
+        );
     }
 }
-
