@@ -36,9 +36,7 @@
 /// Between the two dimensions, horizontal placement is more straightforward to generalize.
 /// Vertical placement, when properly implemented, provides a magnificient array of tingly ear candy.
 
-/// Desmos is a handly tool for previewing contours! This sketch shows a, b, and c
-/// as of May 23 2024
-/// https://www.desmos.com/calculator/ar9rw3klcs
+
 
 
 /// This module currently contains a lot of ad hoc functions.

@@ -16,7 +16,9 @@ pub static example_options:[Ranger; 3] = [
     b,
     c
 ];
-
+/// Desmos is a handly tool for previewing contours! This sketch shows a, b, and c
+/// as of May 23 2024
+/// https://www.desmos.com/calculator/ar9rw3klcs
 
 /// Transformer based on logistic function for output in range [0, 1]
 /// Only one conform method is allowed. It should maintain the contour of the input.
