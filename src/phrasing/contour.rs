@@ -1,6 +1,6 @@
 use crate::phrasing::AmpModulation;
 use crate::synth::{pi,pi2,SampleBuffer};
-use crate::types::timbre::{AmpContour, AmpLifespan};
+use crate::types::timbre::{Arf, AmpContour, AmpLifespan};
 use crate::types::synthesis::{Range, Radian,Freq};
 
 /// # Cont 
@@ -89,27 +89,6 @@ pub fn gen_contour(n_samples:usize, n_cycles:f32, contour:&AmpContour, reverse:b
     modulator
 }
 
-pub fn mod_lifespan(n_samples: usize, n_cycles: f32, lifespan: &AmpLifespan, k: usize) -> AmpModulation {
-    let mut modulator: AmpModulation = vec![0f32; n_samples];
-    let ns = n_samples as f32;
-    use super::lifespan::*;
-
-    for (i, sample) in modulator.iter_mut().enumerate() {
-        let x = (i + 1) as f32 / ns;
-        *sample = match lifespan {
-            AmpLifespan::Fall => mod_db_fall(k, x, n_cycles),
-            AmpLifespan::Burst => mod_burst(k, x, n_cycles),
-            AmpLifespan::Snap => mod_snap(k, x, n_cycles),
-            AmpLifespan::Spring => mod_spring(k, x, n_cycles),
-            AmpLifespan::Pluck => mod_db_pluck(k, x, n_cycles),
-            AmpLifespan::Bloom => mod_bloom(k, x, n_cycles),
-            AmpLifespan::Pad => mod_pad(k, x, n_cycles),
-            AmpLifespan::Drone => mod_drone(k, x, n_cycles),
-        };
-    }
-
-    modulator
-}
 
 pub fn sample(contour:&AmpModulation, p:f32) -> f32 {
     if contour.len() == 1 {

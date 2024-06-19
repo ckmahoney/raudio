@@ -20,7 +20,7 @@ pub fn dur_to(line:&Vec<Note>, pos:usize) -> f32 {
 
 
 /// Allow zero padding buffers to some degree, 
-/// Oer error if over the given threshold. 
+/// Or error if over the given threshold. 
 pub fn massage_buffers_or_die(buffs:&mut Vec<Vec<f32>>, err_thresh:usize) -> Result<(), &'static str>  {
     let lens = (&buffs).iter().map(|b| b.len());
     let max = lens.clone().fold(0, usize::max);
