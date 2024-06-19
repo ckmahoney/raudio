@@ -3,7 +3,7 @@ use crate::types::synthesis::{Bp,Range, Direction, Duration, FilterPoint, Radian
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
-use crate::phrasing::ranger::{Ranger, Modders, Mixer, Cocktail, mix, example_options};
+use crate::phrasing::ranger::{Ranger, Modders, Mixer, WRangers, mix, example_options};
 
 #[derive(Clone,Copy)]
 pub enum GlideLen {
@@ -55,7 +55,7 @@ fn filter(p:f32, freq:f32, bandpass:&Bp) -> Range {
 
 /// Given a cocktail, apply it at (k,x,d) iff it exists 
 /// Otherwise apply the default value.
-fn mix_or(default:f32, maybe_cocktail:&Option<Cocktail>, k:usize, x:f32, d:f32) -> f32 {
+fn mix_or(default:f32, maybe_cocktail:&Option<WRangers>, k:usize, x:f32, d:f32) -> f32 {
     if maybe_cocktail.is_some() {
         let cocktail = maybe_cocktail.clone().unwrap();
         mix(k, x, d, &cocktail)

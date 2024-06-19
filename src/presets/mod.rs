@@ -13,7 +13,7 @@ use rand;
 use rand::Rng;
 
 use crate::synth::{MFf, NFf, SampleBuffer, pi2};
-use crate::phrasing::ranger::{Modders,Ranger,Cocktail};
+use crate::phrasing::ranger::{Modders,Ranger,WRangers};
 use crate::phrasing::lifespan;
 use crate::phrasing::micro;     
 use crate::timbre::AmpLifespan;

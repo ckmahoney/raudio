@@ -48,17 +48,16 @@ static half:f32 = 0.5f32;
 pub type Ranger = fn(usize, f32, f32) -> f32;
 pub type Mixer = (f32, Ranger);
 pub type Weight = f32;
-pub type Cocktail = Vec<(Weight, Ranger)>;
+pub type WRangers = Vec<(Weight, Ranger)>;
 
 /// Collection of optional xformers for amplitude, frequency, and phase.
-pub type Modders = [Option<Cocktail>;3]; 
+pub type Modders = [Option<WRangers>;3]; 
 
 pub static example_options:[Ranger; 3] = [
     a,
     b,
     c
 ];
-
 
 
 /// Transformer based on logistic function for output in range [0, 1]
@@ -73,7 +72,7 @@ fn conform(y:f32) -> f32 {
 
 /// Given a point (k, x, d) and group of weighted rangers,
 /// Apply the weighted sum of all rangers at (k,x,d)
-pub fn mix(k:usize, x:f32, d:f32, mixers:&Cocktail) -> f32 {
+pub fn mix(k:usize, x:f32, d:f32, mixers:&WRangers) -> f32 {
     let weight = mixers.iter().fold(0f32, |acc, wr| acc + wr.0);
     if weight > 1f32 {
         panic!("Cannot mix rangers whose total weight is more than 1. Got {}", weight)
