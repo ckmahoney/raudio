@@ -228,6 +228,7 @@ fn enumerate() {
     let arfs = get_arfs();
     let synths = make_synths(&arfs);
     let specs = make_specs();
+    files::with_dir(out_dir);
 
     for (i, spec) in specs.iter().enumerate() {
         
