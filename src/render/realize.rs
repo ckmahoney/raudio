@@ -5,7 +5,6 @@ use crate::types::timbre::{AmpContour,AmpLifespan,BandpassFilter, Energy, Presen
 use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::monic_theory::tone_to_freq;
 use crate::synth;
-use crate::phrasing::bandpass_filter;
 
 use crate::time;
 

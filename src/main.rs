@@ -69,35 +69,13 @@ fn render_playbook(out_path: &str, playbook_path: &str) {
 
 pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::Error> {
     files::with_dir(filename);
-    let lens:Vec::<f32> = (&score.parts).iter()
-    .map(|(_, _, melody)| 
-        melody[0].iter()
-        .fold(0f32, |acc, note| acc + time::dur(score.conf.cps, &note.0)) 
-    ).collect();
-
-    let mut phr = Phrasing { 
-        cps: score.conf.cps,
-        form: Timeframe {
-            cycles: lens[0],
-            p: 0f32,
-            instance: 0
-        },
-        arc: Timeframe {
-            cycles: lens[0],
-            p: 0f32,
-            instance: 0
-        },
-        line: Timeframe {
-            cycles: lens[0],
-            p: 0f32,
-            instance: 0
-        },
-        note: Timeframe {
-            cycles: -1.0,
-            p: 0f32,
-            instance: 0
-        }
-    };
+    let lens:Vec::<f32> = (&score.parts)
+        .iter()
+        .map(|(_, _, melody)| 
+            melody[0].iter()
+            .fold(0f32, |acc, note| acc + time::dur(score.conf.cps, &note.0)) 
+        )
+    .collect();
 
     let mut pre_mix_buffs:Vec<synth::SampleBuffer> = Vec::new();
     for (contour, arf, melody) in &score.parts {

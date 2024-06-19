@@ -3,7 +3,7 @@ use crate::types::synthesis::{Bp,Range, Direction, Duration, FilterPoint, Radian
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
-use crate::phrasing::ranger::{Modders, Mixer, Cocktail, mix};
+use crate::phrasing::ranger::{Ranger, Modders, Mixer, Cocktail, mix, example_options};
 
 #[derive(Clone,Copy)]
 pub enum GlideLen {
@@ -141,6 +141,38 @@ pub fn blender(
     sig
 }
 
+pub fn gen_cocktail(n:usize)-> Vec<Mixer> {
+    use rand;
+    use rand::Rng;
+    use rand::seq::SliceRandom;
+    let mut rng = rand::thread_rng();
+
+    if n > example_options.len() {
+        panic!("Requested more rangers than are available. Repeating the same ranger is the same as boosting its weight.")
+    }
+
+    let weights:Vec<f32> = if n == 1usize {
+        vec![1f32]
+    } else {
+        let init = rng.gen();
+        let mut ws = vec![init];
+        for i in 0..(n-1) {
+            let rem = 1f32 - ws.iter().sum::<f32>();
+            let next = if i == (n-2) { rem } else {
+                rng.gen::<f32>() * rem
+            };
+            ws.push(next) 
+        }
+
+        ws
+    };
+
+    let mut opts = example_options.to_vec();
+    opts.shuffle(&mut rng);
+    let rangers:Vec<Ranger> = opts.to_vec().iter().cloned().take(n).collect();   
+    weights.into_iter().zip(rangers.into_iter()).collect()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -176,7 +208,7 @@ mod test {
         files::with_dir(TEST_DIR);
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
         engrave::samples(SR, &signal, &filename);
-    }
+    } 
 
     #[test]
     fn test_multipliers_overtones() {
@@ -230,7 +262,7 @@ mod test {
         let span = test_span();
 
         let n_samples = crate::time::samples_of_cycles(span.0, span.1);
-        let highpass_filter:Vec<f32> = (0..n_samples/4).map(|x|  x as f32).collect();
+        let highpass_filter:Vec<f32> = (0..n_samples).map(|x| NFf * (x as f32/n_samples as f32)).collect();
         let lowpass_filter = vec![NFf];
         let signal = blender(
             &test_frex(),
@@ -248,7 +280,7 @@ mod test {
 
         let test_name = "blender-overs-lowpass-filter";
         let highpass_filter = vec![MFf];
-        let lowpass_filter = (0..n_samples/4).map(|x| (15000 - x) as f32).collect();
+        let lowpass_filter = (0..n_samples).map(|x| NFf * (x as f32/n_samples as f32)).collect();
 
         let signal = blender(
             &test_frex(),
@@ -366,7 +398,7 @@ mod test {
         let amplifiers:Vec<f32> = vec![1f32; multipliers.len()];
         let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let the_modders:Modders = [
-            Some(phrasing::gen_cocktail(2)),
+            Some(gen_cocktail(2)),
             None,
             None,
         ];
@@ -394,7 +426,7 @@ mod test {
         let phases:Vec<f32> = vec![pi2; multipliers.len()];
         let the_modders:Modders = [
             None,
-            Some(phrasing::gen_cocktail(2)),
+            Some(gen_cocktail(2)),
             None,
         ];
         let signal = blender(
@@ -422,7 +454,7 @@ mod test {
         let the_modders:Modders = [
             None,
             None,
-            Some(phrasing::gen_cocktail(2)),
+            Some(gen_cocktail(2)),
         ];
         let signal = blender(
             &test_frex(),
@@ -438,4 +470,50 @@ mod test {
 
         write_test_asset(&signal, &test_name)
     }
+
+
+    const MONICS: [usize; 59] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+        21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+        41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
+    ];
+
+    const DOMAIN: [f32; 48000] = {
+        let mut array = [0.0; 48000];
+        let mut i = 0;
+        while i < 48000 {
+            array[i] = i as f32 / 48000.0;
+            i += 1;
+        }
+        array
+    };
+
+    #[test]
+    fn test_gen_mixer() {
+        let n:usize = 3;
+        let d = 1f32;
+        let min = 0f32;
+        let max = 1f32;
+
+        let mixers = gen_cocktail(n);
+        for k in MONICS {
+            let kf = k as f32;
+            let mut has_value = false;
+            let mut not_one = false;
+            for x in DOMAIN {
+                let y = mix(k, x, d, &mixers);
+                if y > 0f32 && !has_value {
+                    has_value = true
+                };
+                if y < 1f32 && !not_one {
+                    not_one = true
+                };
+                assert!(y >= min, "Mixing rangers must not produce values below {}", min);
+                assert!(y <= max, "Mixing rangers must not produce values above {}", max);
+            }
+            assert!(has_value, "Mixing rangers must not be 0 valued over its domain");
+            assert!(not_one, "Mixing rangers must not be 1 valued over its domain");
+        }
+    }
+
 }

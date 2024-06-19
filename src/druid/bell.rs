@@ -73,7 +73,7 @@ pub fn coefficients(fund:f32, n:usize) -> Vec<f32> {
 }
 
 /// this fails for current implementation because it is called per-frame 
-/// resulting in a noisy signal (random amp per frame in wide range of options)
+/// resulting in a noisy signal (random amp per frame in wide range of example_options)
 fn amp_bell(k:usize, x:f32, d:f32) -> f32 {
     match k {
         1 => gen_sub_weight(),

@@ -53,7 +53,7 @@ pub type Cocktail = Vec<(Weight, Ranger)>;
 /// Collection of optional xformers for amplitude, frequency, and phase.
 pub type Modders = [Option<Cocktail>;3]; 
 
-pub static options:[Ranger; 3] = [
+pub static example_options:[Ranger; 3] = [
     a,
     b,
     c
@@ -140,7 +140,7 @@ mod test {
 
     #[test]
     fn test_valid_range() {
-        for (i, ranger) in (&options).iter().enumerate() {
+        for (i, ranger) in (&example_options).iter().enumerate() {
             for k in MONICS {
                 let mut has_value = false;
                 let mut not_one = false;
@@ -163,7 +163,7 @@ mod test {
 
     #[test]
     fn test_mix() {
-        let mixers:Vec<Mixer> = (&options).iter().map(|ranger| (1f32/options.len() as f32, *ranger)).collect();
+        let mixers:Vec<Mixer> = (&example_options).iter().map(|ranger| (1f32/example_options.len() as f32, *ranger)).collect();
         for k in MONICS {
             let mut has_value = false;
             let mut not_one = false;
