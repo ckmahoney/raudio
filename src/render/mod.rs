@@ -93,16 +93,25 @@ use crate::types::synthesis::Note;
 pub fn arf(cps:f32, contour:&AmpContour, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> SampleBuffer {
     let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
     let mut channels:Vec<SampleBuffer> = Vec::with_capacity(melody.len());
-        
+    let mut seed:ThreadRng = thread_rng();
+    
+    // @art-choice: apply a visible dynamic amp mix for the synth as a whole
+    let mod_amp_synth:f32 = 0.5f32 + 0.5 * seed.gen::<f32>();
+
     for (index, line_frexd) in melody_frexd.iter().enumerate() {
         let mut line_buff:SampleBuffer = Vec::new();
         let line = &melody[index];
+        // @art-choice: apply a background dynamic amp for the melodies within as well
+        let mod_amp_melody:f32 = 0.8f32 + 0.2 * seed.gen::<f32>();
 
         for (jindex, frex) in line_frexd.iter().enumerate() {
+            let mod_amp_dither:f32 = 0.99 + 0.01 * seed.gen::<f32>();
+
             let dur = time::duration_to_cycles(line[jindex].0);
             let amp = line[jindex].2;
             let at = ApplyAt { frex: *frex, span: (cps, dur) };
-            let applied:Elementor = synth.iter().map(|(w, r)| (*w * amp, *r)).collect();
+            let weight_modulation:f32 = mod_amp_dither * mod_amp_melody * mod_amp_synth;
+            let applied:Elementor = synth.iter().map(|(w, r)| (weight_modulation* *w * amp, *r)).collect();
             line_buff.append(&mut inflect(
                 &frex, 
                 &at, 
@@ -131,3 +140,7 @@ pub fn arf(cps:f32, contour:&AmpContour, melody:&Melody<Note>, synth:&Elementor,
     }
 
 }
+use rand;
+use rand::{Rng, thread_rng};
+use rand::rngs::ThreadRng;
+
