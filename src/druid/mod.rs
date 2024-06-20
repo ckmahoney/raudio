@@ -69,23 +69,28 @@ fn weighted_amps(weight:f32, amps:&Vec<f32>) -> Vec<f32> {
 }
 
 pub fn inflect(frex:&Frex, at:&ApplyAt, synth:&Elementor, vis:&Visibility, energy:&Energy, presence:&Presence) -> SampleBuffer {
-    let n_samples:usize = time::samples_of_dur(at.span.0, at.span.1);
+    let n_samples = crate::time::samples_of_cycles(at.span.0, at.span.1);
     let druid:Druid = synth.iter().map(|(weight, elementor)| 
         (*weight, elementor(frex.2, vis, energy, presence))
     ).collect();
 
     let mut sigs:Vec<SampleBuffer> = druid.iter().map(|(weight, element)|
-        blender(
-            frex, 
-            &element.expr, 
-            &at.span, 
-            &element.hplp, 
-            &element.muls, 
-            &weighted_amps(*weight, &element.amps),
-            &element.phss,
-            &element.modders, 
-            element.thresh
-        )
+        if *weight > 0.0001f32 {
+            blender(
+                frex, 
+                &element.expr, 
+                &at.span, 
+                &element.hplp, 
+                &element.muls, 
+                &weighted_amps(*weight, &element.amps),
+                &element.phss,
+                &element.modders, 
+                element.thresh
+            )
+        } else {
+            vec![0.0f32; n_samples]
+        }
+        
     ).collect();
     match mix_buffers(&mut sigs) {
         Ok(signal) => signal,

@@ -66,15 +66,7 @@ fn render_playbook(out_path: &str, playbook_path: &str) {
     }
 }
 
-fn select_lifespan(contour:&AmpContour) -> AmpLifespan {
-    match contour {
-        AmpContour::Chops => AmpLifespan::Spring,
-        AmpContour::Fade => AmpLifespan::Fall,
-        AmpContour::Surge => AmpLifespan::Bloom,
-        AmpContour::Throb => AmpLifespan::Pad,
-        AmpContour::Flutter => AmpLifespan::Spring,
-    }
-}
+
 pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::Error> {
     files::with_dir(filename);
     let lens:Vec::<f32> = (&score.parts)
@@ -89,17 +81,7 @@ pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::
     for (contour, arf, melody) in &score.parts {
         let preset = presets::select(&arf);
         let synth = preset(&arf);
-        let mut signal = render::arf(score.conf.cps, &melody, &synth, *arf);
-        
-        let cont = phrasing::lifespan::mod_lifespan(
-            signal.len()/2, 
-            1f32, 
-            &select_lifespan(&contour), 
-            1usize, 
-            1f32
-        );
-        phrasing::contour::apply_contour(&mut signal, &cont);
-        
+        let mut signal = render::arf(score.conf.cps, contour, &melody, &synth, *arf);
         pre_mix_buffs.push(signal)
     }
 

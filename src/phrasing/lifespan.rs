@@ -44,7 +44,7 @@
 /// Static variables for number names (eg one, six, twenty) are used to help identify the meaningful parts (x, y) of the expressions more easily. It also helps since these are universal constants that are read thousands of times per sample.
 use rustfft::num_complex::Complex;
 use crate::phrasing::AmpModulation;
-use crate::types::timbre::AmpLifespan;
+use crate::types::timbre::{AmpContour,AmpLifespan};
 use crate::synth::{pi, pi2, epi, SampleBuffer};
 pub static lifespans: [AmpLifespan; 8] = [
     AmpLifespan::Fall,
@@ -273,7 +273,15 @@ pub fn mod_lifespan(n_samples: usize, n_cycles: f32, lifespan: &AmpLifespan, k: 
     modulator
 }
 
-
+pub fn select_lifespan(contour:&AmpContour) -> AmpLifespan {
+    match contour {
+        AmpContour::Chops => AmpLifespan::Spring,
+        AmpContour::Fade => AmpLifespan::Fall,
+        AmpContour::Surge => AmpLifespan::Bloom,
+        AmpContour::Throb => AmpLifespan::Pad,
+        AmpContour::Flutter => AmpLifespan::Spring,
+    }
+}
 #[cfg(test)]
 mod test {
     use super::*;

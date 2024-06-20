@@ -85,10 +85,12 @@ use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
 use crate::types::render::{Melody};
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 use crate::render::blend::{GlideLen};
-use crate::types::timbre::Arf;
+use crate::phrasing::lifespan;
+use crate::phrasing::contour;
+use crate::types::timbre::{AmpContour,Arf};
 use crate::types::synthesis::Note;
 
-pub fn arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> SampleBuffer {
+pub fn arf(cps:f32, contour:&AmpContour, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> SampleBuffer {
     let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
     let mut channels:Vec<SampleBuffer> = Vec::with_capacity(melody.len());
         
@@ -114,7 +116,17 @@ pub fn arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> SampleBu
     }
 
     match realize::mix_buffers(&mut channels) {
-        Ok(mixdown) => mixdown,
+        Ok(mut mixdown) => {
+            let cont = lifespan::mod_lifespan(
+                mixdown.len()/2, 
+                1f32, 
+                &lifespan::select_lifespan(&contour), 
+                1usize, 
+                1f32
+            );
+            contour::apply_contour(&mut mixdown, &cont);
+            mixdown
+        },
         Err(msg) => panic!("Error while preparing mixdown: {}", msg)
     }
 
