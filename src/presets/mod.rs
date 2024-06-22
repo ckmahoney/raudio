@@ -1,5 +1,6 @@
 /// Focal point of this module, the presets for your score 
 pub mod kick;
+pub mod kick_hard;
 pub mod snare;
 pub mod hats;
 pub mod bass;
@@ -9,10 +10,11 @@ pub mod lead;
 
 /// Shared imports for all presets in this mod
 static contour_resolution:usize = 1200;
+static unit_decay:f32 = 9.210340372;
 use rand;
 use rand::Rng;
 
-use crate::synth::{MFf, NFf, SampleBuffer, pi2};
+use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2};
 use crate::phrasing::ranger::{Modders,Ranger,WRangers};
 use crate::phrasing::lifespan;
 use crate::phrasing::micro;     

@@ -9,16 +9,15 @@ use crate::render::blend::{GlideLen};
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
-use presets::{kick, snare, hats};
+use presets::{kick, kick_hard, snare, hats};
 
 use crate::phrasing::lifespan;
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 
-
 static demo_name:&str = "beat";
 
 fn make_synths(arfs:&[Arf;3]) -> [Elementor; 3] {
-    [kick::synth(&arfs[0]), snare::synth(&arfs[1]), hats::synth(&arfs[2])]
+    [kick_hard::synth(&arfs[0]), snare::synth(&arfs[1]), hats::synth(&arfs[2])]
 }
 
 /// helper for making a test line of specific length with arbitrary pitch.
@@ -345,7 +344,7 @@ mod test {
     use super::*;
     #[test]
     fn test() {
-        // demonstrate(None);
-        enumerate();
+        demonstrate(Some(0));
+        // enumerate();
     }
 }

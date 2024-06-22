@@ -8,6 +8,7 @@ fn melodic_el(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
         Energy::High =>  (0..muls.len()).map(|_| (rng.gen::<f32>() - 0.5f32) * pi2/16f32).collect(),
         _ =>  vec![0f32; muls.len()]
     };
+    let phss = melodic::phases_sawtooth(fund);
     let expr = (vec![1f32], vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
