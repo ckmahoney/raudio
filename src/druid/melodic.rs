@@ -12,6 +12,12 @@ pub fn amps_sine(freq:f32) -> Vec<f32> {
 }
     
 /// Generates multipliers for a Fourier series sine wave starting at `freq`
+pub fn muls_max_k(freq: f32) -> Vec<f32> {
+    let n = (NFf / freq) as usize;
+    (1..=n).map(|x| x as f32).collect()
+}    
+
+/// Generates multipliers for a Fourier series sine wave starting at `freq`
 pub fn muls_sine(freq: f32) -> Vec<f32> {
     let n = (NFf / freq) as usize;
     vec![1f32, 2f32, 3f32]
