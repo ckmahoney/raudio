@@ -2,7 +2,9 @@
 pub mod kick;
 pub mod kick_hard;
 pub mod snare;
+pub mod snare_hard;
 pub mod hats;
+pub mod hats_hard;
 pub mod bass;
 pub mod chords;
 pub mod lead;
