@@ -55,7 +55,7 @@ pub fn multipliers(freq:f32, energy:&Energy) -> Vec<f32> {
         },
         Energy::Medium => {
             // sample from all available octaves equally from the fundamental
-            let max_n = 3000f32;
+            let max_n = 2000f32;
             let max_freq = (NFf - fund) as usize;
             // note this should compute from MAX_REGISTER but it's noise and this is good enough for tired eyes
             let n = fund * 3f32;

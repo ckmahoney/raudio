@@ -9,7 +9,7 @@ use crate::render::blend::{GlideLen};
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
-use presets::{kick, kick_hard, snare, hats};
+use presets::{kick, kick_hard, snare, snare_hard, hats, hats_hard};
 
 use crate::phrasing::lifespan;
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
@@ -17,7 +17,7 @@ use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 static demo_name:&str = "beat";
 
 fn make_synths(arfs:&[Arf;3]) -> [Elementor; 3] {
-    [kick_hard::synth(&arfs[0]), snare::synth(&arfs[1]), hats::synth(&arfs[2])]
+    [kick_hard::synth(&arfs[0]), snare_hard::synth(&arfs[1]), hats_hard::synth(&arfs[2])]
 }
 
 /// helper for making a test line of specific length with arbitrary pitch.
@@ -86,7 +86,7 @@ fn make_melodies() -> [Melody<Note>; 3] {
         1f32, 0.66f32, 0f32, 1f32
     ];
 
-    let register_hats:Vec<i8> = vec![13i8; amp_hats.len()];
+    let register_hats:Vec<i8> = vec![11i8; amp_hats.len()];
     let register_perc:Vec<i8> = vec![8i8; amp_perc.len()];
     let register_kick:Vec<i8> = vec![6i8; amp_kick.len()];
 
@@ -344,7 +344,7 @@ mod test {
     use super::*;
     #[test]
     fn test() {
-        demonstrate(Some(0));
+        demonstrate(None);
         // enumerate();
     }
 }
