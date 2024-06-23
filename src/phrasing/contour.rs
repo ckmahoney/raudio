@@ -95,8 +95,14 @@ pub fn sample(contour:&AmpModulation, p:f32) -> f32 {
         return contour[0]
     }
     let index = (p * contour.len() as f32) as usize;
-    
-    contour[index]
+    let pos = (p * contour.len() as f32) % 1f32;
+    let n = if  index+1 == contour.len() {
+        contour.len()-1
+    } else {
+        index +1
+    };
+    let interp =(1f32 - pos) * contour[index] + (pos * contour[n]);    
+    interp
 }
 
 

@@ -6,6 +6,7 @@ pub mod snare_hard;
 pub mod hats;
 pub mod hats_hard;
 pub mod bass;
+pub mod bass_smoother;
 pub mod chords;
 pub mod lead;
 
@@ -79,7 +80,7 @@ pub fn select(arf:&Arf) -> SynthGen {
         Role::Kick => kick_hard::synth,
         Role::Perc => snare_hard::synth,
         Role::Hats => hats_hard::synth,
-        Role::Bass => bass::synth,
+        Role::Bass => bass_smoother::synth,
         Role::Chords => chords::synth,
         Role::Lead => lead::synth,
     }
