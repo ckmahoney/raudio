@@ -8,6 +8,7 @@ pub mod hats_hard;
 pub mod bass;
 pub mod bass_smoother;
 pub mod chords;
+pub mod chords_smoother;
 pub mod lead;
 pub mod lead_smoother;
 
@@ -29,7 +30,6 @@ use crate::types::timbre::{Arf, Role, Mode,  Visibility, Sound, Sound2, Energy, 
 use crate::types::{Range, Radian};
 use crate::druid::{Element, Elementor, melodic, bell, noise};
 use crate::phrasing::contour::expr_none;
-
 
 pub type SynthGen = fn (arf:&Arf) -> Elementor;
 

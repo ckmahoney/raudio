@@ -9,7 +9,7 @@ use crate::render::blend::{GlideLen};
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
-use presets::{bass, chords, lead};
+use presets::{bass, bass_smoother, chords, chords_smoother, lead,lead_smoother};
 
 use crate::phrasing::lifespan;
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
@@ -18,7 +18,7 @@ use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 static demo_name:&str = "trio";
 
 fn make_synths(arfs:&[Arf;3]) -> [Elementor; 3] {
-    [bass::synth(&arfs[0]), chords::synth(&arfs[0]), lead::synth(&arfs[0])]
+    [bass_smoother::synth(&arfs[0]), chords_smoother::synth(&arfs[0]), lead_smoother::synth(&arfs[0])]
 }
 
 /// helper for making a test line of specific length with arbitrary pitch.
@@ -56,45 +56,48 @@ fn test_note(duration:Duration, register:i8, amp:f32, overs:bool) -> Note {
     (duration, (register, monae), amp)
 }
 
-/// Produces the (kick, perc, hats) tuple of melodies for a popluar percussive rhythm in range of 60-84BPM
+/// Produces the (bass, perc, lead) tuple of melodies for a popluar percussive rhythm in range of 60-84BPM
 fn make_melodies() -> [Melody<Note>; 3] {
-    let tala_hats:Vec<Duration> = vec![(1i32, 4i32); 16];
+    let tala_lead:Vec<Duration> = vec![
+        (1i32, 1i32), 
+        (1i32, 2i32),
+        (1i32, 2i32),
+        (2i32, 1i32)
+    ];
     let tala_perc:Vec<Duration> = vec![
         (1i32,1i32), // rest
         (3i32,4i32),
         (5i32,4i32),
         (1i32,1i32)
     ];
-    let tala_kick:Vec<Duration> = vec![
+    let tala_bass:Vec<Duration> = vec![
         (1i32, 2i32),
         (1i32, 2i32),
         (1i32, 1i32), // rest
         (2i32, 1i32)
     ];
 
-    let amp_hats:Vec<Ampl> = vec![
-        0.5f32, 0.5f32, 1f32, 0.5f32,
-        0.5f32, 0.5f32, 0.66f32, 0.5f32,
-        0.5f32, 0.5f32, 0.75f32, 0.5f32,
-        0.5f32, 0.5f32, 0.66f32, 0.5f32,
+    let amp_lead:Vec<Ampl> = vec![
+        0.66f32,  1f32,0.66f32, 1f32
     ];
+
 
     let amp_perc:Vec<Ampl> = vec![
         0f32, 1f32, 0.66f32, 0.75f32
     ];
 
-    let amp_kick:Vec<Ampl> = vec![
+    let amp_bass:Vec<Ampl> = vec![
         1f32, 0.66f32, 0f32, 1f32
     ];
 
-    let register_hats:Vec<i8> = vec![13i8; amp_hats.len()];
+    let register_lead:Vec<i8> = vec![8i8; amp_lead.len()];
     let register_perc:Vec<i8> = vec![8i8; amp_perc.len()];
-    let register_kick:Vec<i8> = vec![6i8; amp_kick.len()];
+    let register_bass:Vec<i8> = vec![6i8; amp_bass.len()];
 
     [
-        make_melody(tala_kick, register_kick, amp_kick, true),
+        make_melody(tala_bass, register_bass, amp_bass, true),
         make_melody(tala_perc, register_perc, amp_perc, true),
-        make_melody(tala_hats, register_hats, amp_hats, true),
+        make_melody(tala_lead, register_lead, amp_lead, true),
     ]
 }
 
@@ -115,7 +118,7 @@ fn make_specs<'hyper>() -> [Coverage<'hyper>; 3] {
     use Energy::*;
     use Presence::*;
 
-    let kick = Coverage {
+    let bass = Coverage {
         label: "bass",
         mode: vec![Melodic],
         // mode: vec![],
@@ -139,7 +142,7 @@ fn make_specs<'hyper>() -> [Coverage<'hyper>; 3] {
         presence: vec![&Presence::Staccatto, &Presence::Tenuto, &Presence::Legato],
     };
 
-    let hats = Coverage {
+    let lead = Coverage {
         label: "lead",
         mode: vec![Melodic],
         role: vec![Lead],
@@ -150,10 +153,10 @@ fn make_specs<'hyper>() -> [Coverage<'hyper>; 3] {
         presence: vec![&Presence::Staccatto, &Presence::Tenuto, &Presence::Legato],
     };
 
-    [kick, snare, hats]
+    [bass, snare, lead]
 }
 
-/// Iterate the available VEP parameters to produce a beat trio
+/// Iterate the available VEP parameters to produce an inst trio
 fn gen_arfs(spec:&Coverage) -> Vec<(String, Arf)> {
     let mut arfs: Vec<(String, Arf)> = Vec::new();
 
@@ -190,7 +193,7 @@ fn gen_arfs(spec:&Coverage) -> Vec<(String, Arf)> {
 
 
 fn get_arfs() -> [Arf;3] {
-    let kick:Arf = Arf {
+    let bass:Arf = Arf {
         mode: Mode::Melodic,
         role: Role::Bass,
         register: 5,
@@ -208,22 +211,22 @@ fn get_arfs() -> [Arf;3] {
         presence: Presence::Legato,
     };
 
-    let hats:Arf = Arf {
+    let lead:Arf = Arf {
         mode: Mode::Melodic,
         role: Role::Lead,
-        register: 10,
+        register: 7,
         visibility: Visibility::Foreground,
         energy: Energy::High,
         presence: Presence::Legato,
     };
 
-    [kick, snare, hats]
+    [bass, snare, lead]
 }
 
 
 fn enumerate() {
     let cps:f32 = 1.15;
-    let labels:Vec<&str> = vec!["kick", "perc", "hat"];
+    let labels:Vec<&str> = vec!["bass", "chords", "hat"];
     let melodies = make_melodies();
     let arfs = get_arfs();
     let synths = make_synths(&arfs);
@@ -290,7 +293,7 @@ fn demonstrate(selection:Option<usize>) {
 
     for (i, label) in labels.iter().enumerate() {
         if selection.is_some() && selection.unwrap()!= i {
-            println!("Skipping test perc {}",i);
+            println!("Skipping test inst {}",i);
             continue
         }
         let melody = &melodies[i];
@@ -345,7 +348,7 @@ mod test {
     use super::*;
     #[test]
     fn test() {
-        // demonstrate(None);
-        enumerate();
+        demonstrate( Some(1));
+        // enumerate();
     }
 }
