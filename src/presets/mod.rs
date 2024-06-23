@@ -76,9 +76,9 @@ pub fn microtransient_pop(fund:f32, vis:&Visibility, energy:&Energy, presence:&P
 
 pub fn select(arf:&Arf) -> SynthGen {
     match arf.role {
-        Role::Kick => kick::synth,
-        Role::Perc => snare::synth,
-        Role::Hats => hats::synth,
+        Role::Kick => kick_hard::synth,
+        Role::Perc => snare_hard::synth,
+        Role::Hats => hats_hard::synth,
         Role::Bass => bass::synth,
         Role::Chords => chords::synth,
         Role::Lead => lead::synth,
