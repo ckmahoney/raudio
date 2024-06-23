@@ -9,6 +9,7 @@ pub mod bass;
 pub mod bass_smoother;
 pub mod chords;
 pub mod lead;
+pub mod lead_smoother;
 
 
 /// Shared imports for all presets in this mod
@@ -82,6 +83,6 @@ pub fn select(arf:&Arf) -> SynthGen {
         Role::Hats => hats_hard::synth,
         Role::Bass => bass_smoother::synth,
         Role::Chords => chords::synth,
-        Role::Lead => lead::synth,
+        Role::Lead => lead_smoother::synth,
     }
 }
