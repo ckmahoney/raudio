@@ -26,11 +26,43 @@ fn pmod_detune(k:usize, x:f32, d:f32) -> f32 {
     (x * pi2  * applied_rate).sin()
 }
 
+// offset_above_zero is computed from vib range 
+static vib_a:f32 = 30f32;
+static vib_b:f32 = 12f32;
+static vib_c:f32 = pi/3f32;
+fn fmod_vibrato(k:usize, x:f32, d:f32) -> f32 {
+    let vib_range:f32 = 2f32.powf(2f32/12f32) / 32f32;
+    let offset_center_1:f32 = 1f32 + (vib_range/2f32);
+    let y =((vib_a/(vib_b*x+vib_c).powf(3f32))).sin();
+    vib_range * y+offset_center_1
+}
+
+
+// offset_above_zero is computed from vib range 
+static vib_d:f32 = 50f32;
+static vib_e:f32 = 12f32;
+static vib_f:f32 = pi/2f32;
+fn fmod_vibrato2(k:usize, x:f32, d:f32) -> f32 {
+    let vib_range:f32 = 2f32 / 3f32;
+    let offset_center_1:f32 = 1f32 + (vib_range/2f32);
+    let y =((vib_d/(vib_e*x+vib_f).powf(3f32))).sin();
+    vib_range * y+offset_center_1
+}
+
+
 fn choose_pmod(e:&Energy) -> WRangers {
     match e {
         Energy::Low => vec![ (0.33f32, pmod_shimmer) ],
         Energy::Medium => vec![ (0.33f32, pmod_chorus) ],
         Energy::High => vec![ (0.33f32, pmod_detune) ]
+    }
+}
+
+fn choose_fmod(v:&Visibility) -> Option<WRangers> {
+    match v {
+        Visibility::Visible => Some(vec![ (0.33f32, fmod_vibrato) ]),
+        Visibility::Foreground => Some(vec![ (0.33f32, fmod_vibrato2) ]),
+        _ => None
     }
 }
 
@@ -48,11 +80,11 @@ fn melodic_el(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> 
         Some(vec![
             (0.65f32, lifespan::mod_pluck)
         ]),
-        None,
-        Some(choose_pmod(&energy)),
+        Some(vec![(1f32, fmod_vibrato)]),
+        choose_fmod(&vis),
     ];
 
-    Element {
+    Element { 
         mode: Mode::Melodic,
         amps,
         muls,

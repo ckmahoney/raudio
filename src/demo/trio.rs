@@ -216,7 +216,7 @@ fn get_arfs() -> [Arf;3] {
         role: Role::Lead,
         register: 7,
         visibility: Visibility::Foreground,
-        energy: Energy::High,
+        energy: Energy::Medium,
         presence: Presence::Legato,
     };
 
@@ -348,7 +348,7 @@ mod test {
     use super::*;
     #[test]
     fn test() {
-        demonstrate( Some(1));
+        demonstrate( None);
         // enumerate();
     }
 }

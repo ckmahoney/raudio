@@ -82,7 +82,7 @@ pub fn select(arf:&Arf) -> SynthGen {
         Role::Perc => snare_hard::synth,
         Role::Hats => hats_hard::synth,
         Role::Bass => bass_smoother::synth,
-        Role::Chords => chords::synth,
+        Role::Chords => chords_smoother::synth,
         Role::Lead => lead_smoother::synth,
     }
 }
