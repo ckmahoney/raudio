@@ -1,4 +1,5 @@
 use rand::SeedableRng;
+use rand::Rng;
 
 #[derive(Debug)]
 struct Dressing {
@@ -125,20 +126,44 @@ impl ModulationParams {
         match self {
             ModulationParams::Amplitude { rate, depth, offset } => {
                 let offset = offset.unwrap_or(Self::default_offset());
-                depth * Self::apply_mode(rate * time + offset)
+                depth * ModulationParams::apply_mode(rate * time + offset, &ModulationMode::Sine)
             },
             ModulationParams::Frequency { rate, offset } => {
                 let offset = offset.unwrap_or(Self::default_offset());
-                Self::apply_mode(rate * time + offset)
+                ModulationParams::apply_mode(rate * time + offset, &ModulationMode::Sine)
             },
             ModulationParams::Phase { rate, depth, offset } => {
-                depth * Self::apply_mode(rate * time + offset)
+                depth * ModulationParams::apply_mode(rate * time + offset, &ModulationMode::Sine)
             },
         }
     }
 
-    fn apply_mode(value: f32) -> f32 {
-        value.sin() // Default to sine wave, should be extended to handle other modes.
+    fn apply_mode(value: f32, mode: &ModulationMode) -> f32 {
+        match mode {
+            ModulationMode::Sine => value.sin(),
+            ModulationMode::Peak { midpoint } => {
+                let phase = value % 1.0;
+                if phase < *midpoint {
+                    2.0 * (phase / midpoint) - 1.0
+                } else {
+                    1.0 - 2.0 * ((phase - midpoint) / (1.0 - midpoint))
+                }
+            },
+            ModulationMode::Linear => value,
+            ModulationMode::Pulse { duty_cycle } => {
+                if value % 1.0 < *duty_cycle { 1.0 } else { 0.0 }
+            },
+            ModulationMode::Exponential => value.exp(),
+            ModulationMode::Random { seed } => {
+                if let Some(seed) = seed {
+                    let mut rng = rand::rngs::StdRng::seed_from_u64(*seed);
+                    rng.gen::<f32>()
+                } else {
+                    rand::random::<f32>()
+                }
+            },
+            ModulationMode::Quadratic { a, b, c } => a * value.powi(2) + b * value + c,
+        }
     }
 }
 
@@ -159,15 +184,95 @@ impl HarmonicModulator {
 
     fn modulate(&self, time: f32, base_value: f32, modulation_type: &str) -> f32 {
         if let Some((mode, params)) = &self.0 {
+            let modulated_value = match mode {
+                ModulationMode::Sine => (params.at(time)).sin(),
+                ModulationMode::Peak { midpoint } => {
+                    let phase = (params.at(time)) % 1.0;
+                    if phase < *midpoint {
+                        2.0 * (phase / midpoint) - 1.0
+                    } else {
+                        1.0 - 2.0 * ((phase - midpoint) / (1.0 - midpoint))
+                    }
+                },
+                ModulationMode::Linear => params.at(time),
+                ModulationMode::Pulse { duty_cycle } => {
+                    if (params.at(time)) % 1.0 < *duty_cycle { 1.0 } else { 0.0 }
+                },
+                ModulationMode::Exponential => (params.at(time)).exp(),
+                ModulationMode::Random { seed } => {
+                    if let Some(seed) = seed {
+                        let mut rng = rand::rngs::StdRng::seed_from_u64(*seed);
+                        rng.gen::<f32>()
+                    } else {
+                        rand::random::<f32>()
+                    }
+                },
+                ModulationMode::Quadratic { a, b, c } => a * (params.at(time)).powi(2) + b * params.at(time) + c,
+            };
+
             match modulation_type {
-                "amplitude" => params.at(time) * base_value,
-                "frequency" => params.at(time) + base_value,
-                "phase" => params.at(time) + base_value,
+                "amplitude" => modulated_value * base_value,
+                "frequency" => modulated_value + base_value,
+                "phase" => modulated_value + base_value,
                 _ => base_value,
             }
         } else {
             base_value
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum ModulationEffect {
+    Tremelo(ModulationParams::Amplitude),
+    Vibrato(ModulationParams::Phase),
+    Noise(ModulationParams::Phase),
+    Chorus(ModulationParams::Phase),
+    Glide(ModulationParams::Frequency),
+}
+
+impl ModulationEffect {
+    fn apply(&self, time: f32, base_value: f32) -> f32 {
+        match self {
+            ModulationEffect::Tremelo(params) => params.at(time) * base_value,
+            ModulationEffect::Vibrato(params) => params.at(time) + base_value,
+            ModulationEffect::Noise(params) => params.at(time) + base_value,
+            ModulationEffect::Chorus(params) => params.at(time) + base_value,
+            ModulationEffect::Glide(params) => params.at(time) + base_value,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ModulationChain {
+    effects: Vec<ModulationEffect>,
+}
+
+impl ModulationChain {
+    fn new() -> Self {
+        ModulationChain {
+            effects: Vec::new(),
+        }
+    }
+
+    fn add_effect(&mut self, effect: ModulationEffect) {
+        self.effects.push(effect);
+    }
+
+    fn remove_effect(&mut self, index: usize) {
+        if index < self.effects.len() {
+            self.effects.remove(index);
+        }
+    }
+
+    fn apply(&self, time: f32, base_value: f32) -> f32 {
+        self.effects.iter().fold(base_value, |acc, effect| effect.apply(time, acc))
+    }
+}
+
+impl HarmonicModulator {
+    fn apply_effects(&self, time: f32, base_value: f32, chain: &ModulationChain) -> f32 {
+        chain.apply(time, base_value)
     }
 }
 
@@ -223,7 +328,7 @@ mod tests {
             Some(ModulationParams::Amplitude { rate: 2.0, depth: 0.5, offset: Some(0.1) }),
         );
 
-        let modulators = HarmonicModulator::uniform(sine_modulator, &dressing);
+        let modulators = HarmonicModulator::uniform(sine_modulator.clone(), &dressing);
         assert_eq!(modulators.len(), dressing.len);
         for modulator in modulators {
             println!("{:?}", modulator);
@@ -245,8 +350,45 @@ mod tests {
             println!("Harmonic {}: {:?}", i, modulator);
         }
     }
+
+    #[test]
+    fn test_modulation_chain() {
+        let mut chain = ModulationChain::new();
+        chain.add_effect(ModulationEffect::Tremelo(ModulationParams::Amplitude { rate: 2.0, depth: 0.5, offset: Some(0.1) }));
+        chain.add_effect(ModulationEffect::Vibrato(ModulationParams::Phase { rate: 5.0, depth: 0.3, offset: 0.0 }));
+
+        let base_value = 1.0;
+        let time = 0.5;
+
+        let result = chain.apply(time, base_value);
+        println!("Result: {}", result);
+
+        assert!(result.abs() <= 1.0);
+    }
 }
 
 fn main() {
-    // Placeholder for main function if needed
+    // Initialize Dressing
+    let amps = vec![0.5, 0.8, 1.0];
+    let muls = vec![1.0, 2.0, 3.0];
+    let offsets = vec![0.0, 0.1, 0.2];
+
+    let mut dressing = Dressing::new(amps, muls, offsets);
+    dressing.normalize();
+    println!("Normalized: {:?}", dressing);
+
+    // Initialize Harmonic Modulators
+    let sine_modulator = HarmonicModulator::new(
+        Some(ModulationMode::Sine),
+        Some(ModulationParams::Amplitude { rate: 2.0, depth: 0.5, offset: Some(0.1) }),
+    );
+
+    let modulators = HarmonicModulator::uniform(sine_modulator.clone(), &dressing);
+    for modulator in modulators.iter() {
+        let mut chain = ModulationChain::new();
+        chain.add_effect(ModulationEffect::Tremelo(ModulationParams::Amplitude { rate: 2.0, depth: 0.5, offset: Some(0.1) }));
+        chain.add_effect(ModulationEffect::Vibrato(ModulationParams::Phase { rate: 5.0, depth: 0.3, offset: 0.0 }));
+        let modulated_value = modulator.apply_effects(0.5, 1.0, &chain);
+        println!("Modulated Value: {}", modulated_value);
+    }
 }
