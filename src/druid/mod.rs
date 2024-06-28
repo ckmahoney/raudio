@@ -12,8 +12,9 @@
 /// 
 /// This model should be able to provide 95% of the sounds we want to use in music :)
 
-pub mod melodic;
 pub mod bell;
+pub mod melodic;
+pub mod modulation;
 pub mod noise;
 
 use crate::phrasing::ranger::{Weight, Modders};
