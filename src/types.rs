@@ -60,6 +60,37 @@ pub mod synthesis {
     /// Minimum number of entries is 1 and can be the Minimum Frequency (MF) or Nyquist Frequency (NF).
     /// Can have any number of entries and the highpass/lowpass vecs can have different lenghts. Gentime filter will interpolate
     pub type Bp = (Vec<f32>, Vec<f32>);
+
+
+    #[derive(Clone,Copy)]
+    pub enum GlideLen {
+        None,
+        Quarter,
+        Eigth,
+        Sixteenth
+    }
+
+
+    /// Context window for a frequency in series of frequencies, as in a melody. 
+    /// 
+    /// - f32,f32,f32 Second, Third, and Fourth entries describe the frequencies being navigated.
+    /// - f32 Centermost entry is the current frequency to perform.
+    /// 
+    /// The first and final f32 are the previous/next frequency.
+    /// First and final GlideLen describe how to glide, 
+    /// where the first GlideLen pairs with the "prev" frquency and the final GlideLen pairs with the "next" frquency.
+    /// 
+    /// This allows us to glide into a note from its predecessor,
+    /// and glide out of a note into its upcoming note,
+    /// Or perform no glide either way.
+    ///
+    /// If a C Major chord is spelled as C, E, G and we wanted to arpeggiate the notes,
+    /// then an analogous Frex looks like (GlideLen::None, None, C, E, GlideLen::None)
+    /// and then for the second note, (GlideLen::None, C, E, G, GlideLen::None)
+    /// 
+    /// as of May 25 2024 the glide modulation logic is yet to be implemented in the ugen
+    pub type Frex = (GlideLen, Option<Freq>, Freq, Option<Freq>, GlideLen);
+
 }
 
 pub mod render {

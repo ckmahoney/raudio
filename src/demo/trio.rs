@@ -3,9 +3,8 @@ use std::iter::FromIterator;
 
 use crate::files;
 use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
-use crate::types::synthesis::{Ampl, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
+use crate::types::synthesis::{Frex, GlideLen,Ampl, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::{Melody};
-use crate::render::blend::{GlideLen};
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
@@ -250,7 +249,6 @@ fn enumerate() {
     }
 }
 
-use crate::render::blend::Frex;
 fn render_arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> Vec<SampleBuffer> {
     let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
     let mut channels:Vec<SampleBuffer> = Vec::with_capacity(melody.len());

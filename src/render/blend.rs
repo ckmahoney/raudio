@@ -1,40 +1,13 @@
 use crate::synth::{SR, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
-use crate::types::synthesis::{Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};
+use crate::types::synthesis::{GlideLen, Frex, Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
 use crate::phrasing::ranger::{Ranger, Modders, Mixer, WRangers, mix, example_options};
 
-#[derive(Clone,Copy)]
-pub enum GlideLen {
-    None,
-    Quarter,
-    Eigth,
-    Sixteenth
-}
 
 /// Amplitude threshold values for gating and clipping a signal
 pub type Clippers = (f32, f32);
-
-/// Context window for a frequency in series of frequencies, as in a melody. 
-/// 
-/// - f32,f32,f32 Second, Third, and Fourth entries describe the frequencies being navigated.
-/// - f32 Centermost entry is the current frequency to perform.
-/// 
-/// The first and final f32 are the previous/next frequency.
-/// First and final GlideLen describe how to glide, 
-/// where the first GlideLen pairs with the "prev" frquency and the final GlideLen pairs with the "next" frquency.
-/// 
-/// This allows us to glide into a note from its predecessor,
-/// and glide out of a note into its upcoming note,
-/// Or perform no glide either way.
-///
-/// If a C Major chord is spelled as C, E, G and we wanted to arpeggiate the notes,
-/// then an analogous Frex looks like (GlideLen::None, None, C, E, GlideLen::None)
-/// and then for the second note, (GlideLen::None, C, E, G, GlideLen::None)
-/// 
-/// as of May 25 2024 the glide modulation logic is yet to be implemented in the ugen
-pub type Frex = (GlideLen, Option<Freq>, Freq, Option<Freq>, GlideLen);
 
 
 /// Returns an amplitude identity or cancellation value

@@ -1,6 +1,7 @@
 pub mod blend; 
 pub mod engrave;
 pub mod ifft;
+pub mod ninja;
 pub mod realize; 
 
 use self::realize::normalize_channels;
@@ -84,11 +85,10 @@ use crate::time;
 use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
 use crate::types::render::{Melody};
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
-use crate::render::blend::{GlideLen};
 use crate::phrasing::lifespan;
 use crate::phrasing::contour;
 use crate::types::timbre::{AmpContour,Arf};
-use crate::types::synthesis::Note;
+use crate::types::synthesis::{GlideLen, Note};
 
 pub fn arf(cps:f32, contour:&AmpContour, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> SampleBuffer {
     let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
