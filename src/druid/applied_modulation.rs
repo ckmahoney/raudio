@@ -3,7 +3,7 @@ use super::compute::ModulationMode;
 /// Parameters for amplitude modulation effects.
 #[derive(Debug, Clone)]
 pub struct AmplitudeModParams {
-    pub rate: f32,
+    pub freq: f32,
     pub depth: f32,
     pub offset: f32,
 }
@@ -11,14 +11,13 @@ pub struct AmplitudeModParams {
 /// Parameters for frequency modulation effects.
 #[derive(Debug, Clone)]
 pub struct FrequencyModParams {
-    pub rate: f32,
     pub offset: f32,
 }
 
 /// Parameters for phase modulation effects.
 #[derive(Debug, Clone)]
 pub struct PhaseModParams {
-    pub rate: f32,
+    pub rate: f32, 
     pub depth: f32,
     pub offset: f32,
 }
@@ -29,8 +28,7 @@ pub enum ModulationEffect {
     Tremelo(AmplitudeModParams),
     Vibrato(PhaseModParams),
     Noise(PhaseModParams),
-    Chorus(PhaseModParams),
-    Glide(FrequencyModParams),
+    Chorus(PhaseModParams)
 }
 
 impl ModulationEffect {
@@ -39,57 +37,53 @@ impl ModulationEffect {
     /// # Arguments
     ///
     /// * `time` - The time at which to apply the modulation effect.
-    /// * `base_value` - The base value to be modulated.
+    /// * `y` - The base value to be modulated.
     ///
     /// # Returns
     ///
     /// The modulated value.
-    pub fn apply(&self, time: f32, base_value: f32) -> f32 {
+    pub fn apply(&self, time: f32, y: f32) -> f32 {
         match self {
             ModulationEffect::Tremelo(params) => {
+                // Tremelo modifies the amplitude of a sine wave.
                 let mode = ModulationMode::Sine {
-                    rate: params.rate,
+                    freq: params.freq,
                     depth: params.depth,
                     offset: params.offset,
                 };
-                mode.compute(time) * base_value
+                mode.compute(time) * y
             },
             ModulationEffect::Vibrato(params) => {
+                // Vibrato modifies the phase of a sine wave.
                 let phase_modulated = params.depth * (params.rate * time + params.offset).sin();
                 let mode = ModulationMode::Sine {
-                    rate: 1.0,
+                    freq: 1.0,
                     depth: 1.0,
                     offset: phase_modulated,
                 };
-                mode.compute(time) + base_value
+                mode.compute(time) + y
             },
             ModulationEffect::Noise(params) => {
+                // Noise adds random variations to the phase of a sine wave.
                 let mode = ModulationMode::Random { seed: params.offset as u64 };
                 let random_value = mode.compute(time);
                 let mode = ModulationMode::Sine {
-                    rate: 1.0,
+                    freq: 1.0,
                     depth: 1.0,
                     offset: random_value,
                 };
-                mode.compute(time) + base_value
+                mode.compute(time) + y
             },
             ModulationEffect::Chorus(params) => {
+                // Chorus adds slight variations to the phase of a sine wave.
                 let chorus_effect = params.depth * (params.rate * time + params.offset).sin();
                 let mode = ModulationMode::Sine {
-                    rate: 1.0,
+                    freq: 1.0,
                     depth: 1.0,
                     offset: chorus_effect,
                 };
-                mode.compute(time) + base_value
-            },
-            ModulationEffect::Glide(params) => {
-                let mode = ModulationMode::Sine {
-                    rate: params.rate,
-                    depth: 1.0,
-                    offset: params.offset,
-                };
-                mode.compute(time) + base_value
-            },
+                mode.compute(time) + y
+            }
         }
     }
 }
@@ -100,15 +94,6 @@ pub struct SimplePreset {
     pub name: String,
     pub description: String,
     pub effect: ModulationEffect,
-}
-
-/// Struct to hold information about a combined preset.
-#[derive(Debug, Clone)]
-pub struct CombinedPreset {
-    pub name: String,
-    pub description: String,
-    pub effects: Vec<ModulationEffect>,
-    pub combine_fn: fn(f32, f32) -> f32,
 }
 
 /// Macro to create a simple preset.
@@ -141,13 +126,109 @@ macro_rules! create_combined_preset {
 /// # Arguments
 ///
 /// * `time` - The time at which to apply the effects.
-/// * `base_value` - The base value to be modulated.
+/// * `y` - The base value to be modulated.
 ///
 /// # Returns
 ///
 /// The modulated value after applying all effects.
-pub fn chain(effects: &[ModulationEffect], time: f32, base_value: f32) -> f32 {
-    effects.iter().fold(base_value, |acc, effect| effect.apply(time, acc))
+pub fn chain(effects: &[ModulationEffect], time: f32, y: f32) -> f32 {
+    effects.iter().fold(y, |acc, effect| effect.apply(time, acc))
+}
+
+/// Struct to hold dressing data.
+#[derive(Debug)]
+pub struct Dressing {
+    len: usize,
+    pub multipliers: Vec<f32>,
+    pub amplitudes: Vec<f32>,
+    pub offsets: Vec<f32>,
+}
+
+impl Dressing {
+    pub fn empty(len: usize) -> Self {
+        Dressing {
+            len,
+            multipliers: vec![0f32; len],
+            amplitudes: vec![0f32; len],
+            offsets: vec![0f32; len],
+        }
+    }
+
+    pub fn new(amplitudes: Vec<f32>, multipliers: Vec<f32>, offsets: Vec<f32>) -> Self {
+        let len = amplitudes.len();
+        if len != multipliers.len() || len != offsets.len() {
+            panic!(
+                "Input vectors must all have the same length. Got lengths: amplitudes: {}, multipliers: {}, offsets: {}",
+                len, multipliers.len(), offsets.len()
+            );
+        }
+
+        Dressing {
+            len,
+            amplitudes,
+            multipliers,
+            offsets,
+        }
+    }
+
+    pub fn set_muls(&mut self, muls: Vec<f32>) {
+        if muls.len() != self.len {
+            panic!(
+                "Unable to update multipliers. Requires a vector of length {} but got actual length {}",
+                self.multipliers.len(),
+                muls.len()
+            );
+        }
+        self.multipliers = muls;
+    }
+
+    pub fn set_amplitudes(&mut self, amps: Vec<f32>) {
+        if amps.len() != self.len {
+            panic!(
+                "Unable to update amplitudes. Requires a vector of length {} but got actual length {}",
+                self.amplitudes.len(),
+                amps.len()
+            );
+        }
+        self.amplitudes = amps;
+    }
+
+    pub fn set_offsets(&mut self, offsets: Vec<f32>) {
+        if offsets.len() != self.len {
+            panic!(
+                "Unable to update offsets. Requires a vector of length {} but got actual length {}",
+                self.offsets.len(),
+                offsets.len()
+            );
+        }
+        self.offsets = offsets;
+    }
+
+    pub fn unit_amp(length: usize) -> Vec<f32> {
+        vec![1f32; length]
+    }
+
+    pub fn unit_freq(length: usize) -> Vec<f32> {
+        (1..=length).map(|i| i as f32).collect()
+    }
+
+    pub fn unit_offset(length: usize) -> Vec<f32> {
+        vec![0f32; length]
+    }
+
+    pub fn normalize(&mut self) {
+        let sum: f32 = self.amplitudes.iter().sum();
+        if sum > 0.0 {
+            self.amplitudes.iter_mut().for_each(|a| *a /= sum);
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        format!(
+            "Dressing {{ len: {}, amplitudes: {:?}, multipliers: {:?}, offsets: {:?} }}",
+            self.len, self.amplitudes, self.multipliers, self.offsets
+        )
+    }
 }
 
 /// Example presets for modulation effects.
@@ -156,25 +237,21 @@ pub fn get_presets() -> Vec<SimplePreset> {
         create_simple_preset!(
             "Warm Chorus",
             "A gentle chorus effect with slight phase variations.",
-            ModulationEffect::Chorus(PhaseModParams { rate: 0.8, depth: 0.3, offset: 0.1 })
+            ModulationEffect::Chorus(PhaseModParams { rate: 1.0, depth: 0.3, offset: 0.1 })
         ),
         create_simple_preset!(
             "Deep Chorus",
             "A deep chorus effect with noticeable phase variations.",
-            ModulationEffect::Chorus(PhaseModParams { rate: 0.6, depth: 0.4, offset: 0.2 })
+            ModulationEffect::Chorus(PhaseModParams { rate: 1.0,depth: 0.4, offset: 0.2 })
         ),
         create_simple_preset!(
             "Intense Chorus",
             "An intense chorus effect with significant phase variations.",
-            ModulationEffect::Chorus(PhaseModParams { rate: 0.5, depth: 0.5, offset: 0.3 })
+            ModulationEffect::Chorus(PhaseModParams { rate: 1.0, depth: 0.5, offset: 0.3 })
         ),
     ]
 }
 
-/// Applies a combined preset by using the provided combination function.
-pub fn apply_combined_preset(preset: &CombinedPreset, time: f32, base_value: f32) -> f32 {
-    preset.effects.iter().fold(base_value, |acc, effect| (preset.combine_fn)(acc, effect.apply(time, base_value)))
-}
 
 #[cfg(test)]
 mod test {
@@ -182,8 +259,11 @@ mod test {
 
     #[test]
     fn main() {
-        let tremelo = ModulationEffect::Tremelo(AmplitudeModParams { rate: 2.0, depth: 0.5, offset: 0.1 });
-        let vibrato = ModulationEffect::Vibrato(PhaseModParams { rate: 5.0, depth: 0.3, offset: 0.0 });
+        let a = AmplitudeModParams { freq: 2.0, depth: 0.5, offset: 0.1 };
+        let b = PhaseModParams { rate: 1.0, depth: 0.3, offset: 0.0 };
+        
+        let tremelo = ModulationEffect::Tremelo(a);
+        let vibrato = ModulationEffect::Vibrato(b);
 
         let effects = vec![tremelo.clone(), vibrato.clone()];
 
@@ -196,15 +276,10 @@ mod test {
             let result = chain(&vec![preset.effect.clone()], 1.0, 1.0);
             println!("Simple Preset {} - {} modulated value: {}", i + 1, preset.name, result);
         }
-
-        // Using a combined preset
-        let combined_preset = create_combined_preset!(
-            "Combined Effects",
-            "Combines tremelo and vibrato effects.",
-            vec![tremelo, vibrato],
-            |acc, effect| acc + effect // Example combination function
-        );
-        let result = apply_combined_preset(&combined_preset, 1.0, 1.0);
-        println!("Combined Preset - {} modulated value: {}", combined_preset.name, result);
     }
+
+}
+
+pub fn add(a: f32, b: f32) -> f32 {
+    a + b
 }

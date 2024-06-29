@@ -8,10 +8,10 @@ pub enum ModulationMode {
     ///
     /// # Fields
     ///
-    /// * `rate` - Defines the frequency of the sine wave.
+    /// * `freq` - Defines the frequency of the sine wave.
     /// * `depth` - Defines the amplitude of the sine wave.
     /// * `offset` - Value to shift the wave horizontally.
-    Sine { rate: f32, depth: f32, offset: f32 },
+    Sine { freq: f32, depth: f32, offset: f32 },
 
     /// Peak modulation.
     ///
@@ -25,8 +25,8 @@ pub enum ModulationMode {
     ///
     /// # Fields
     ///
-    /// * `rate` - Defines the rate of increase or decrease.
-    Linear { rate: f32 },
+    /// * `slope` - Defines the rate of increase or decrease.
+    Linear { slope: f32 },
 
     /// Pulse modulation.
     ///
@@ -50,15 +50,6 @@ pub enum ModulationMode {
     ///
     /// * `seed` - Seed to initialize the random number generator for reproducibility.
     Random { seed: u64 },
-
-    /// Quadratic modulation.
-    ///
-    /// # Fields
-    ///
-    /// * `a` - Coefficient for the quadratic term (base_value^2).
-    /// * `b` - Coefficient for the linear term (base_value).
-    /// * `c` - Constant term.
-    Quadratic { a: f32, b: f32, c: f32 },
 }
 
 impl ModulationMode {
@@ -67,17 +58,18 @@ impl ModulationMode {
     /// # Arguments
     ///
     /// * `time` - The time at which to compute the modulation value.
+    /// * `y` - The base value to be modulated.
     ///
     /// # Returns
     ///
     /// The computed modulation value.
     pub fn compute(&self, time: f32) -> f32 {
         match self {
-            ModulationMode::Sine { rate, depth, offset } => {
-                depth * (rate * time + offset).sin()
+            ModulationMode::Sine { freq, depth, offset } => {
+                depth * (freq * time + offset).sin()
             },
-            ModulationMode::Linear { rate } => {
-                rate * time
+            ModulationMode::Linear { slope } => {
+                slope * time
             },
             ModulationMode::Exponential { rate, depth, offset } => {
                 depth * (rate * time + offset).exp()
@@ -96,11 +88,7 @@ impl ModulationMode {
             ModulationMode::Random { seed } => {
                 let mut rng = rand::rngs::StdRng::seed_from_u64(*seed);
                 rng.gen::<f32>()
-            },
-            ModulationMode::Quadratic { a, b, c } => {
-                let base_value = time; // Use time as the base value
-                a * base_value.powi(2) + b * base_value + c
-            },
+            }
         }
     }
 }
@@ -111,11 +99,12 @@ impl ModulationMode {
 ///
 /// * `modulators` - A slice of `ModulationMode` enums to be applied.
 /// * `time` - The time at which to compute the modulation value.
+/// * `y` - The base value to be modulated.
 ///
 /// # Returns
 ///
 /// A vector of computed modulation values.
-pub fn compute_modulators(modulators: &[ModulationMode], time: f32) -> Vec<f32> {
+pub fn compute_modulators(modulators: &[ModulationMode], time: f32, y: f32) -> Vec<f32> {
     modulators.iter().map(|mode| mode.compute(time)).collect()
 }
 
@@ -155,31 +144,31 @@ mod test {
     
     #[test]
     fn main() {
-        let modulator = ModulationMode::Sine { rate: 2.0, depth: 0.5, offset: 0.1 };
+        let modulator = ModulationMode::Sine { freq: 2.0, depth: 0.5, offset: 0.1 };
         let result = modulator.compute(1.0);
         println!("Computed value: {}", result);
 
         // Example of using one-liner pattern matching
-        let mode = ModulationMode::Sine { rate: 2.0, depth: 0.5, offset: 0.1 };
+        let mode = ModulationMode::Sine { freq: 2.0, depth: 0.5, offset: 0.1 };
 
-        if let ModulationMode::Sine { rate, depth, offset } = mode {
-            println!("Sine: rate={}, depth={}, offset={}", rate, depth, offset);
+        if let ModulationMode::Sine { freq, depth, offset } = mode {
+            println!("Sine: freq={}, depth={}, offset={}", freq, depth, offset);
         }
 
         match mode {
-            ModulationMode::Sine { rate, depth, offset } => {
-                println!("Sine: rate={}, depth={}, offset={}", rate, depth, offset);
+            ModulationMode::Sine { freq, depth, offset } => {
+                println!("Sine: freq={}, depth={}, offset={}", freq, depth, offset);
             },
             _ => {}
         }
 
         // Example of computing multiple modulators
         let modulators = vec![
-            ModulationMode::Sine { rate: 2.0, depth: 0.5, offset: 0.1 },
-            ModulationMode::Linear { rate: 1.0 },
+            ModulationMode::Sine { freq: 2.0, depth: 0.5, offset: 0.1 },
+            ModulationMode::Linear { slope: 1.0 },
             ModulationMode::Exponential { rate: 1.0, depth: 0.5, offset: 0.0 },
         ];
-        let results = compute_modulators(&modulators, 1.0);
+        let results = compute_modulators(&modulators, 1.0, 2.0);
         for (i, result) in results.iter().enumerate() {
             println!("Modulator {}: {}", i, result);
         }

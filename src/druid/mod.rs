@@ -21,10 +21,10 @@ pub mod noise;
 use crate::phrasing::ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
 use crate::{time};
-use crate::types::synthesis::{Range,Freq,Bp,Muls, Amps, Phases, Note};
+use crate::types::synthesis::{GlideLen,Frex, Range,Freq,Bp,Muls, Amps, Phases, Note};
 use crate::types::timbre::{Mode, Arf, Energy,Presence, Visibility};
 use crate::types::render::{Span};
-use crate::render::blend::{GlideLen,Frex, blender};
+use crate::render::blend::{blender};
 use crate::render::realize::{mix_buffers};
 use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2, SR};
 use crate::monic_theory::tone_to_freq;
@@ -216,4 +216,16 @@ pub fn modders_none() -> Modders {
         None,
         None
     ]
+}
+
+#[cfg(test)]
+mod test_modulation {
+    use applied_modulation::ModulationEffect;
+
+    use super::*;
+    #[test]
+    fn test_amplitude_mod() {
+        let effect = ModulationEffect::Tremelo(applied_modulation::AmplitudeModParams { freq: 4.0, depth: 1.0, offset: 0.0} );
+
+    }
 }
