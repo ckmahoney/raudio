@@ -71,6 +71,7 @@ pub mod synthesis {
     }
 
 
+
     /// Context window for a frequency in series of frequencies, as in a melody. 
     /// 
     /// - f32,f32,f32 Second, Third, and Fourth entries describe the frequencies being navigated.

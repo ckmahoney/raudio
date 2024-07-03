@@ -11,6 +11,7 @@ pub struct AmplitudeModParams {
 /// Parameters for frequency modulation effects.
 #[derive(Debug, Clone)]
 pub struct FrequencyModParams {
+    pub rate: f32, 
     pub offset: f32,
 }
 
@@ -28,8 +29,18 @@ pub enum ModulationEffect {
     Tremelo(AmplitudeModParams),
     Vibrato(PhaseModParams),
     Noise(PhaseModParams),
-    Chorus(PhaseModParams)
+    Chorus(PhaseModParams),
+    Warp(FrequencyModParams)
 }
+
+/// Collection of optional modulations for a signal.
+/// Entries in the form of (amp, freq, offset, time) modulation vectors.
+/// Use a 0 length entry to skip modulation of that paramter.
+/// Amp must output value in [0,1]
+/// Freq must output value in (0, Nf/f)
+/// Offset must output a value in [0, 2pi]
+/// Time must output a value in (0, Nf/t)
+pub type Modifiers<'render> = (&'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>);
 
 impl ModulationEffect {
     /// Applies the modulation effect at a given time to a base value.
@@ -83,6 +94,16 @@ impl ModulationEffect {
                     offset: chorus_effect,
                 };
                 mode.compute(time) + y
+            },
+            ModulationEffect::Warp(params) => {
+                // Warp adjusts the rate of the given value
+                let chorus_effect =  (params.rate * time + params.offset).sin();
+                let mode = ModulationMode::Sine {
+                    freq: params.rate,
+                    depth: 1f32,
+                    offset: 0f32,
+                };
+                mode.compute(time) * time
             }
         }
     }
@@ -258,7 +279,8 @@ mod test {
     use super::*;
 
     #[test]
-    fn main() {
+    /// Show that a tremelo effect can be applied to a melodic synth
+    fn melodic_tremelo() {
         let a = AmplitudeModParams { freq: 2.0, depth: 0.5, offset: 0.1 };
         let b = PhaseModParams { rate: 1.0, depth: 0.3, offset: 0.0 };
         

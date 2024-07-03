@@ -10,6 +10,7 @@ pub use crate::types::synthesis::{SampleBuffer, RangeBuffer};
 
 // Set the sample rate for the application
 pub const SR:usize = 48000;
+pub const SRf:f32 = SR as f32;
 
 // Nyquist Frequency: Maximum renderable frequency 
 pub const NF:usize = SR/2;

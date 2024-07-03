@@ -1,3 +1,5 @@
+///! Show the guitar pedals
+
 use super::out_dir;
 use std::iter::FromIterator;
 
@@ -12,6 +14,7 @@ use presets::{bass, bass_smoother, chords, chords_smoother, lead,lead_smoother};
 
 use crate::phrasing::lifespan;
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
+use crate::druid::applied_modulation::{AmplitudeModParams, ModulationEffect};
 
 static demo_name:&str = "trio";
 
@@ -252,6 +255,10 @@ fn render_arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> Vec<S
     let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
     let mut channels:Vec<SampleBuffer> = Vec::with_capacity(melody.len());
         
+    let a = AmplitudeModParams { freq: 2.0, depth: 0.5, offset: 0.1 };
+        
+    let tremelo = ModulationEffect::Tremelo(a);
+
     for (index, line_frexd) in melody_frexd.iter().enumerate() {
         let mut line_buff:SampleBuffer = Vec::new();
         let line = &melody[index];
@@ -346,6 +353,5 @@ mod test {
     #[test]
     fn test() {
         demonstrate( None);
-        // enumerate();
     }
 }
