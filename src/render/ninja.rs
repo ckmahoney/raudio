@@ -66,15 +66,15 @@ pub fn ninja<'render>(
             for (i, &m) in multipliers.iter().enumerate() {
                 let a0 = amplifiers[i];
                 if a0 > 0f32 {
-                    let amplifier = modFreq.iter().fold(a0, |acc, ma| ma.apply(a0, acc)); 
+                    let amplifier = modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
                     if amplifier != 0f32 {
                         let k = i + 1;
                         let f0:f32 = m * fm * freq;
-                        let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(f0, acc)); 
+                        let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc)); 
                         let amp = amplifier * am * filter(p, frequency, bp);
                         // Note that phase gets the unmodulated frequency
                         let p0 = f0 * pi2 * t;
-                        let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(p0, acc)); 
+                        let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
                         v += amp * phase.sin();
                     }
                 }
@@ -95,6 +95,7 @@ pub fn ninja<'render>(
 
 #[cfg(test)]
 mod test {
+    use crate::druid::applied_modulation::{AmplitudeModParams,ModulationEffect};
     use crate::druid::melodic;
     use crate::files;
     use crate::render::engrave;
@@ -113,7 +114,6 @@ mod test {
     fn test_ninja() {
         let test_name = "sawtooth-plain";
 
-
         let span:Span = (1.2f32, 4f32);
         let thresh: (f32, f32) = (0f32, 1f32);
         let freq = 222f32;
@@ -128,6 +128,31 @@ mod test {
         let signal = ninja(&span, thresh, freq, &expr, &bp, &dressing, modifiers);
 
         write_test_asset(&signal, &test_name)
+    }
+    
+    #[test]
+    fn test_ninja_tremelo() {
+        let test_name = "sawtooth-amp-tremelo";
 
+        let span:Span = (1.2f32, 4f32);
+        let thresh: (f32, f32) = (0f32, 1f32);
+        let freq = 222f32;
+        let expr = (vec![1f32],vec![1f32],vec![0f32]);
+        let bp = (vec![MFf],vec![NFf]);
+        let dressing = Dressing::new(
+            melodic::amps_sawtooth(freq), 
+            melodic::muls_sawtooth(freq), 
+            melodic::phases_sawtooth(freq)
+        );
+        let gtr_arg = AmplitudeModParams { freq: 18.25, depth: 1.0, offset: 0.0};
+        let effect = ModulationEffect::Tremelo(gtr_arg);
+        let modifiers:Modifiers = (
+            &vec![effect], 
+            &vec![], 
+            &vec![], 
+            &vec![]
+        );
+        let signal = ninja(&span, thresh, freq, &expr, &bp, &dressing, modifiers);
+        write_test_asset(&signal, &test_name)
     }
 }
