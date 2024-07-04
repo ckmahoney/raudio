@@ -3,6 +3,7 @@ pub mod sine_cache;
 pub mod time;
 pub mod transient;
 pub mod volume;
+pub mod xform_freq;
 
 use crate::synth::{pi,pi2};
 

@@ -94,11 +94,13 @@ pub fn ninja<'render>(
 
 #[cfg(test)]
 mod test {
+    use crate::analysis::xform_freq;
     use crate::druid::applied_modulation::{AmplitudeModParams, PhaseModParams, FrequencyModParams, ModulationEffect};
     use crate::druid::melodic;
     use crate::files;
     use crate::render::engrave;
     use super::*;
+    use crate::music::lib::x_files;
 
     static TEST_DIR:&str = "dev-audio/ninja";
 
@@ -179,6 +181,80 @@ mod test {
             &vec![]
         );
         let signal = ninja(&span, thresh, freq, &expr, &bp, &dressing, modifiers);
+        write_test_asset(&signal, &test_name)
+    }
+
+
+
+    #[test]
+    fn test_ninja_xfiles_lead() {
+        let melody = x_files::lead_melody();
+        let line= &melody[0];
+        let test_name = "x_files_lead";
+
+        let mut signal:Vec<f32> = Vec::new();
+        for syn_midi in line {
+            let freq = x_files::root * xform_freq::midi_to_freq(syn_midi.1);
+
+            //copypastas
+            let span:Span = (x_files::cps, syn_midi.0);
+            let thresh: (f32, f32) = (0f32, 1f32);
+            let expr = (vec![xform_freq::velocity_to_amplitude(syn_midi.2)],vec![1f32],vec![0f32]);
+            let bp = (vec![MFf],vec![NFf]);
+            let dressing = Dressing::new(
+                melodic::amps_sawtooth(freq), 
+                melodic::muls_sawtooth(freq), 
+                melodic::phases_sawtooth(freq)
+            );
+            let gtr_arg = PhaseModParams { rate: 4f32, depth:0.24f32,  offset: 0.0};
+            let effect = ModulationEffect::Vibrato(gtr_arg);
+            let modifiers:Modifiers = (
+                &vec![], 
+                &vec![], 
+                &vec![effect], 
+                &vec![]
+            );
+            let mut samples = ninja(&span, thresh, freq, &expr, &bp, &dressing, modifiers);
+            signal.append(&mut samples)
+        }
+
+        
+        write_test_asset(&signal, &test_name)
+    }
+
+    #[test]
+    fn test_ninja_xfiles_piano() {
+        let melody = x_files::piano_melody();
+        let line= &melody[0];
+        let test_name = "x_files_piano";
+
+        let mut signal:Vec<f32> = Vec::new();
+        for syn_midi in line {
+            let freq = x_files::root * xform_freq::midi_to_freq(syn_midi.1);
+
+            //copypastas
+            let span:Span = (x_files::cps, syn_midi.0);
+            let thresh: (f32, f32) = (0f32, 1f32);
+            let expr = (vec![xform_freq::velocity_to_amplitude(syn_midi.2)],vec![1f32],vec![0f32]);
+            let bp = (vec![MFf],vec![NFf]);
+            let dressing = Dressing::new(
+                melodic::amps_sawtooth(freq), 
+                melodic::muls_sawtooth(freq), 
+                melodic::phases_sawtooth(freq)
+            );
+            let gtr_arg = PhaseModParams { rate: 4f32, depth:1f32,  offset: 0.0};
+            let effect = ModulationEffect::Warp(gtr_arg);
+            let modifiers:Modifiers = (
+                &vec![], 
+                &vec![effect], 
+                &vec![], 
+                &vec![]
+            );
+            let mut samples = ninja(&span, thresh, freq, &expr, &bp, &dressing, modifiers);
+            signal.append(&mut samples)
+        }
+
+        
         write_test_asset(&signal, &test_name)
     }
 }
