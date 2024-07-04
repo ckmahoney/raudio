@@ -72,8 +72,7 @@ pub fn ninja<'render>(
                         let f0:f32 = m * fm * freq;
                         let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc)); 
                         let amp = amplifier * am * filter(p, frequency, bp);
-                        // Note that phase gets the unmodulated frequency
-                        let p0 = f0 * pi2 * t;
+                        let p0 = frequency * pi2 * t;
                         let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
                         v += amp * phase.sin();
                     }
@@ -95,7 +94,7 @@ pub fn ninja<'render>(
 
 #[cfg(test)]
 mod test {
-    use crate::druid::applied_modulation::{AmplitudeModParams,ModulationEffect};
+    use crate::druid::applied_modulation::{AmplitudeModParams, PhaseModParams, FrequencyModParams, ModulationEffect};
     use crate::druid::melodic;
     use crate::files;
     use crate::render::engrave;
@@ -149,6 +148,33 @@ mod test {
         let modifiers:Modifiers = (
             &vec![effect], 
             &vec![], 
+            &vec![], 
+            &vec![]
+        );
+        let signal = ninja(&span, thresh, freq, &expr, &bp, &dressing, modifiers);
+        write_test_asset(&signal, &test_name)
+    }
+
+
+    #[test]
+    fn test_ninja_vibrato() {
+        let test_name = "sawtooth-freq-vibrato";
+
+        let span:Span = (1.2f32, 4f32);
+        let thresh: (f32, f32) = (0f32, 1f32);
+        let freq = 222f32;
+        let expr = (vec![1f32],vec![1f32],vec![0f32]);
+        let bp = (vec![MFf],vec![NFf]);
+        let dressing = Dressing::new(
+            melodic::amps_sawtooth(freq), 
+            melodic::muls_sawtooth(freq), 
+            melodic::phases_sawtooth(freq)
+        );
+        let gtr_arg = PhaseModParams { rate: 4f32, depth:1f32,  offset: 0.0};
+        let effect = ModulationEffect::Warp(gtr_arg);
+        let modifiers:Modifiers = (
+            &vec![], 
+            &vec![effect], 
             &vec![], 
             &vec![]
         );

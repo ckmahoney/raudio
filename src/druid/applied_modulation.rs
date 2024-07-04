@@ -1,3 +1,4 @@
+use crate::synth::pi2;
 use super::compute::ModulationMode;
 
 /// Parameters for amplitude modulation effects.
@@ -30,7 +31,8 @@ pub enum ModulationEffect {
     Vibrato(PhaseModParams),
     Noise(PhaseModParams),
     Chorus(PhaseModParams),
-    Warp(FrequencyModParams)
+    Sway(FrequencyModParams),
+    Warp(PhaseModParams)
 }
 
 /// Collection of optional modulations for a signal.
@@ -65,8 +67,10 @@ impl ModulationEffect {
                 mode.compute(time) * y
             },
             ModulationEffect::Vibrato(params) => {
+                let theta = pi2 * params.rate * time;
+
                 // Vibrato modifies the phase of a sine wave.
-                let phase_modulated = params.depth * (params.rate * time + params.offset).sin();
+                let phase_modulated = params.depth * (theta + params.offset).sin();
                 let mode = ModulationMode::Sine {
                     freq: 1.0,
                     depth: 1.0,
@@ -95,15 +99,26 @@ impl ModulationEffect {
                 };
                 mode.compute(time) + y
             },
+            ModulationEffect::Sway(params) => {
+                let mode = ModulationMode::Sine {
+                    freq: params.rate / 2f32,
+                    depth: 1f32,
+                    offset: params.offset,
+                };
+                (mode.compute(time).abs() + 1f32) / 2f32
+            }
             ModulationEffect::Warp(params) => {
-                // Warp adjusts the rate of the given value
-                let chorus_effect =  (params.rate * time + params.offset).sin();
                 let mode = ModulationMode::Sine {
                     freq: params.rate,
-                    depth: 1f32,
-                    offset: 0f32,
-                };
-                mode.compute(time) * time
+                    depth: params.depth,
+                    offset: params.offset,
+                }; 
+                let s = y.log2();
+                let dy = s*2f32;
+                let v = dy * mode.compute(time).abs();
+                // println!("v {} dy {} ", v, dy);
+                y + v
+
             }
         }
     }
