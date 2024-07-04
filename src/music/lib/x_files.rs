@@ -5,7 +5,7 @@ use crate::types::render::{Midi, ScoreEntry, PlayerTrack, Melody, Conf, Dimensio
 /// MIDI representation of the X-Files theme
 /// This song is under copyright; be careful
 /// 
-pub const cps:f32 = 1.2f32;
+pub const cps:f32 = 1.8f32;
 pub const root:f32 = 1.3f32;
 
 pub fn lead_melody() -> Melody<Midi> {

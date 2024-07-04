@@ -69,7 +69,7 @@ pub fn amps_triangle(freq: f32) -> Vec<f32> {
 
 
 
-fn square(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
+pub fn square(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
     let muls = muls_square(freq);
     let amps = amps_square(freq);
     let phases = vec![0f32; muls.len()];
@@ -80,7 +80,7 @@ fn square(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
     )
 }
 
-fn sawtooth(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
+pub fn sawtooth(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
     let muls = muls_sawtooth(freq);
     let amps = amps_sawtooth(freq);
     let phases = vec![0f32; muls.len()];
@@ -91,7 +91,7 @@ fn sawtooth(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
     )
 }
 
-fn triangle(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
+pub fn triangle(freq:f32) -> (Vec<f32>,Vec<f32>,Vec<f32>) {
     let muls = muls_triangle(freq);
     let amps = amps_triangle(freq);
     let phases = vec![0f32; muls.len()];
