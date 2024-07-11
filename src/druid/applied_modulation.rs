@@ -2,7 +2,7 @@ use crate::synth::pi2;
 use super::compute::ModulationMode;
 
 /// Parameters for amplitude modulation effects.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct AmplitudeModParams {
     pub freq: f32,
     pub depth: f32,
@@ -10,14 +10,14 @@ pub struct AmplitudeModParams {
 }
 
 /// Parameters for frequency modulation effects.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct FrequencyModParams {
     pub rate: f32, 
     pub offset: f32,
 }
 
 /// Parameters for phase modulation effects.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct PhaseModParams {
     pub rate: f32, 
     pub depth: f32,
@@ -25,7 +25,7 @@ pub struct PhaseModParams {
 }
 
 /// Different modulation effects that can be applied to an audio signal.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ModulationEffect {
     Tremelo(AmplitudeModParams),
     Vibrato(PhaseModParams),
@@ -34,7 +34,6 @@ pub enum ModulationEffect {
     Sway(FrequencyModParams),
     Warp(PhaseModParams)
 }
-
 
 pub type ModifiersHolder = (Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>);
 

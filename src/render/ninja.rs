@@ -264,42 +264,45 @@ mod test {
         write_test_asset(&signal, &test_name)
     }
 
-    fn feeling_lead(freq:f32, amp:f32) -> FeelingHolder {
+    fn modifiers_lead() -> ModifiersHolder {
         let mut rng = rand::thread_rng();
         let vibrato = gen_vibrato(2f32, 13f32, 0f32, 1f32, 0f32, 0f32, &mut rng);
-        let modifiers:ModifiersHolder = (
+        (
             vec![], 
             vec![], 
             vec![vibrato], 
             vec![]
-        );
+        )
+    }
 
+    fn modifiers_chords() -> ModifiersHolder {
+        let mut rng = rand::thread_rng();
+        let tremelo = gen_tremelo(2f32, 13f32, 0f32, 1f32, 0f32, 0f32, &mut rng);
+        (
+            vec![tremelo], 
+            vec![], 
+            vec![], 
+            vec![]
+        )
+    }
+
+    fn feeling_lead(freq:f32, amp:f32) -> FeelingHolder {
         let (amps1, muls1, offs1) = melodic::square(freq);
         FeelingHolder {
             expr: (vec![amp],vec![1f32],vec![0f32]),
             bp: (vec![MFf, 10f32, 2000f32, 12000f32, 150f32],vec![NFf]),
             dressing: Dressing::new(amps1, muls1, offs1),
-            modifiers
+            modifiers:modifiers_lead()
         }
     }
 
     fn feeling_chords(freq:f32, amp:f32) -> FeelingHolder {
-        let mut rng = rand::thread_rng();
-        let tremelo = gen_tremelo(2f32, 13f32, 0f32, 1f32, 0f32, 0f32, &mut rng);
-        let modifiers:ModifiersHolder = (
-            vec![tremelo], 
-            vec![], 
-            vec![], 
-            vec![]
-        );
-
         let (amps2, muls2, offs2) = melodic::triangle(freq);
-
         FeelingHolder {
             expr: (vec![amp],vec![1f32],vec![0f32]),
             bp: (vec![MFf, 10f32, 2000f32, 12000f32, 150f32],vec![NFf]),
             dressing: Dressing::new(amps2, muls2, offs2),
-            modifiers
+            modifiers:modifiers_chords()
         }
     }
 
@@ -393,8 +396,18 @@ mod test {
         ModulationEffect::Vibrato(gtr_arg)
     }
 
-    fn update_modiifer(modifier:ModulationEffect, rng:&mut ThreadRng) -> ModulationEffect {
-        match modifier {
+    /// Reroll some params for the mods using the test/example updater defined here
+    fn update_mods(holder:&ModifiersHolder, rng:&mut ThreadRng) -> ModifiersHolder {
+        (
+            holder.0.iter().map(|m| update_modifier(m, rng)).collect(),
+            holder.1.iter().map(|m| update_modifier(m, rng)).collect(),
+            holder.2.iter().map(|m| update_modifier(m, rng)).collect(),
+            holder.3.iter().map(|m| update_modifier(m, rng)).collect(),
+        )
+    }
+
+    fn update_modifier(modifier:&ModulationEffect, rng:&mut ThreadRng) -> ModulationEffect {
+        match *modifier {
             ModulationEffect::Tremelo(ref tremelo) => {
                 let gtr_arg:AmplitudeModParams = AmplitudeModParams {
                     freq: tremelo.freq,
@@ -427,7 +440,7 @@ mod test {
                 };
                 ModulationEffect::Vibrato(gtr_arg)
             },
-            _ => modifier
+            _ => *modifier
         }
     }
 
@@ -436,11 +449,19 @@ mod test {
         let melody1 = x_files::lead_melody();
         let melody2 = x_files::piano_melody();
         let test_name = "x_files_render";
+        let mut rng = rand::thread_rng();
 
         let rs:Vec<(Vec<Vec<(f32, i32, i8)>>, fn (f32,f32) -> FeelingHolder)> = vec![
             (melody1, feeling_lead),
             (melody2, feeling_chords),
         ];
+
+        let ms:Vec<fn () -> ModifiersHolder> = vec![
+            modifiers_lead,
+            modifiers_chords,
+        ];
+
+        let initial_mods:Vec<ModifiersHolder> = ms.iter().map(|mod_gen| mod_gen()).collect();
 
         let mut channels:Vec<SampleBuffer> = Vec::new();
         let common_thresh:Thresh = (0f32, 1f32);
@@ -458,7 +479,13 @@ mod test {
                         freq,
                         thresh: &common_thresh
                     };
-                    let feeling = synth_gen(freq, xform_freq::velocity_to_amplitude(syn_midi.2));
+                    let f:FeelingHolder = synth_gen(freq, xform_freq::velocity_to_amplitude(syn_midi.2));
+                    let feeling:FeelingHolder = FeelingHolder {
+                        bp: f.bp,
+                        expr: f.expr,
+                        dressing: f.dressing,
+                        modifiers: update_mods(&initial_mods[index], &mut rng)
+                    };
                     channel_signal.append(&mut nin(&ctx, feeling));
                 }
 
@@ -468,7 +495,6 @@ mod test {
             } else {
                 panic!("Need to implement polyphonic melody")
             }
-            
         }
 
         match render::pad_and_mix_buffers(channels) {
