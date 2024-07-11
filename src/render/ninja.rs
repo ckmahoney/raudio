@@ -13,7 +13,8 @@ use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, Fil
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
 use crate::phrasing::ranger::{Ranger, Modders, Mixer, WRangers, mix, example_options};
-
+use rand::Rng;
+use rand::rngs::ThreadRng;
 
 /// Returns an amplitude identity or cancellation value
 /// for the given frequency and bandpass settings
@@ -264,29 +265,29 @@ mod test {
     }
 
     fn feeling_lead(freq:f32, amp:f32) -> FeelingHolder {
-        let gtr_arg1 = PhaseModParams { rate: 4f32, depth:2f32,  offset: 0.0};
-        let effect1 = ModulationEffect::Vibrato(gtr_arg1);
-        let modifiers1:ModifiersHolder = (
+        let mut rng = rand::thread_rng();
+        let vibrato = gen_vibrato(2f32, 13f32, 0f32, 1f32, 0f32, 0f32, &mut rng);
+        let modifiers:ModifiersHolder = (
             vec![], 
             vec![], 
-            vec![effect1], 
+            vec![vibrato], 
             vec![]
         );
 
         let (amps1, muls1, offs1) = melodic::square(freq);
         FeelingHolder {
             expr: (vec![amp],vec![1f32],vec![0f32]),
-            bp: (vec![MFf],vec![NFf]),
+            bp: (vec![MFf, 10f32, 2000f32, 12000f32, 150f32],vec![NFf]),
             dressing: Dressing::new(amps1, muls1, offs1),
-            modifiers: modifiers1
+            modifiers
         }
     }
 
     fn feeling_chords(freq:f32, amp:f32) -> FeelingHolder {
-        let gtr_arg2 = AmplitudeModParams { freq: 3f32, depth:1f32,  offset: 0.0};
-        let effect2 = ModulationEffect::Tremelo(gtr_arg2);
-        let modifiers2:ModifiersHolder = (
-            vec![effect2], 
+        let mut rng = rand::thread_rng();
+        let tremelo = gen_tremelo(2f32, 13f32, 0f32, 1f32, 0f32, 0f32, &mut rng);
+        let modifiers:ModifiersHolder = (
+            vec![tremelo], 
             vec![], 
             vec![], 
             vec![]
@@ -296,9 +297,9 @@ mod test {
 
         FeelingHolder {
             expr: (vec![amp],vec![1f32],vec![0f32]),
-            bp: (vec![MFf],vec![NFf]),
+            bp: (vec![MFf, 10f32, 2000f32, 12000f32, 150f32],vec![NFf]),
             dressing: Dressing::new(amps2, muls2, offs2),
-            modifiers: modifiers2
+            modifiers
         }
     }
 
@@ -373,12 +374,67 @@ mod test {
     }
 
 
+
+    fn gen_tremelo(min_f:f32, max_f:f32, min_d:f32, max_d:f32, min_o:f32, max_o:f32, rng:&mut ThreadRng) -> ModulationEffect {
+        let gtr_arg = AmplitudeModParams { 
+            freq: min_f + rng.gen::<f32>() * (max_f * min_f), 
+            depth: min_d + rng.gen::<f32>() * (max_d - min_d),  
+            offset: min_o + rng.gen::<f32>() * (max_o - min_o),  
+        };
+        ModulationEffect::Tremelo(gtr_arg)
+    }
+
+    fn gen_vibrato(min_f:f32, max_f:f32, min_d:f32, max_d:f32, min_o:f32, max_o:f32, rng:&mut ThreadRng) -> ModulationEffect {
+        let gtr_arg = PhaseModParams { 
+            rate: min_f + rng.gen::<f32>() * (max_f * min_f), 
+            depth: min_d + rng.gen::<f32>() * (max_d - min_d),  
+            offset: min_o + rng.gen::<f32>() * (max_o - min_o),  
+        };
+        ModulationEffect::Vibrato(gtr_arg)
+    }
+
+    fn update_modiifer(modifier:ModulationEffect, rng:&mut ThreadRng) -> ModulationEffect {
+        match modifier {
+            ModulationEffect::Tremelo(ref tremelo) => {
+                let gtr_arg:AmplitudeModParams = AmplitudeModParams {
+                    freq: tremelo.freq,
+                    depth: rng.gen(), 
+                    offset: tremelo.offset
+                };
+                ModulationEffect::Tremelo(gtr_arg)
+            },
+            ModulationEffect::Vibrato(ref vibrato) => {
+                let gtr_arg:PhaseModParams = PhaseModParams {
+                    rate: vibrato.rate,
+                    depth: rng.gen(), 
+                    offset: vibrato.offset
+                };
+                ModulationEffect::Vibrato(gtr_arg)
+            },
+            ModulationEffect::Noise(ref noise) => {
+                let gtr_arg:PhaseModParams = PhaseModParams {
+                    rate: noise.rate,
+                    depth: rng.gen(), 
+                    offset: noise.offset
+                };
+                ModulationEffect::Vibrato(gtr_arg)
+            },
+            ModulationEffect::Chorus(ref chorus) => {
+                let gtr_arg:PhaseModParams = PhaseModParams {
+                    rate: chorus.rate,
+                    depth: rng.gen(), 
+                    offset: chorus.offset
+                };
+                ModulationEffect::Vibrato(gtr_arg)
+            },
+            _ => modifier
+        }
+    }
+
     #[test]
     fn test_ninja_xfiles_render() {
         let melody1 = x_files::lead_melody();
         let melody2 = x_files::piano_melody();
-        let line1 = &melody1[0];
-        let line2 = &melody2[0];
         let test_name = "x_files_render";
 
         let rs:Vec<(Vec<Vec<(f32, i32, i8)>>, fn (f32,f32) -> FeelingHolder)> = vec![
@@ -389,11 +445,13 @@ mod test {
         let mut channels:Vec<SampleBuffer> = Vec::new();
         let common_thresh:Thresh = (0f32, 1f32);
 
-        for (midi_melody, synth_gen) in rs {
+        for (index, (midi_melody, synth_gen)) in rs.iter().enumerate() {
             if midi_melody.len() == 1 {
+                let stem_name = format!("{}-stem-{}", test_name, index);
                 let mut channel_signal:SampleBuffer = Vec::new();
                 let line = &midi_melody[0];
                 for syn_midi in line {
+                    
                     let freq = x_files::root * xform_freq::midi_to_freq(syn_midi.1);
                     let ctx:Ctx = Ctx {
                         span: &(x_files::cps, syn_midi.0),
@@ -403,6 +461,8 @@ mod test {
                     let feeling = synth_gen(freq, xform_freq::velocity_to_amplitude(syn_midi.2));
                     channel_signal.append(&mut nin(&ctx, feeling));
                 }
+
+                write_test_asset(&channel_signal, &stem_name);
                 
                 channels.push(channel_signal)
             } else {
