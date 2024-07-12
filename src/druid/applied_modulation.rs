@@ -35,6 +35,7 @@ pub enum ModulationEffect {
     Warp(PhaseModParams)
 }
 
+
 pub type ModifiersHolder = (Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>);
 
 /// Collection of optional modulations for a signal.
