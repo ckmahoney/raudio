@@ -122,20 +122,27 @@ pub struct DelayParams {
 /// halves gain per echo
 fn bin_decay_delay(j:usize, delay_params: &DelayParams, render_at_offset: RenderFn) -> f32 {
     let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
-    let min_distance = samples_per_echo;
-    let max_distance = delay_params.n_echoes * samples_per_echo;
+    let min_distance =  samples_per_echo;
     if j < min_distance {
         return (1f32 - delay_params.mix) * render_at_offset(0)
     }
-    
-    let sample_points:Vec<usize> = (0..delay_params.n_echoes).map(|x| x * samples_per_echo).collect();
 
-    sample_points.iter().fold(0f32, |v, t| {
+    let max_distance = delay_params.n_echoes * samples_per_echo;
+
+    let sample_points:Vec<usize> = (1..(delay_params.n_echoes-1)).map(|x| x * samples_per_echo).collect();
+    let dry = render_at_offset(0);
+    let wet = sample_points.iter().fold(0f32, |v, t| {
+        let y = if j > *t {
+            render_at_offset(*t)
+        } else {
+            0f32
+        };
         let n: f32 = *t as f32 / samples_per_echo as f32;
         let gain: f32 = delay_params.mix * 2f32.powf(-n - 1f32);
-        
-        (1f32 - delay_params.mix) * v + gain * render_at_offset(*t)
-    })
+        v + gain * y
+    });
+    (1f32 - delay_params.mix) * dry + delay_params.mix * wet
+    
 }
 
 /// high feedback gain per echo
@@ -148,14 +155,19 @@ fn hfb_decay_delay(j:usize, delay_params: &DelayParams, render_at_offset: Render
 
     let max_distance = delay_params.n_echoes * samples_per_echo;
 
-    let sample_points:Vec<usize> = (0..delay_params.n_echoes).map(|x| x * samples_per_echo).collect();
-
-    sample_points.iter().fold(0f32, |v, t| {
+    let sample_points:Vec<usize> = (1..(delay_params.n_echoes-1)).map(|x| x * samples_per_echo).collect();
+    let dry = render_at_offset(0);
+    let wet = sample_points.iter().fold(0f32, |v, t| {
+        let y = if j > *t {
+            render_at_offset(*t)
+        } else {
+            0f32
+        };
         let n: f32 = *t as f32 / samples_per_echo as f32;
-        let gain: f32 = delay_params.mix * 0.99f32.powf(n+1f32);
-        
-        (1f32 - delay_params.mix) * v + gain * render_at_offset(*t)
-    })
+        let gain: f32 = 0.99f32.powf(n);
+        v + gain * y
+    });
+    (1f32 - delay_params.mix) * dry + delay_params.mix * wet
 }
 
 pub type AdditiveDelay = (DelayFn, DelayParams);
@@ -170,7 +182,6 @@ pub fn ninj<'render>(
     let mut sig = vec![0f32; n_samples];
 
     let (modAmp, modFreq, modPhase, modTime) = modifiers;
-
 
     for j in 0..n_samples {
         let signal = |offset_j:usize| -> f32 {
@@ -407,7 +418,7 @@ mod test {
     fn feeling_lead(freq:f32, amp:f32) -> FeelingHolder {
         let (amps1, muls1, offs1) = melodic::square(freq);
         FeelingHolder {
-            expr: (vec![amp, amp/10f32, 0f32],vec![1f32],vec![0f32]),
+            expr: (vec![amp, amp/4f32, amp/10f32,  0f32],vec![1f32],vec![0f32]),
             bp: (vec![MFf],vec![NFf]),
             dressing: Dressing::new(amps1, muls1, offs1),
             modifiers:modifiers_lead()
@@ -602,7 +613,8 @@ mod test {
                         bp: f.bp,
                         expr: f.expr,
                         dressing: f.dressing,
-                        modifiers: update_mods(&initial_mods[index], &mut rng)
+                        // modifiers: update_mods(&initial_mods[index], &mut rng)
+                        modifiers: initial_mods[index].clone()
                     };
                     channel_signal.append(&mut nin(&ctx, feeling));
                 }
@@ -639,7 +651,9 @@ mod test {
 
         let ds:Vec<AdditiveDelay> = vec![
             // (bin_decay_delay, DelayParams { mix: 0.5, len_seconds: 0.3f32, n_echoes: 5})
-            (hfb_decay_delay, DelayParams { mix: 0.5, len_seconds: 0.3f32, n_echoes: 5})
+            (bin_decay_delay, DelayParams { mix: 0.75, len_seconds: 0.25f32, n_echoes: 5}),
+            (bin_decay_delay, DelayParams { mix: 0.75, len_seconds: 0.333f32, n_echoes: 4}),
+            (bin_decay_delay, DelayParams { mix: 0.75, len_seconds: 0.5f32, n_echoes: 3})
         ];
 
         let ms:Vec<fn () -> ModifiersHolder> = vec![
