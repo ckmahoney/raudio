@@ -10,7 +10,7 @@ use crate::druid::compute::{ModulationMode};
 use crate::synth::{SR, SRf, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
 use crate::types::synthesis::{Frex, GlideLen, Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
-use crate::types::render::{Span};
+use crate::types::render::{self, Span};
 use crate::time;
 use crate::phrasing::contour::{Expr, Position, sample};
 use crate::phrasing::ranger::{Ranger, Modders, Mixer, WRangers, mix, example_options};
@@ -22,7 +22,8 @@ use rand::rngs::ThreadRng;
 /// 
 /// idea: enable attenuation by providing conventional Q settings wrt equalization/filtering.
 /// That is, Ratio Q for how wide the attenuation reaches and Mod Q for how much to attenuate.
-fn filter(p:f32, freq:f32, bandpass:&Bp) -> Range {
+fn filter(progress:f32, freq:f32, bandpass:&Bp) -> Range {
+    let p = progress.max(0f32).min(1f32);
     let min_f = sample(&bandpass.0, p).max(MF as f32);
     let max_f = sample(&bandpass.1, p).min(NF as f32);
     if freq < min_f || freq > max_f {
@@ -109,26 +110,51 @@ pub fn nin<'render>(
 
     sig
 }
-pub type RenderFn = Box<dyn Fn(usize) -> f32>;
-pub type DelayFn = for<'a> fn(&'a DelayParams, RenderFn) -> f32;
+pub type RenderFn<'a>= Box<dyn Fn(usize) -> f32 + 'a>;
+pub type DelayFn = for<'a> fn(usize, &'a DelayParams, RenderFn<'a>) -> f32;
 
-struct DelayParams {
+pub struct DelayParams {
     len_seconds: f32,
     n_echoes: usize,
     mix: f32,
 }
 
-/// Simple 3 body delay
-/// halves gain per echo max 3 echoes
-fn bin_decay_delay(delay_params: &DelayParams, render_at_offset: RenderFn) -> f32 {
+/// halves gain per echo
+fn bin_decay_delay(j:usize, delay_params: &DelayParams, render_at_offset: RenderFn) -> f32 {
     let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
+    let min_distance = samples_per_echo;
     let max_distance = delay_params.n_echoes * samples_per_echo;
+    if j < min_distance {
+        return (1f32 - delay_params.mix) * render_at_offset(0)
+    }
+    
+    let sample_points:Vec<usize> = (0..delay_params.n_echoes).map(|x| x * samples_per_echo).collect();
 
-    (0..max_distance).fold(0f32, |v, t| {
-        let n: f32 = t as f32 / samples_per_echo as f32;
+    sample_points.iter().fold(0f32, |v, t| {
+        let n: f32 = *t as f32 / samples_per_echo as f32;
         let gain: f32 = delay_params.mix * 2f32.powf(-n - 1f32);
         
-        (1f32 - delay_params.mix) * v + gain * render_at_offset(t)
+        (1f32 - delay_params.mix) * v + gain * render_at_offset(*t)
+    })
+}
+
+/// high feedback gain per echo
+fn hfb_decay_delay(j:usize, delay_params: &DelayParams, render_at_offset: RenderFn) -> f32 {
+    let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
+    let min_distance =  samples_per_echo;
+    if j < min_distance {
+        return (1f32 - delay_params.mix) * render_at_offset(0)
+    }
+
+    let max_distance = delay_params.n_echoes * samples_per_echo;
+
+    let sample_points:Vec<usize> = (0..delay_params.n_echoes).map(|x| x * samples_per_echo).collect();
+
+    sample_points.iter().fold(0f32, |v, t| {
+        let n: f32 = *t as f32 / samples_per_echo as f32;
+        let gain: f32 = delay_params.mix * 0.99f32.powf(n+1f32);
+        
+        (1f32 - delay_params.mix) * v + gain * render_at_offset(*t)
     })
 }
 
@@ -137,7 +163,7 @@ pub type AdditiveDelay = (DelayFn, DelayParams);
 /// Additive synthesis with dynamic modulators
 pub fn ninj<'render>(
     Ctx { freq, span, thresh: &(gate_thresh, clip_thresh) }: &'render Ctx,
-    FeelingHolder { bp, expr, dressing, modifiers }: FeelingHolder,
+    FeelingHolder { bp, expr, dressing, modifiers }: &'render FeelingHolder,
     delays: &Vec::<AdditiveDelay>,
 ) -> Vec<f32> {
     let n_samples = crate::time::samples_of_cycles(span.0, span.1);
@@ -183,7 +209,9 @@ pub fn ninj<'render>(
             v
         };
 
-        let sample:f32 = delays.iter().fold(0f32, |s, (filter, params)| filter(params, Box::new(signal)));
+        let sample:f32 = delays.iter().fold(0f32, |s, (delay_filter, params)| 
+            delay_filter(j, params, Box::new(signal))
+        );
 
 
         // apply gating and clipping to the summed sample
@@ -379,8 +407,8 @@ mod test {
     fn feeling_lead(freq:f32, amp:f32) -> FeelingHolder {
         let (amps1, muls1, offs1) = melodic::square(freq);
         FeelingHolder {
-            expr: (vec![amp],vec![1f32],vec![0f32]),
-            bp: (vec![MFf, 10f32, 2000f32, 12000f32, 150f32],vec![NFf]),
+            expr: (vec![amp, amp/10f32, 0f32],vec![1f32],vec![0f32]),
+            bp: (vec![MFf],vec![NFf]),
             dressing: Dressing::new(amps1, muls1, offs1),
             modifiers:modifiers_lead()
         }
@@ -388,9 +416,10 @@ mod test {
 
     fn feeling_chords(freq:f32, amp:f32) -> FeelingHolder {
         let (amps2, muls2, offs2) = melodic::triangle(freq);
+
         FeelingHolder {
             expr: (vec![amp],vec![1f32],vec![0f32]),
-            bp: (vec![MFf, 10f32, 2000f32, 12000f32, 150f32],vec![NFf]),
+            bp: (vec![MFf],vec![NFf]),
             dressing: Dressing::new(amps2, muls2, offs2),
             modifiers:modifiers_chords()
         }
@@ -609,7 +638,8 @@ mod test {
         ];
 
         let ds:Vec<AdditiveDelay> = vec![
-            (bin_decay_delay, DelayParams { mix: 0.5, len_seconds: 0.2f32, n_echoes: 5})
+            // (bin_decay_delay, DelayParams { mix: 0.5, len_seconds: 0.3f32, n_echoes: 5})
+            (hfb_decay_delay, DelayParams { mix: 0.5, len_seconds: 0.3f32, n_echoes: 5})
         ];
 
         let ms:Vec<fn () -> ModifiersHolder> = vec![
@@ -627,6 +657,7 @@ mod test {
                 let stem_name = format!("{}-stem-{}", test_name, index);
                 let mut channel_signal:SampleBuffer = Vec::new();
                 let line = &midi_melody[0];
+
                 for syn_midi in line {
                     
                     let freq = x_files::root * xform_freq::midi_to_freq(syn_midi.1);
@@ -642,7 +673,7 @@ mod test {
                         dressing: f.dressing,
                         modifiers: update_mods(&initial_mods[index], &mut rng)
                     };
-                    channel_signal.append(&mut ninj(&ctx, feeling, &ds));
+                    channel_signal.append(&mut ninj(&ctx, &feeling, &ds));
                 }
 
                 write_test_asset(&channel_signal, &stem_name);
