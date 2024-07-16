@@ -15,9 +15,27 @@ Raudio does not currently accept MIDI as input. It does support inline syn-midi 
 
 This project has a few goals. It also has some explicit no-gos of conventional audio tasks. 
 
-For a quick peek at what it sounds like, try the [music/amb](music/amb) directory! It has 2 hours of contoured ambient pads.
 
-To print more of these, run the `many` test in [music/dance_krog](music/dance_krog.rs).
+## Demos
+
+Some code herein writes to an `audio/demo` directory. This is intended to represent applied music. Music which many people consider `"good"`, but described using this application's data.
+
+Current demos:
+  - [Percussion synths](src/demo/beat.rs)
+  - [Melodic synths](src/demo/trio.rs)
+  - [Frequency Domain DSP effects](src/demo/effects.rs)
+
+
+## Music
+
+Some code herein writes to an `audio/music` directory. This is intended to be creative, original music! 
+You already have the results of the included ambient music generator [here](audio/music) :) 
+
+An example of how this can be used in the `Real World`,
+Here's 4 hours of music synthesized with `raudio` circa May 2024
+
+https://www.youtube.com/watch?v=mFipUHqXrw0
+
 
 ## Goals
 
@@ -79,26 +97,6 @@ This is valid for this applicaton because we prefer to describe elementary compo
 Some tests take a long time to run because they enumerate all the available parameters. 
 
 
-## Demos
-
-Some code herein writes to an `audio/demo` directory. This is intended to represent applied music. Music which many people consider `"good"`, but described using this application's data.
-
-Current demos:
-  - [Percussion synths](src/demo/beat.rs)
-  - [Melodic synths](src/demo/trio.rs)
-  - [Frequency Domain DSP effects](src/demo/effects.rs)
-
-
-
-## Music
-
-Some code herein writes to an `audio/music` directory. This is intended to be creative, original music! 
-You already have the results of the included ambient music generator [here](audio/music) :) 
-
-An example of how this can be used in the `Real World`,
-Here's 4 hours of music synthesized with `raudio` circa May 2024
-
-https://www.youtube.com/watch?v=mFipUHqXrw0
 
 ## License
 
