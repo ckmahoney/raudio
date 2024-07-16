@@ -5,19 +5,19 @@
 
 An additive synthesizer for expressive music.
 
-This is a synth designed specifically for Monic Theory and is intended to be applied in non-real time to render generated compositions. 
+This is a synth designed specifically for Monic Theory and is intended to be applied in non-real time to render monic playbooks as audio files. 
 
 As Monic Theory is a superset of MIDI, Raudio is also capable rendering any MIDI composition. 
 
-As of today (May 25 2024) this application only accepts Monic playbooks as input. (See [test-tin-pan-score.json](test-tin-pan-score.json)).
+As of today (May 25 2024) this application only accepts Monic playbooks as input. (See [test-druidic-score.json](src/demo/test-druidic-score.json)).
 
-It does not accept MIDI as input. It does support inline MIDI, so it *could* accept MIDI as input if that is important to you. 
+Raudio does not currently accept MIDI as input. It does support inline syn-midi (a lightweight MIDI alternative), so it *could* accept MIDI as input if that is important to you. 
 
 This project has a few goals. It also has some explicit no-gos of conventional audio tasks. 
 
-For a quick peek at what it sounds like, try the [music/amb](music/amb) directory! It has 2 hours of contoured music.
-To print more of these, run the `many` test in [music/dance_krog](music/dance_krog.rs). If your sound system has a reverb unit, it adds a lot (since reverb is a pending project in this synthesizer).
+For a quick peek at what it sounds like, try the [music/amb](music/amb) directory! It has 2 hours of contoured ambient pads.
 
+To print more of these, run the `many` test in [music/dance_krog](music/dance_krog.rs).
 
 ## Goals
 
@@ -48,20 +48,10 @@ As a list,
   - Does not provide support for sample-based music
     - Leave your sample packs at home kids, we gen our own
 
-## Usage
-
-As described above, this application is for Monic playbooks. 
-
-It accepts a path to a playbook and 
 
 
 ## Tests
 
-Most recent test results (May 25 2024)
-
-```
-test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 779.69s
-```
 
 To test, 
 
@@ -71,18 +61,15 @@ cargo test
 
 
 Many tests will create files. It is intentional that the files are not deleted so the tester can manually inspect the generated asset at their leisure.
-If you are low on disk space (less that 3GB remaining) then these tests may not work for you. 
+Please make sure you have 1-3GB of disk space available before running the tests. You can remove the assets by using `rm -rf dev-audio`.
 
 
-For you the most relatable test might be this one
+For a quick peek at a song you probably know...
 
 
 [happy birthday](src/engrave.rs#L429)
 
 If it didn't already exist, this will crate a new directory `dev-audio` for writing test results.
-
-
-There's also a MIDI test (X Files theme song) but that is outdated and may not work with the current state of the repo. If you want to help fix it then that would make me delighted. Ultimately all inline tracks should be written in both monic and MIDI format.
 
 
 Some tests may be non-deterministic in that they produce a variant in the set of all available frequency spaces of the input test. That is, a new version of the "same" sample will overwrite the previous version. 
@@ -95,6 +82,12 @@ Some tests take a long time to run because they enumerate all the available para
 ## Demos
 
 Some code herein writes to an `audio/demo` directory. This is intended to represent applied music. Music which many people consider `"good"`, but described using this application's data.
+
+Current demos:
+  - [Percussion synths](src/demo/beat.rs)
+  - [Melodic synths](src/demo/trio.rs)
+  - [Frequency Domain DSP effects](src/demo/effects.rs)
+
 
 
 ## Music
@@ -109,10 +102,10 @@ https://www.youtube.com/watch?v=mFipUHqXrw0
 
 ## License
 
-This repository is licensed under a custom license that encourages contribution and education
+This repository is licensed under a custom license that encourages contribution and education.
 
 Contributors who have made significant contributions by completing an approved GitHub issue or an approved independent pull request (PR) are granted additional ability to use the Software for commercial purposes. For more details, see the [LICENSE](LICENSE) file.
 
 Contributions are welcome and encouraged.
 
-Non-contributors are permitted to use and view the code for personal or educational purposes only. Modification, distribution, and commercial use are strictly prohibited for non-contributors.
+Non-contributors are permitted to use and view the code for personal or educational purposes only. Commercial use is strictly prohibited for non-contributors.
