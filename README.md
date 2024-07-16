@@ -29,7 +29,6 @@ Current demos:
 ## Music
 
 Some code herein writes to an `audio/music` directory. This is intended to be creative, original music! 
-You already have the results of the included ambient music generator [here](audio/music) :) 
 
 An example of how this can be used in the `Real World`,
 Here's 4 hours of music synthesized with `raudio` circa May 2024
