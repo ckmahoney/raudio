@@ -26,6 +26,18 @@ Current demos:
   - [Frequency Domain DSP effects](src/demo/effects.rs)
 
 
+To render the demos, use 
+
+```
+cargo test demo
+```
+
+You will then have files output to directory `audio/demo`! Play the files with your favorite audio player, such as 
+
+```
+play audio/demo/beat.wav
+```
+
 ## Music
 
 Some code herein writes to an `audio/music` directory. This is intended to be creative, original music! 
@@ -80,11 +92,6 @@ cargo test
 Many tests will create files. It is intentional that the files are not deleted so the tester can manually inspect the generated asset at their leisure.
 Please make sure you have 1-3GB of disk space available before running the tests. You can remove the assets by using `rm -rf dev-audio`.
 
-
-For a quick peek at a song you probably know...
-
-
-[happy birthday](src/engrave.rs#L429)
 
 If it didn't already exist, this will crate a new directory `dev-audio` for writing test results.
 
