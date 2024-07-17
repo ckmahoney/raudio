@@ -32,7 +32,7 @@ To render the demos, use
 cargo test demo
 ```
 
-You will then have files output to directory `audio/demo`! Play the files with your favorite audio player, such as 
+You will then have files output to directory `audio/demo`! Play the files with your favorite audio player, such as with `sox`:
 
 ```
 play audio/demo/beat.wav
