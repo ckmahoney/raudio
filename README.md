@@ -7,11 +7,11 @@ An additive synthesizer for expressive music.
 
 This is a synth designed specifically for Monic Theory and is intended to be applied in non-real time to render monic playbooks as audio files. 
 
-As Monic Theory is a superset of MIDI, Raudio is also capable rendering any MIDI composition. 
+As Monic Theory is a superset of MIDI, `raudio` is also capable rendering any MIDI composition. 
 
 As of today (May 25 2024) this application only accepts Monic playbooks as input. (See [test-druidic-score.json](src/demo/test-druidic-score.json)).
 
-Raudio does not currently accept MIDI as input. It does support inline syn-midi (a lightweight MIDI alternative), so it *could* accept MIDI as input if that is important to you. 
+`raudio` does not currently accept MIDI as input. It does support inline syn-midi (a lightweight MIDI alternative), so it *could* accept MIDI as input if that is important to you. 
 
 This project has a few goals. It also has some explicit no-gos of conventional audio tasks. 
 
