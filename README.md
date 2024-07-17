@@ -46,7 +46,7 @@ play audio/demo/beat.wav repeat 3 reverb 20
 
 Some code writes audio files to the `audio/music` directory. This is for original (new) music! 
 
-As an example application for this synthesizer, here is a video with four hours of music rendered in a "Baroque" style.
+An example application for this synthesizer, here is a video with four hours of music rendered in a "Baroque" style.
 
 https://www.youtube.com/watch?v=mFipUHqXrw0
 
@@ -63,7 +63,7 @@ As a list,
 
   - Provide a high level API for creating and modulating sound in the frequency domain
   - Provide a secure and predictable environment for rendering audio files 
-    - By definition, aliasing is not possible (haha bye FM synthesis)
+    - Aliasing is easy to manage. Just don't include the frequencies you don't want to render! 
   - Support for per-sample paramter render 
     - Highest resolution output with respect to synth control parameters. In other words, all computations are a-rate (no k-rate).
   - Provide support for time domain signal **analysis** (but not modulation)
