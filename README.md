@@ -63,20 +63,17 @@ As a list,
   - Provide a high level API for creating and modulating sound in the frequency domain
   - Provide a secure and predictable environment for rendering audio files 
     - By definition, aliasing is not possible (haha bye FM synthesis)
-  - Enable arbitrary fidelity for any sample rate
+  - Support for per-sample paramter render 
+    - Highest resolution output with respect to synth control parameters. In other words, all computations are a-rate (no k-rate).
   - Provide support for time domain signal **analysis** (but not modulation)
-  - Melt your face with lush sounds
+  - Melt your heart and glowup your soul with lush sounds
 
 ## Not Goals
 
-  - No support for creating compositions. BYO score.
+  - No support for creating compositions (bring your own score).
   - No support for time domain signal **modulation**
     - "Conventional" lowpass and highpass filters not welcome here!
-    - Hey distortion, have you tried harmonic amplification? 
     - Reverb? more like stretchy harmonics
-  - Does not provide support for sample-based music
-    - Leave your sample packs at home kids, we gen our own
-
 
 
 ## Tests
