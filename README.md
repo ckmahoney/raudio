@@ -94,11 +94,17 @@ If it didn't already exist, this will crate a new directory `dev-audio` for writ
 Many tests will create files. It is intentional that the files are not deleted so the tester can manually inspect the generated asset at their leisure.
 
 
-Please make sure you have 1-3GB of disk space available before running the tests. You can remove the assets by using `rm -rf dev-audio`.
+Please make sure you have 1-3GB of disk space available before running the tests. 
+
+You can remove the assets by using `rm -rf dev-audio`.
 
 ### Test Output
-Some tests may be non-deterministic in that they produce a variant in the set of all available frequency spaces of the input test. A new and possibly different version of the "same" sample will overwrite the previous version. 
 
+A lot of tests will render audio samples featuring a speciifc feature of synthesis (ex. amplitude modulation, sequencing notes, stacking chords).
+
+Some tests may be non-deterministic in that they produce a variant in the set of all available frequency spaces of the input test. 
+
+A new and possibly different version of the "same" sample will overwrite the previous version. 
 
 Some tests take a long time to run because they enumerate all the available parameters. 
 
