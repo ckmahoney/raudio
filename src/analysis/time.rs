@@ -1,12 +1,13 @@
+use std::time::Instant;
 use std::collections::HashMap;
 use crate::types::synthesis::Ratio;
-use crate::synth::SR;
+use crate::synth::{SR, SRf};
 
 /// Given dynamic playback rate and constant sample rate, 
 /// determines the number of samples required to recreate
 /// one second of audio signal.
 pub fn samples_per_cycle(cps:f32) -> usize {
-    (SR as f32 / cps) as usize
+    (SRf / cps) as usize
 }
 
 pub fn cycles_from_n(cps:f32, n:usize) -> f32 {
@@ -14,15 +15,19 @@ pub fn cycles_from_n(cps:f32, n:usize) -> f32 {
     n as f32/one
 }
 
+/// Given a duration as a ratio of seconds, return the number of samples representing this length
 pub fn samples_of_duration(cps:f32, d:&Ratio) -> usize {
-    ((SR as f32 / cps) * dur(cps, &d)) as usize
+    ((SRf / cps) * dur(cps, &d)) as usize
 }
 
+/// Given a duration in seconds, return the number of samples representing this length
 pub fn samples_of_dur(cps:f32, dur:f32) -> usize {
     samples_from_dur(cps, dur)
 } 
+
+/// Given a duration in seconds, return the number of samples representing this length
 pub fn samples_from_dur(cps:f32, dur:f32) -> usize {
-    ((SR as f32 / cps) * dur) as usize
+    (SRf * dur / cps) as usize
 }
 
 /// Provides the number of samples required to span k cycles at cps.
@@ -32,14 +37,13 @@ pub fn samples_of_cycles(cps:f32, k:f32) -> usize {
 
 /// Provides the time in seconds for a given duration ratio.
 pub fn dur(cps: f32, ratio:&Ratio) -> f32 {
-    (ratio.0 as f32 / ratio.1 as f32)/cps
+    duration_to_cycles(*ratio)/cps
 }
 
 pub fn duration_to_cycles((numerator, denominator):Ratio) -> f32 {
     numerator as f32/denominator as f32
 }
 
-use std::time::{Instant};
 
 /// Measures the execution time of a function.
 ///

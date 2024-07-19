@@ -90,6 +90,8 @@ pub fn gen_contour(n_samples:usize, n_cycles:f32, contour:&AmpContour, reverse:b
 }
 
 
+/// Given a contour, interpolate a value in range p.
+/// If p is outside [0, 1] it is clipped to be in this range.
 pub fn sample(contour:&AmpModulation, p:f32) -> f32 {
     if contour.len() == 1 {
         return contour[0]
