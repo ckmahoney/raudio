@@ -28,6 +28,7 @@ mod music;
 mod phrasing;
 mod presets;
 mod render;
+mod reverb;
 mod synth;
 pub use analysis::time;
 mod types;
