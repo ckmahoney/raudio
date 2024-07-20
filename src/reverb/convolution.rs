@@ -4,51 +4,19 @@ use crate::types::timbre::AmpContour;
 use rand::{Rng,thread_rng};
 
 /// Produce an exponentially decaying noise sample 
-fn noise_buffer(n_samples:usize) -> SampleBuffer {
+fn noise_buffer(amp:f32, n_samples:usize) -> SampleBuffer {
     let mut rng = thread_rng();
     let contour = gen_contour(n_samples, 1f32, &AmpContour::Surge, true);
-    (0..n_samples).map(|i| contour[i] * (2f32 * rng.gen::<f32>() - 1f32)).collect()
+    (0..n_samples).map(|i| amp * contour[i] * (2f32 * rng.gen::<f32>() - 1f32)).collect()
 }
 
-fn generate_major_chord(frequencies: &[f32], sample_rate: usize, duration: f32) -> SampleBuffer {
-    let mut buffer = vec![0f32; (sample_rate as f32 * duration) as usize];
-
-    for &freq in frequencies {
-        for (i, sample) in buffer.iter_mut().enumerate() {
-            let t = i as f32 / sample_rate as f32;
-            let envelope = (1.0 - t / duration).max(0.0); // Simple linear decay
-            *sample += (2.0 * pi * freq * t).sin() * envelope;
-        }
-    }
-
-    buffer
-}
-
-fn main() {
-    let sample_rate = 44100;
-    let duration = 1.0; // 1 second
-    let frequencies = [400.0, 500.0, 600.0];
-    
-    let major_chord = generate_major_chord(&frequencies, sample_rate, duration);
-
-    // Example usage: Apply convolution reverb (apply function defined earlier)
-    let reverb_len = 1000; // Example reverb length
-    let wet_signal = apply(&major_chord, reverb_len);
-
-    // For testing: Output the generated signals or visualize them as needed
-    // ...
-}
-
-// Placeholder for the apply function (convolution reverb function)
-fn apply(signal: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
-    let impulse_response = noise_buffer(reverb_len);
-    let (sig, impulse_response) = pad_buffers(signal, &impulse_response);
-
+fn apply(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
+    let impulse_response = noise_buffer(0.2f32, reverb_len);
     let mut wet = vec![0f32; sig.len() + impulse_response.len() - 1];
 
     for n in 0..wet.len() {
         for k in 0..sig.len() {
-            if n >= k && n - k < impulse_response.len() {
+            if n >= k && (n - k) < impulse_response.len() {
                 wet[n] += sig[k] * impulse_response[n - k];
             }
         }
@@ -73,14 +41,22 @@ fn pad_buffers(signal: &SampleBuffer, impulse_response: &SampleBuffer) -> (Sampl
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::files::{self, with_dir};
+    use crate::render::engrave;
+    static TEST_GROUP:&str = "reverb-convolution";
+    fn out_dir() -> String { format!("dev-audio/{}", TEST_GROUP) }
+    fn setup() {
+        files::with_dir(&out_dir())
+    }
 
     fn generate_major_chord(frequencies: &[f32], sample_rate: usize, duration: f32) -> SampleBuffer {
-        let mut buffer = vec![0f32; (sample_rate as f32 * duration) as usize];
-    
+        let n_samples = (sample_rate as f32 * duration) as usize;
+        let mut buffer = vec![0f32; n_samples];
+        let n = n_samples as f32;
         for &freq in frequencies {
             for (i, sample) in buffer.iter_mut().enumerate() {
-                let t = i as f32 / sample_rate as f32;
-                let envelope = (1.0f32 - t / duration).max(0.0); // Simple linear decay
+                let t = i as f32 / n;
+                let envelope = 0.2 * (-5.0 * t).exp().max(0.0); 
                 *sample += (2.0f32 * pi * freq * t).sin() * envelope;
             }
         }
@@ -88,27 +64,61 @@ mod tests {
         buffer
     }
 
-    #[test]
-    fn test_apply_convolution_reverb() {
-        let sample_rate = 44100;
-        let duration = 1.0; // 1 second
+    fn gen_signal() -> SampleBuffer {
+        let duration = 1.0; 
         let frequencies = [400.0, 500.0, 600.0];
-        let reverb_len = 1000; // Example reverb length
+        let samples = generate_major_chord(&frequencies, SR, duration);
+        let filename = format!("{}/dry.wav", &out_dir());
 
-        // Generate the major chord signal
-        let major_chord = generate_major_chord(&frequencies, sample_rate, duration);
+        engrave::samples(SR, &samples, &filename);
+        samples
 
-        // Apply convolution reverb to the generated signal
+    }
+
+    #[test]
+    fn test_apply_convolution_reverb_spring() {
+        setup();
+        let test_name = "springverb";
+        let reverb_len = 1000; 
+
+        let major_chord = gen_signal();
         let wet_signal = apply(&major_chord, reverb_len);
-
-        // Assertions to verify the output
         assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
-
-        // Check that the wet signal is not all zeros
         let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
         assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
 
-        // Optionally: Add more specific checks based on expected behavior
-        // e.g., peak amplitude, decay characteristics, etc.
+        let filename2 = format!("{}/wet-{}.wav", &out_dir(), test_name);
+        engrave::samples(SR, &wet_signal, &filename2);
+    }
+
+    #[test]
+    fn test_apply_convolution_reverb_samelen() {
+        setup();
+        let test_name = "sameverb";
+
+        let major_chord = gen_signal();
+        let reverb_len = major_chord.len(); 
+        let wet_signal = apply(&major_chord, reverb_len);
+        assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
+        let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
+        assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
+
+        let filename2 = format!("{}/wet-{}.wav", &out_dir(), test_name);
+        engrave::samples(SR, &wet_signal, &filename2);
+    }
+    #[test]
+    fn test_apply_convolution_reverb_SRlen() {
+        setup();
+        let test_name = "longverb";
+
+        let major_chord = gen_signal();
+        let reverb_len = SR*8;
+        let wet_signal = apply(&major_chord, reverb_len);
+        assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
+        let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
+        assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
+
+        let filename2 = format!("{}/wet-{}.wav", &out_dir(), test_name);
+        engrave::samples(SR, &wet_signal, &filename2);
     }
 }
