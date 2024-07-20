@@ -26,7 +26,8 @@ fn apply1(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
 }
 use rustfft::{FftPlanner, num_complex::Complex};
 fn apply(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
-    let impulse_response = noise_buffer(0.2f32, reverb_len);
+    let mut impulse_response = generate_pink_noise(0.2f32, reverb_len);
+// normalize(&mut impulse_response);  
     let n = sig.len() + impulse_response.len() - 1;
     
     let mut planner = FftPlanner::new();
@@ -51,12 +52,12 @@ fn apply(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
 
     result.iter().map(|c| c.re / n as f32).collect()
 }
-fn generate_violet_noise(length: usize) -> SampleBuffer {
+fn generate_violet_noise(amp:f32, length: usize) -> SampleBuffer {
     let white_noise = generate_white_noise(length);
     let mut violet_noise = vec![0.0; length];
 
     for i in 1..length {
-        violet_noise[i] = white_noise[i] - white_noise[i - 1];
+        violet_noise[i] = amp*(white_noise[i] - white_noise[i - 1]);
     }
 
     violet_noise
@@ -66,8 +67,7 @@ fn generate_white_noise(length: usize) -> SampleBuffer {
     let mut rng = rand::thread_rng();
     (0..length).map(|_| rng.gen_range(-1.0..1.0)).collect()
 }
-
-fn generate_pink_noise(length: usize) -> SampleBuffer {
+fn generate_pink_noise(amp: f32, length: usize) -> SampleBuffer {
     let mut rng = rand::thread_rng();
     let num_rows = 16;
     let mut rows = vec![0.0; num_rows];
@@ -78,13 +78,11 @@ fn generate_pink_noise(length: usize) -> SampleBuffer {
         rows[row] = rng.gen_range(-1.0..1.0);
         
         let running_sum: f32 = rows.iter().sum();
-        pink_noise[i] = running_sum / num_rows as f32;
+        pink_noise[i] = amp * running_sum / num_rows as f32;
     }
 
     pink_noise
 }
-
-
 fn pad_buffers(signal: &SampleBuffer, impulse_response: &SampleBuffer) -> (SampleBuffer, SampleBuffer) {
     let mut padded_signal = signal.clone();
     let mut padded_ir = impulse_response.clone();
@@ -97,7 +95,14 @@ fn pad_buffers(signal: &SampleBuffer, impulse_response: &SampleBuffer) -> (Sampl
 
     (padded_signal, padded_ir)
 }
-
+fn normalize(buffer: &mut [f32]) {
+    let max_val = buffer.iter().cloned().fold(f32::NEG_INFINITY, f32::max).abs();
+    if max_val > 0.0 {
+        for sample in buffer.iter_mut() {
+            *sample /= max_val;
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -107,7 +112,7 @@ mod tests {
     fn out_dir() -> String { format!("dev-audio/{}", TEST_GROUP) }
     fn setup() {
         files::with_dir(&out_dir())
-    }
+    }   
 
     fn generate_major_chord(frequencies: &[f32], sample_rate: usize, duration: f32) -> SampleBuffer {
         let n_samples = (sample_rate as f32 * duration) as usize;
