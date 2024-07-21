@@ -1,14 +1,9 @@
 use crate::synth::{SR,SampleBuffer, pi};
 use crate::phrasing::contour::gen_contour;
+use crate::time;
 use crate::types::timbre::AmpContour;
+use rustfft::{FftPlanner, num_complex::Complex};
 use rand::{Rng,thread_rng};
-
-#[derive(Copy,Clone)]
-enum NoiseType {
-    White,
-    Pink,
-    Violet,
-}
 
 /// Produce an exponentially decaying noise sample 
 fn noise_buffer(amp:f32, n_samples:usize) -> SampleBuffer {
@@ -16,7 +11,6 @@ fn noise_buffer(amp:f32, n_samples:usize) -> SampleBuffer {
     let contour = gen_contour(n_samples, 1f32, &AmpContour::Surge, true);
     (0..n_samples).map(|i| amp * contour[i] * (2f32 * rng.gen::<f32>() - 1f32)).collect()
 }
-
 fn apply1(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
     let impulse_response = noise_buffer(0.2f32, reverb_len);
     let mut wet = vec![0f32; sig.len() + impulse_response.len() - 1];
@@ -32,51 +26,13 @@ fn apply1(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
     wet
 }
 
-fn generate_sine_wave_impulse_response(freq: f32, sample_rate: usize, length: usize, amp: f32) -> SampleBuffer {
-    let two_pi = 2.0 * std::f32::consts::PI;
-    (0..length)
-        .map(|i| {
-            let t = i as f32 / sample_rate as f32;
-            amp * (two_pi * freq * t).sin()
-        })
-        .collect()
-}
-
-
-fn generate_noise(noise_type: NoiseType, len: usize, amp: f32) -> SampleBuffer {
-    match noise_type {
-        NoiseType::White => white_noise(len, amp),
-        NoiseType::Pink => pink_noise(len, amp),
-        NoiseType::Violet => violet_noise(len, amp),
-    }
-}
-fn white_noise(len: usize, amp: f32) -> SampleBuffer {
-    let mut rng = thread_rng();
-    (0..len).map(|_| amp * (2f32 * rng.gen::<f32>() - 1f32)).collect()
-}
-
-fn pink_noise(len: usize, amp: f32) -> SampleBuffer {
-    generate_pink_noise(amp, len)
-}
-
-fn violet_noise(len: usize, amp: f32) -> SampleBuffer {
-    let white_noise = generate_noise(NoiseType::White, len, amp);
-    let mut violet_noise = vec![0.0; len];
-
-    for i in 1..len {
-        violet_noise[i] = white_noise[i] - white_noise[i - 1];
-    }
-
-    violet_noise
-}
-use rustfft::{FftPlanner, num_complex::Complex};
-
-fn apply(sig: &SampleBuffer, impulse_response: &SampleBuffer) -> SampleBuffer {
+fn apply(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
+    let impulse_response = noise_buffer(0.005f32, reverb_len);
     let n = sig.len() + impulse_response.len() - 1;
     
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(n);
-    let ifft = planner.plan_fft_inverse(n);
+    let ifft = planner.plan_fft_inverse(n); 
 
     let mut sig_padded: Vec<Complex<f32>> = sig.iter().cloned().map(|s| Complex::new(s, 0.0)).collect();
     sig_padded.resize(n, Complex::new(0.0, 0.0));
@@ -94,19 +50,59 @@ fn apply(sig: &SampleBuffer, impulse_response: &SampleBuffer) -> SampleBuffer {
 
     ifft.process(&mut result);
 
-    let mut output: SampleBuffer = result.iter().map(|c| c.re / n as f32).collect();
-    normalize(&mut output);
-
-    output
+    result.iter().map(|c| c.re / n as f32).collect()
 }
 
 
-fn generate_violet_noise(amp:f32, length: usize) -> SampleBuffer {
+/// Mix dry and wet signals using Fourier transform for fast convolution.
+/// `sig` - input signal buffer
+/// `dur_seconds` - duration of reverb in seconds
+/// `gain` - gain for the reverb
+/// `wet` - mix ratio for wet signal (0.0 = fully dry, 1.0 = fully wet)
+fn mix(sig: &SampleBuffer, dur_seconds: f32, gain: f32, wet: f32) -> SampleBuffer {
+    let reverb_len = time::samples_of_dur(1f32, dur_seconds);
+    let impulse_response = noise_buffer(gain, reverb_len);
+    let n = sig.len() + impulse_response.len() - 1;
+
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(n);
+    let ifft = planner.plan_fft_inverse(n); 
+
+    let mut sig_padded: Vec<Complex<f32>> = sig.iter().cloned().map(|s| Complex::new(s, 0.0)).collect();
+    sig_padded.resize(n, Complex::new(0.0, 0.0));
+
+    let mut ir_padded: Vec<Complex<f32>> = impulse_response.iter().cloned().map(|s| Complex::new(s, 0.0)).collect();
+    ir_padded.resize(n, Complex::new(0.0, 0.0));
+
+    fft.process(&mut sig_padded);
+    fft.process(&mut ir_padded);
+
+    let mut result = vec![Complex::new(0.0, 0.0); n];
+    for i in 0..n {
+        result[i] = sig_padded[i] * ir_padded[i];
+    }
+
+    ifft.process(&mut result);
+
+    // Normalize the result by n
+    let wet_signal: SampleBuffer = result.iter().map(|c| c.re / n as f32).collect();
+
+    // Mix dry and wet signals
+    let mut mixed_signal: SampleBuffer = vec![0.0; sig.len()];
+    for i in 0..sig.len() {
+        mixed_signal[i] = (1.0 - wet) * sig[i] + wet * wet_signal[i];
+    }
+
+    mixed_signal
+}
+
+
+fn generate_violet_noise(length: usize) -> SampleBuffer {
     let white_noise = generate_white_noise(length);
     let mut violet_noise = vec![0.0; length];
 
     for i in 1..length {
-        violet_noise[i] = amp*(white_noise[i] - white_noise[i - 1]);
+        violet_noise[i] = white_noise[i] - white_noise[i - 1];
     }
 
     violet_noise
@@ -116,7 +112,8 @@ fn generate_white_noise(length: usize) -> SampleBuffer {
     let mut rng = rand::thread_rng();
     (0..length).map(|_| rng.gen_range(-1.0..1.0)).collect()
 }
-fn generate_pink_noise(amp: f32, length: usize) -> SampleBuffer {
+
+fn generate_pink_noise(length: usize) -> SampleBuffer {
     let mut rng = rand::thread_rng();
     let num_rows = 16;
     let mut rows = vec![0.0; num_rows];
@@ -127,11 +124,13 @@ fn generate_pink_noise(amp: f32, length: usize) -> SampleBuffer {
         rows[row] = rng.gen_range(-1.0..1.0);
         
         let running_sum: f32 = rows.iter().sum();
-        pink_noise[i] = amp * running_sum / num_rows as f32;
+        pink_noise[i] = running_sum / num_rows as f32;
     }
 
     pink_noise
 }
+
+
 fn pad_buffers(signal: &SampleBuffer, impulse_response: &SampleBuffer) -> (SampleBuffer, SampleBuffer) {
     let mut padded_signal = signal.clone();
     let mut padded_ir = impulse_response.clone();
@@ -144,22 +143,13 @@ fn pad_buffers(signal: &SampleBuffer, impulse_response: &SampleBuffer) -> (Sampl
 
     (padded_signal, padded_ir)
 }
-fn normalize(buffer: &mut [f32]) {
-    let max_val = buffer.iter().cloned().fold(f32::NEG_INFINITY, f32::max).abs();
-    if max_val > 0.0 {
-        for sample in buffer.iter_mut() {
-            *sample /= max_val;
-        }
-    }
-}
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::files::{self, with_dir};
     use crate::render::engrave;
-    static TEST_GROUP: &str = "reverb-convolution";
+    static TEST_GROUP:&str = "reverb-convolution";
     fn out_dir() -> String { format!("dev-audio/{}", TEST_GROUP) }
     fn setup() {
         files::with_dir(&out_dir())
@@ -188,92 +178,53 @@ mod tests {
 
         engrave::samples(SR, &samples, &filename);
         samples
-    }
 
-    #[test]
-    fn test_apply_convolution_reverb_sine_wave() {
-        setup();
-        let test_name = "sine_wave_reverb";
-        let reverb_len = 1000;
-        let major_chord = gen_signal();
-
-        for exp in 1..15u32 {
-            let freq = 2u32.pow(exp) as f32;
-            let sine_wave_ir = generate_sine_wave_impulse_response(freq, SR, reverb_len, 0.5);
-
-            let wet_signal = apply(&major_chord, &sine_wave_ir);
-            assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
-            let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
-            assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
-
-            let filename = format!("{}/wet-{}-freq-{}.wav", &out_dir(), test_name, freq);
-            engrave::samples(SR, &wet_signal, &filename);
-        }
-    }
-
-
-    fn noise_type_to_string(noise_type: &NoiseType) -> &'static str {
-        match noise_type {
-            NoiseType::White => "white",
-            NoiseType::Pink => "pink",
-            NoiseType::Violet => "violet",
-        }
     }
 
     #[test]
     fn test_apply_convolution_reverb_spring() {
         setup();
         let test_name = "springverb";
-        let reverb_len = 1000;
+        let reverb_len = 1000; 
+
         let major_chord = gen_signal();
+        let wet_signal = apply(&major_chord, reverb_len);
+        assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
+        let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
+        assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
 
-        for &noise_type in &[NoiseType::White, NoiseType::Pink, NoiseType::Violet] {
-            let impulse_response = generate_noise(noise_type, reverb_len, 0.2);
-            let wet_signal = apply(&major_chord, &impulse_response);
-            assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
-            let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
-            assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
-
-            let filename = format!("{}/wet-{}-{}.wav", &out_dir(), test_name, noise_type_to_string(&noise_type));
-            engrave::samples(SR, &wet_signal, &filename);
-        }
+        let filename2 = format!("{}/wet-{}.wav", &out_dir(), test_name);
+        engrave::samples(SR, &wet_signal, &filename2);
     }
 
     #[test]
     fn test_apply_convolution_reverb_samelen() {
         setup();
         let test_name = "sameverb";
+
         let major_chord = gen_signal();
-        let reverb_len = major_chord.len();
+        let reverb_len = major_chord.len(); 
+        let wet_signal = apply(&major_chord, reverb_len);
+        assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
+        let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
+        assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
 
-        for &noise_type in &[NoiseType::White, NoiseType::Pink, NoiseType::Violet] {
-            let impulse_response = generate_noise(noise_type, reverb_len, 0.2);
-            let wet_signal = apply(&major_chord, &impulse_response);
-            assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
-            let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
-            assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
-
-            let filename = format!("{}/wet-{}-{}.wav", &out_dir(), test_name, noise_type_to_string(&noise_type));
-            engrave::samples(SR, &wet_signal, &filename);
-        }
+        let filename2 = format!("{}/wet-{}.wav", &out_dir(), test_name);
+        engrave::samples(SR, &wet_signal, &filename2);
     }
-
     #[test]
     fn test_apply_convolution_reverb_SRlen() {
         setup();
         let test_name = "longverb";
+
         let major_chord = gen_signal();
-        let reverb_len = SR * 8;
+        let reverb_len = SR*8;
+        let wet_signal = apply(&major_chord, reverb_len);
+        assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
+        let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
+        assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
 
-        for &noise_type in &[NoiseType::White, NoiseType::Pink, NoiseType::Violet] {
-            let impulse_response = generate_noise(noise_type, reverb_len, 0.2);
-            let wet_signal = apply(&major_chord, &impulse_response);
-            assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);
-            let non_zero_samples: Vec<&f32> = wet_signal.iter().filter(|&&x| x != 0.0).collect();
-            assert!(!non_zero_samples.is_empty(), "Wet signal should not be all zeros");
-
-            let filename = format!("{}/wet-{}-{}.wav", &out_dir(), test_name, noise_type_to_string(&noise_type));
-            engrave::samples(SR, &wet_signal, &filename);
-        }
+        let filename2 = format!("{}/wet-{}.wav", &out_dir(), test_name);
+        engrave::samples(SR, &wet_signal, &filename2);
     }
 }
