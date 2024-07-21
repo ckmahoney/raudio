@@ -22,7 +22,7 @@ pub fn gain(j:usize, replica:usize, params: &DelayParams) -> f32 {
         return 0f32
     }
 
-    params.gain.powf(replica as f32)
+    params.mix * params.gain.powf(replica as f32)
 }
 
 /// Given a delay params, identify the new duration of the sample for a given context. 

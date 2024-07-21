@@ -114,31 +114,6 @@ pub fn nin<'render>(
     sig
 }
 
-// /// high feedback gain per echo
-// fn hfb_decay_delay(j:usize, delay_params: &delay::DelayParams, render_at_offset: RenderFn) -> f32 {
-//     let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
-//     let min_distance =  samples_per_echo;
-//     if j < min_distance {
-//         return (1f32 - delay_params.mix) * render_at_offset(0)
-//     }
-
-//     let max_distance = delay_params.n_echoes * samples_per_echo;
-
-//     let sample_points:Vec<usize> = (1..(delay_params.n_echoes-1)).map(|x| x * samples_per_echo).collect();
-//     let dry = render_at_offset(0);
-//     let wet = sample_points.iter().fold(0f32, |v, t| {
-//         let y = if j > *t {
-//             render_at_offset(*t)
-//         } else {
-//             0f32
-//         };
-//         let n: f32 = *t as f32 / samples_per_echo as f32;
-//         let gain: f32 = 0.99f32.powf(n);
-//         v + gain * y
-//     });
-//     (1f32 - delay_params.mix) * dry + delay_params.mix * wet
-// }
-
 fn longest_delay_length(ds:&Vec<delay::DelayParams>) -> f32 {
     ds.iter().fold(0f32, |max, params| (params.len_seconds * params.n_echoes as f32).max(max))
 }
@@ -159,11 +134,11 @@ pub fn ninj<'render>(
     for delay_params in delays {
         let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
         for j in 0..n_samples {
-            for replica_n in 0..(delay_params.n_echoes) {
+            for replica_n in 0..(delay_params.n_echoes.max(1)) {
                 let gain = if replica_n == 0 {
                     1f32 - delay_params.mix
                 } else {
-                    delay_params.mix * delay::gain(j, replica_n, delay_params)
+                    delay::gain(j, replica_n, delay_params)
                 };
                 if gain < gate_thresh {
                     continue;
@@ -355,43 +330,6 @@ pub fn ninja<'render>(
     sig
 }
 
-/// Given a list of durs representing the basis note durations and a playback rate,
-/// Return a list of indicies for a SampleBuffer indicating each note's "start" position.
-/// Useful when mixing in delayed copies of a signal.
-pub fn insertion_marks(cps:f32, durs:&Vec<f32>) -> Vec<usize> {
-    let mut marks = Vec::with_capacity(durs.len());
-    let (_, marks) = durs.iter()
-        .fold((0, marks), |(acc, mut ms), dur| {
-                ms.push(acc);
-                (acc + time::samples_from_dur(cps, *dur), ms)
-            }
-        );
-    marks
-}
-
-pub fn ssstitch((root, cps):(f32, f32), thresh:&Thresh, line:&Vec<(f32, i32, i8)>, feeling:&FeelingHolder, delays: &Vec<delay::DelayParams>) -> SampleBuffer {
-    let mut samples:Vec<SampleBuffer> = Vec::with_capacity(line.len());
-    let insert_points:Vec<usize> = insertion_marks(cps, &line.iter().map(|(d,_,_)| *d).collect());
-    let mut wet_buf:SampleBuffer = Vec::new();
-    
-    for (i, syn_midi) in line.iter().enumerate() {
-                    
-        let freq = root * xform_freq::midi_to_freq(syn_midi.1);
-        let ctx:Ctx = Ctx {
-            span: &(cps, syn_midi.0),
-            freq,
-            thresh
-        };
-        let start_point = insert_points[i];
-        let sample = nun(&ctx, &feeling, &delays);
-        for (j, y) in sample.iter().enumerate() {
-            wet_buf[i+j] += y
-        }
-
-    }
-
-    wet_buf
-}
 
 pub fn stitch(len:usize, cps:f32, durs:Vec<f32>, samples:&mut Vec<SampleBuffer>) -> SampleBuffer {
     let mut signal:SampleBuffer = vec![0f32; len];
@@ -826,6 +764,83 @@ mod test {
 
         let ds:Vec<delay::DelayParams> = vec![
             delay::DelayParams { mix: 0.5f32, gain: 0.99, len_seconds: 0.15f32, n_echoes: 5}
+        ];
+
+        let ms:Vec<fn () -> ModifiersHolder> = vec![
+            modifiers_lead,
+            modifiers_chords,
+        ];
+
+        let initial_mods:Vec<ModifiersHolder> = ms.iter().map(|mod_gen| mod_gen()).collect();
+
+        let mut channels:Vec<SampleBuffer> = Vec::new();
+        let common_thresh:Thresh = (0f32, 1f32);
+
+        for (index, (midi_melody, synth_gen)) in rs.iter().enumerate() {
+            if midi_melody.len() == 1 {
+                let stem_name = format!("{}-stem-{}", test_name, index);
+                let mut channel_samples:Vec<SampleBuffer> = Vec::new();
+                let line = &midi_melody[0];
+
+                let len_cycles:f32 = line.iter().map(|(d,_,_)| d).sum();
+
+                let append_delay = time::samples_of_dur(x_files::cps, longest_delay_length(&ds));
+                let signal_len = crate::time::samples_of_cycles(x_files::cps, len_cycles) + append_delay;
+
+                for syn_midi in line {
+                    
+                    let freq = x_files::root * xform_freq::midi_to_freq(syn_midi.1);
+                    let ctx:Ctx = Ctx {
+                        span: &(x_files::cps, syn_midi.0),
+                        freq,
+                        thresh: &common_thresh
+                    };
+                    let f:FeelingHolder = synth_gen(freq, xform_freq::velocity_to_amplitude(syn_midi.2));
+                    let feeling:FeelingHolder = FeelingHolder {
+                        bp: f.bp,
+                        expr: f.expr,
+                        dressing: f.dressing,
+                        modifiers: update_mods(&initial_mods[index], &mut rng)
+                    };
+                    channel_samples.push(ninj(&ctx, &feeling, &ds));
+                }
+
+                let durs:Vec<f32> = line.iter().map(|(d,_,_)| *d).collect();
+                let channel_signal = stitch(signal_len, x_files::cps, durs, &mut channel_samples);
+                
+                write_test_asset(&channel_signal, &stem_name);
+                
+                channels.push(channel_signal)
+            } else {
+                panic!("Need to implement polyphonic melody")
+            }
+        }
+
+        match render::pad_and_mix_buffers(channels) {
+            Ok(signal) => {
+                write_test_asset(&signal, &test_name)
+            },
+            Err(msg) => {
+                panic!("Failed to mix and render audio: {}", msg)
+            }
+        }
+    }
+
+
+    #[test]
+    fn test_ninja_xfiles_reverb() {
+        let melody1 = x_files::lead_melody();
+        let melody2 = x_files::piano_melody();
+        let test_name = "x_files_reverb";
+        let mut rng = rand::thread_rng();
+
+        let rs:Vec<(Vec<Vec<(f32, i32, i8)>>, fn (f32,f32) -> FeelingHolder)> = vec![
+            (melody1, feeling_lead),
+            (melody2, feeling_chords),
+        ];
+
+        let ds:Vec<delay::DelayParams> = vec![
+            delay::DelayParams { mix: 0f32, gain: 0f32, len_seconds: 0f32, n_echoes: 0}
         ];
 
         let ms:Vec<fn () -> ModifiersHolder> = vec![
