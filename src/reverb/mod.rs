@@ -1,1 +1,1 @@
-mod convolution;
+pub mod convolution;

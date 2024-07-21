@@ -3,7 +3,34 @@ use crate::phrasing::contour::gen_contour;
 use crate::time;
 use crate::types::timbre::AmpContour;
 use rustfft::{FftPlanner, num_complex::Complex};
-use rand::{Rng,thread_rng};
+use rand::{Rng,thread_rng, rngs::ThreadRng};
+
+#[derive(Copy,Clone)]
+pub enum Cube {
+    Room,
+    Hall,
+    Vast 
+}
+
+#[derive(Copy,Clone)]
+pub struct ReverbProfile {
+    cube: Cube
+}
+
+#[derive(Copy,Clone)]
+/// 
+/// amp: The impulse amplitude coefficient
+/// dur: Length in seconds for the impulse to live
+/// rate: Decay rate for impulse. 
+pub struct ReverbParams {
+    pub mix: f32,
+    pub amp: f32, 
+    pub dur: f32,
+    pub rate: f32
+}
+
+// total energy on interval [0,1] decreases by 0.5 
+// for every 5x. 5dx=0.5dy
 
 /// Produce an exponentially decaying noise sample 
 fn noise_buffer(amp:f32, n_samples:usize) -> SampleBuffer {
@@ -11,20 +38,33 @@ fn noise_buffer(amp:f32, n_samples:usize) -> SampleBuffer {
     let contour = gen_contour(n_samples, 1f32, &AmpContour::Surge, true);
     (0..n_samples).map(|i| amp * contour[i] * (2f32 * rng.gen::<f32>() - 1f32)).collect()
 }
-fn apply1(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
-    let impulse_response = noise_buffer(0.2f32, reverb_len);
-    let mut wet = vec![0f32; sig.len() + impulse_response.len() - 1];
 
-    for n in 0..wet.len() {
-        for k in 0..sig.len() {
-            if n >= k && (n - k) < impulse_response.len() {
-                wet[n] += sig[k] * impulse_response[n - k];
-            }
-        }
-    }
-
-    wet
+#[inline]
+/// equal power white noise sample generator
+fn noise_sample(rng:&mut ThreadRng) -> f32 {
+    2f32 * rng.gen::<f32>() - 1f32
 }
+
+#[inline]
+/// natural exponential growth or decay
+fn contour_sample(k:f32, t:f32) -> f32 {
+    (k * t).exp().max(0.0)
+}
+
+/// Produce an exponentially decaying white noise sample 
+/// amp: direct amplitude coeffecient to scale the entire signal
+/// rate: standard range value mapping into decay rates from -50 (shortest, rate=0) to -5 (longest, rate=1)
+/// dur: length in seconds of impulse to generate
+fn gen_impulse(amp:f32, rate:f32, dur:f32) -> SampleBuffer {
+    let n_samples = time::samples_of_dur(1f32, dur);
+    let mut rng = thread_rng();
+    let k = -50f32 + (rate * (50f32 - 5f32));
+    let nf = n_samples as f32;
+    (0..n_samples).map(|i| 
+        amp *  contour_sample(k, i as f32 / nf) * noise_sample(&mut rng)
+    ).collect()
+}
+
 
 fn apply(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
     let impulse_response = noise_buffer(0.005f32, reverb_len);
@@ -54,12 +94,62 @@ fn apply(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
 }
 
 
+/// Applies convolution with a noise buffer
+/// onto a given signal. Intended for reverb
+pub fn of(sig: &SampleBuffer, params: &ReverbParams) -> SampleBuffer {
+    let impulse_response = gen_impulse(params.amp, params.rate, params.dur);
+    let n = sig.len() + impulse_response.len() - 1;
+    
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(n);
+    let ifft = planner.plan_fft_inverse(n); 
+
+    let mut sig_padded: Vec<Complex<f32>> = sig.iter().cloned().map(|s| Complex::new(s, 0.0)).collect();
+    sig_padded.resize(n, Complex::new(0.0, 0.0));
+
+    let mut ir_padded: Vec<Complex<f32>> = impulse_response.iter().cloned().map(|s| Complex::new(s, 0.0)).collect();
+    ir_padded.resize(n, Complex::new(0.0, 0.0));
+
+    fft.process(&mut sig_padded);
+    fft.process(&mut ir_padded);
+
+    let mut          result = vec![Complex::new(0.0, 0.0); n];
+    for i in 0..n {
+        result[i] = sig_padded[i] * ir_padded[i];
+    }
+
+    ifft.process(&mut result);
+
+    // Normalize the result by n and create the wet signal
+    let wet_signal: SampleBuffer = result.iter().map(|c| c.re / n as f32).collect();
+
+    // Mix dry and wet signals
+    let mut mixed_signal: SampleBuffer = vec![0.0; sig.len()];
+    for i in 0..sig.len() {
+        mixed_signal[i] = (1.0 - params.mix) * sig[i] + params.mix * wet_signal[i];
+    }
+
+    mixed_signal
+}
+
+
 /// Mix dry and wet signals using Fourier transform for fast convolution.
 /// `sig` - input signal buffer
 /// `dur_seconds` - duration of reverb in seconds
 /// `gain` - gain for the reverb
 /// `wet` - mix ratio for wet signal (0.0 = fully dry, 1.0 = fully wet)
 fn mix(sig: &SampleBuffer, dur_seconds: f32, gain: f32, wet: f32) -> SampleBuffer {
+    /*
+     * 
+     * observations:
+     * 
+     * context, covolution of complete sequenced melody and H(t) = white noise filter with exponential decay k=-5 length=8seconds 
+     * when applied to the "chords" (lower register) part in the x files demo,
+     * this behaved more like a saturation effect than a blur effect. 
+     * It did not sound at all like reverb. It did sound thicker and way richer. 
+     * 
+     * 
+     */
     let reverb_len = time::samples_of_dur(1f32, dur_seconds);
     let impulse_response = noise_buffer(gain, reverb_len);
     let n = sig.len() + impulse_response.len() - 1;
@@ -84,50 +174,13 @@ fn mix(sig: &SampleBuffer, dur_seconds: f32, gain: f32, wet: f32) -> SampleBuffe
 
     ifft.process(&mut result);
 
-    // Normalize the result by n
     let wet_signal: SampleBuffer = result.iter().map(|c| c.re / n as f32).collect();
-
-    // Mix dry and wet signals
     let mut mixed_signal: SampleBuffer = vec![0.0; sig.len()];
     for i in 0..sig.len() {
         mixed_signal[i] = (1.0 - wet) * sig[i] + wet * wet_signal[i];
     }
 
     mixed_signal
-}
-
-
-fn generate_violet_noise(length: usize) -> SampleBuffer {
-    let white_noise = generate_white_noise(length);
-    let mut violet_noise = vec![0.0; length];
-
-    for i in 1..length {
-        violet_noise[i] = white_noise[i] - white_noise[i - 1];
-    }
-
-    violet_noise
-}
-
-fn generate_white_noise(length: usize) -> SampleBuffer {
-    let mut rng = rand::thread_rng();
-    (0..length).map(|_| rng.gen_range(-1.0..1.0)).collect()
-}
-
-fn generate_pink_noise(length: usize) -> SampleBuffer {
-    let mut rng = rand::thread_rng();
-    let num_rows = 16;
-    let mut rows = vec![0.0; num_rows];
-    let mut pink_noise = vec![0.0; length];
-
-    for i in 0..length {
-        let row = rng.gen_range(0..num_rows);
-        rows[row] = rng.gen_range(-1.0..1.0);
-        
-        let running_sum: f32 = rows.iter().sum();
-        pink_noise[i] = running_sum / num_rows as f32;
-    }
-
-    pink_noise
 }
 
 
@@ -217,7 +270,7 @@ mod tests {
         setup();
         let test_name = "longverb";
 
-        let major_chord = gen_signal();
+        let major_chord = gen_signal();   
         let reverb_len = SR*8;
         let wet_signal = apply(&major_chord, reverb_len);
         assert_eq!(wet_signal.len(), major_chord.len() + reverb_len - 1);

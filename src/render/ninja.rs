@@ -5,20 +5,23 @@
 //! frequency, and phase over time. The `ninja` function is the main entry point
 //! for generating a synthesized audio buffer.
 
+use crate::synth::{SR, SRf, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
 use crate::analysis::delay;
 use crate::analysis::xform_freq;
 use crate::druid::applied_modulation::{Dressing, ModulationEffect, Modifiers, ModifiersHolder};
-use crate::druid::compute::{ModulationMode};
-use crate::synth::{SR, SRf, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
+use crate::druid::compute::ModulationMode;
+use crate::time;
 use crate::types::synthesis::{Frex, GlideLen, Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{self, Span};
-use crate::time;
 use crate::phrasing::contour::{Expr, Position, sample};
 use crate::phrasing::ranger::{Ranger, Modders, Mixer, WRangers, mix, example_options};
+use crate::reverb::convolution;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 use serde::de;
+
+use super::pad_and_mix_buffers;
 
 /// Returns an amplitude identity or cancellation value
 /// for the given frequency and bandpass settings
@@ -124,6 +127,7 @@ pub fn ninj<'render>(
     Ctx { freq, span, thresh: &(gate_thresh, clip_thresh) }: &'render Ctx,
     FeelingHolder { bp, expr, dressing, modifiers }: &'render FeelingHolder,
     delays: &Vec::<delay::DelayParams>,
+    reverbs: &Vec::<&convolution::ReverbParams>,
 ) -> Vec<f32> {
     let append_delay = time::samples_of_dur(span.0, longest_delay_length(delays));
     let n_samples = crate::time::samples_of_cycles(span.0, span.1) + append_delay;
@@ -190,8 +194,17 @@ pub fn ninj<'render>(
             }
         }
     }
+    if reverbs.len() == 0 {
+        return sig
+    }
 
-    sig
+    let wets:Vec<SampleBuffer> = reverbs.iter().map(|params| {
+        convolution::of(&sig, &params)
+    }).collect();
+    match pad_and_mix_buffers(wets) {
+        Ok(signal) => signal,
+        Err(msg) => panic!("Uncaught error while mixing in reverbs: {}",msg)
+    }
 }
 
 /// Additive synthesis with dynamic modulators supporting inline delay
@@ -344,6 +357,8 @@ pub fn stitch(len:usize, cps:f32, durs:Vec<f32>, samples:&mut Vec<SampleBuffer>)
 
 #[cfg(test)]
 mod test {
+    use convolution::ReverbParams;
+
     use crate::druid::applied_modulation::{AmplitudeModParams, PhaseModParams, FrequencyModParams, ModulationEffect};
     use crate::druid::melodic;
     use crate::files;
@@ -727,7 +742,7 @@ mod test {
                         dressing: f.dressing,
                         modifiers: update_mods(&initial_mods[index], &mut rng)
                     };
-                    channel_signal.append(&mut ninj(&ctx, &feeling, &ds));
+                    channel_signal.append(&mut ninj(&ctx, &feeling, &ds, &Vec::<&ReverbParams>::new()));
                 }
 
                 write_test_asset(&channel_signal, &stem_name);
@@ -802,7 +817,7 @@ mod test {
                         dressing: f.dressing,
                         modifiers: update_mods(&initial_mods[index], &mut rng)
                     };
-                    channel_samples.push(ninj(&ctx, &feeling, &ds));
+                    channel_samples.push(ninj(&ctx, &feeling, &ds, &Vec::<&ReverbParams>::new()));
                 }
 
                 let durs:Vec<f32> = line.iter().map(|(d,_,_)| *d).collect();
@@ -834,13 +849,17 @@ mod test {
         let test_name = "x_files_reverb";
         let mut rng = rand::thread_rng();
 
-        let rs:Vec<(Vec<Vec<(f32, i32, i8)>>, fn (f32,f32) -> FeelingHolder)> = vec![
+        let stems:Vec<(Vec<Vec<(f32, i32, i8)>>, fn (f32,f32) -> FeelingHolder)> = vec![
             (melody1, feeling_lead),
             (melody2, feeling_chords),
         ];
 
         let ds:Vec<delay::DelayParams> = vec![
             delay::DelayParams { mix: 0f32, gain: 0f32, len_seconds: 0f32, n_echoes: 0}
+        ];
+
+        let reverbs:Vec<&convolution::ReverbParams> = vec![
+            &convolution::ReverbParams { mix: 1f32, amp: 0.5f32, dur: 8f32, rate: 1f32}
         ];
 
         let ms:Vec<fn () -> ModifiersHolder> = vec![
@@ -853,19 +872,15 @@ mod test {
         let mut channels:Vec<SampleBuffer> = Vec::new();
         let common_thresh:Thresh = (0f32, 1f32);
 
-        for (index, (midi_melody, synth_gen)) in rs.iter().enumerate() {
-            if midi_melody.len() == 1 {
-                let stem_name = format!("{}-stem-{}", test_name, index);
+        for (index, (midi_melody, synth_gen)) in stems.iter().enumerate() {
+            let line_buffs:Vec<SampleBuffer> = midi_melody.iter().map(|line| {
                 let mut channel_samples:Vec<SampleBuffer> = Vec::new();
-                let line = &midi_melody[0];
 
                 let len_cycles:f32 = line.iter().map(|(d,_,_)| d).sum();
-
                 let append_delay = time::samples_of_dur(x_files::cps, longest_delay_length(&ds));
                 let signal_len = crate::time::samples_of_cycles(x_files::cps, len_cycles) + append_delay;
 
                 for syn_midi in line {
-                    
                     let freq = x_files::root * xform_freq::midi_to_freq(syn_midi.1);
                     let ctx:Ctx = Ctx {
                         span: &(x_files::cps, syn_midi.0),
@@ -879,17 +894,106 @@ mod test {
                         dressing: f.dressing,
                         modifiers: update_mods(&initial_mods[index], &mut rng)
                     };
-                    channel_samples.push(ninj(&ctx, &feeling, &ds));
+                    channel_samples.push(ninj(&ctx, &feeling, &ds, &reverbs));
                 }
 
                 let durs:Vec<f32> = line.iter().map(|(d,_,_)| *d).collect();
-                let channel_signal = stitch(signal_len, x_files::cps, durs, &mut channel_samples);
-                
-                write_test_asset(&channel_signal, &stem_name);
-                
-                channels.push(channel_signal)
-            } else {
-                panic!("Need to implement polyphonic melody")
+                stitch(signal_len, x_files::cps, durs, &mut channel_samples)
+            }).collect();
+
+            match render::pad_and_mix_buffers(line_buffs) {
+                Ok(channel_signal) => {
+                    let stem_name = format!("{}-stem-{}", test_name, index);
+                    write_test_asset(&channel_signal, &stem_name);
+                    channels.push(channel_signal)
+                },
+                Err(msg) => {
+                    panic!("Failed to mix and render audio: {}", msg)
+                }
+            }
+        }
+
+        match render::pad_and_mix_buffers(channels) {
+            Ok(signal) => {
+                write_test_asset(&signal, &test_name)
+            },
+            Err(msg) => {
+                panic!("Failed to mix and render audio: {}", msg)
+            }
+        }
+    }
+
+
+    #[test]
+    fn test_ninja_xfiles_delay_and_reverb() {
+        let melody1 = x_files::lead_melody();
+        let melody2 = x_files::piano_melody();
+        let test_name = "x_files_delay_and_reverb";
+        let mut rng = rand::thread_rng();
+
+        let stems:Vec<(Vec<Vec<(f32, i32, i8)>>, fn (f32,f32) -> FeelingHolder)> = vec![
+            (melody1, feeling_lead),
+            (melody2, feeling_chords),
+        ];
+
+        let ds:Vec<delay::DelayParams> = vec![
+            delay::DelayParams { mix: 0.5f32, gain: 0.3f32, len_seconds: 0.66f32, n_echoes: 3},
+            delay::DelayParams { mix: 0.5f32, gain: 0.5f32, len_seconds: 1.5f32, n_echoes: 2}
+        ];
+
+        let reverbs:Vec<&convolution::ReverbParams> = vec![
+            &convolution::ReverbParams { mix: 1f32, amp: 0.5f32, dur: 0.01f32, rate: 0.8f32},
+            &convolution::ReverbParams { mix: 0.3f32, amp: 0.5f32, dur: 4f32, rate: 0.1f32},
+        ];
+
+        let ms:Vec<fn () -> ModifiersHolder> = vec![
+            modifiers_lead,
+            modifiers_chords,
+        ];
+
+        let initial_mods:Vec<ModifiersHolder> = ms.iter().map(|mod_gen| mod_gen()).collect();
+
+        let mut channels:Vec<SampleBuffer> = Vec::new();
+        let common_thresh:Thresh = (0f32, 1f32);
+
+        for (index, (midi_melody, synth_gen)) in stems.iter().enumerate() {
+            let line_buffs:Vec<SampleBuffer> = midi_melody.iter().map(|line| {
+                let mut channel_samples:Vec<SampleBuffer> = Vec::new();
+
+                let len_cycles:f32 = line.iter().map(|(d,_,_)| d).sum();
+                let append_delay = time::samples_of_dur(x_files::cps, longest_delay_length(&ds));
+                let signal_len = crate::time::samples_of_cycles(x_files::cps, len_cycles) + append_delay;
+
+                for syn_midi in line {
+                    let freq = x_files::root * xform_freq::midi_to_freq(syn_midi.1);
+                    let ctx:Ctx = Ctx {
+                        span: &(x_files::cps, syn_midi.0),
+                        freq,
+                        thresh: &common_thresh
+                    };
+                    let f:FeelingHolder = synth_gen(freq, xform_freq::velocity_to_amplitude(syn_midi.2));
+                    let feeling:FeelingHolder = FeelingHolder {
+                        bp: f.bp,
+                        expr: f.expr,
+                        dressing: f.dressing,
+                        modifiers: update_mods(&initial_mods[index], &mut rng)
+                    };
+                    channel_samples.push(ninj(&ctx, &feeling, &ds, &reverbs));
+                }
+
+                let durs:Vec<f32> = line.iter().map(|(d,_,_)| *d).collect();
+                stitch(signal_len, x_files::cps, durs, &mut channel_samples)
+            }).collect();
+
+            match render::pad_and_mix_buffers(line_buffs) {
+                Ok(channel_signal) => {
+                    let stem_name = format!("{}-stem-{}", test_name, index);
+                    write_test_asset(&channel_signal, &stem_name);
+                    channels.push(channel_signal)
+                },
+                Err(msg) => {
+                    panic!("Failed to mix and render audio: {}", msg)
+                }
             }
         }
 
