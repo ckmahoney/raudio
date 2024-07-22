@@ -61,66 +61,9 @@ pub struct FeelingRef<'render> {
     modifiers: Modifiers<'render>
 }
 
-/// Additive synthesis with dynamic modulators
-pub fn nin<'render>(
-    Ctx { freq, span, thresh: &(gate_thresh, clip_thresh) }: &'render Ctx,
-    FeelingHolder { bp, expr, dressing, modifiers }: FeelingHolder
-) -> Vec<f32> {
-    let n_samples = time::samples_of_cycles(span.0, span.1);
-    let mut sig = vec![0f32; n_samples];
-
-    let (modAmp, modFreq, modPhase, modTime) = modifiers;
-
-    for j in 0..n_samples {
-        let p: f32 = j as f32 / n_samples as f32;
-        let t0:f32 = j as f32 / SRf;
-        let t: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
-        let mut v: f32 = 0f32;
-
-        // sample the amp, freq, and phase offset envelopes
-        let mut am = sample(&expr.0, p);
-        let mut fm = sample(&expr.1, p);
-        let mut pm = sample(&expr.2, p);
-
-        let multipliers = &dressing.multipliers;
-        let amplifiers = &dressing.amplitudes;
-        let phases = &dressing.offsets;
-
-        // preliminary filter. Saves a lot of compute!
-        if am > gate_thresh {
-            for (i, &m) in multipliers.iter().enumerate() {
-                let a0 = amplifiers[i];
-                if a0 > 0f32 {
-                    let amplifier = modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
-                    if amplifier != 0f32 {
-                        let k = i + 1;
-                        let f0:f32 = m * fm * freq;
-                        let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc)); 
-                        let amp = amplifier * am * filter(p, frequency, &bp);
-                        let p0 = frequency * pi2 * t;
-                        let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
-                        v += amp * phase.sin();
-                    }
-                }
-            }
-
-            // apply gating and clipping to the summed sample
-            if v.abs() > clip_thresh {
-                sig[j] += v.signum() * clip_thresh;
-            }
-            if v.abs() >= gate_thresh {
-                sig[j] += v;
-            }
-        }
-    }
-
-    sig
-}
-
 fn longest_delay_length(ds:&Vec<delay::DelayParams>) -> f32 {
     ds.iter().fold(0f32, |max, params| (params.len_seconds * params.n_echoes as f32).max(max))
 }
-
 
 /// Additive synthesis with dynamic modulators supporting inline delay
 pub fn ninj<'render>(
@@ -194,6 +137,7 @@ pub fn ninj<'render>(
             }
         }
     }
+    
     if reverbs.len() == 0 {
         return sig
     }
@@ -207,79 +151,6 @@ pub fn ninj<'render>(
     }
 }
 
-/// Additive synthesis with dynamic modulators supporting inline delay
-pub fn nun<'render>(
-    Ctx { freq, span, thresh: &(gate_thresh, clip_thresh) }: &'render Ctx,
-    FeelingHolder { bp, expr, dressing, modifiers }: &'render FeelingHolder,
-    delays: &Vec::<delay::DelayParams>,
-) -> Vec<f32> {
-    let n_samples = crate::time::samples_of_cycles(span.0, span.1);
-    let mut sig = vec![0f32; n_samples];
-
-    let (modAmp, modFreq, modPhase, modTime) = modifiers;
-
-    for delay_params in delays {
-        let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
-        for j in 0..n_samples {
-            for replica_n in 0..(delay_params.n_echoes) {
-                let gain = if replica_n == 0 {
-                    1f32 - delay_params.mix
-                } else {
-                    delay_params.mix * delay::gain(j, replica_n, delay_params)
-                };
-                if gain < gate_thresh {
-                    continue;
-                }
-
-                let offset_j = replica_n * samples_per_echo;
-
-                let p: f32 = (offset_j + j) as f32 / n_samples as f32;
-                let t0:f32 = (offset_j + j) as f32 / SRf;
-                let t: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
-                let mut v: f32 = 0f32;
-
-                // sample the amp, freq, and phase offset envelopes
-                let mut am = sample(&expr.0, p);
-                let mut fm = sample(&expr.1, p);
-                let mut pm = sample(&expr.2, p);
-
-                let multipliers = &dressing.multipliers;
-                let amplifiers = &dressing.amplitudes;
-                let phases = &dressing.offsets;
-
-                if (am*gain) < gate_thresh {
-                    continue;
-                }
-
-                for (i, &m) in multipliers.iter().enumerate() {
-                    let a0 = amplifiers[i];
-                    if a0 > 0f32 {
-                        let amplifier = modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
-                        if (amplifier*am*gain) < gate_thresh {
-                            continue
-                        }
-                        let k = i + 1;
-                        let f0:f32 = m * fm * freq;
-                        let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc)); 
-                        let amp = gain * amplifier * am * filter(p, frequency, &bp);
-                        let p0 = frequency * pi2 * t;
-                        let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
-                        v += amp * phase.sin();
-                    }
-                };
-
-                // apply gating and clipping to the summed sample
-                if v.abs() > clip_thresh {
-                    sig[j] += v.signum() * clip_thresh;
-                } else if v.abs() >= gate_thresh {
-                    sig[j] += v;
-                }
-            }
-        }
-    }
-
-    sig
-}
 
 /// Synthesis with dynamic modulators
 pub fn ninja<'render>(
@@ -551,69 +422,6 @@ mod test {
         write_test_asset(&signal, &test_name)
     }
 
-    #[test]
-    fn test_ninja_xfiles_render() {
-        let melody1 = x_files::lead_melody();
-        let melody2 = x_files::piano_melody();
-        let test_name = "x_files_render";
-        let mut rng = rand::thread_rng();
-
-        let rs:Vec<(Vec<Vec<(f32, i32, i8)>>, fn (f32,f32) -> FeelingHolder)> = vec![
-            (melody1, feeling_lead),
-            (melody2, feeling_chords),
-        ];
-
-        let ms:Vec<fn () -> ModifiersHolder> = vec![
-            modifiers_lead,
-            modifiers_chords,
-        ];
-
-        let initial_mods:Vec<ModifiersHolder> = ms.iter().map(|mod_gen| mod_gen()).collect();
-
-        let mut channels:Vec<SampleBuffer> = Vec::new();
-        let common_thresh:Thresh = (0f32, 1f32);
-
-        for (index, (midi_melody, synth_gen)) in rs.iter().enumerate() {
-            if midi_melody.len() == 1 {
-                let stem_name = format!("{}-stem-{}", test_name, index);
-                let mut channel_signal:SampleBuffer = Vec::new();
-                let line = &midi_melody[0];
-                for syn_midi in line {
-                    
-                    let freq = x_files::root * xform_freq::midi_to_freq(syn_midi.1);
-                    let ctx:Ctx = Ctx {
-                        span: &(x_files::cps, syn_midi.0),
-                        freq,
-                        thresh: &common_thresh
-                    };
-                    let f:FeelingHolder = synth_gen(freq, xform_freq::velocity_to_amplitude(syn_midi.2));
-                    let feeling:FeelingHolder = FeelingHolder {
-                        bp: f.bp,
-                        expr: f.expr,
-                        dressing: f.dressing,
-                        // modifiers: update_mods(&initial_mods[index], &mut rng)
-                        modifiers: initial_mods[index].clone()
-                    };
-                    channel_signal.append(&mut nin(&ctx, feeling));
-                }
-
-                write_test_asset(&channel_signal, &stem_name);
-                
-                channels.push(channel_signal)
-            } else {
-                panic!("Need to implement polyphonic melody")
-            }
-        }
-
-        match render::pad_and_mix_buffers(channels) {
-            Ok(signal) => {
-                write_test_asset(&signal, &test_name)
-            },
-            Err(msg) => {
-                panic!("Failed to mix and render audio: {}", msg)
-            }
-        }
-    }
 
     #[test]
     fn test_ninja_xfiles_with_delay() {

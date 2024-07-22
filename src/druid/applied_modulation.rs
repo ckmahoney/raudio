@@ -271,8 +271,6 @@ pub fn add(a: f32, b: f32) -> f32 {
     a + b
 }
 
-
-
 pub fn gen_tremelo(min_f:f32, max_f:f32, min_d:f32, max_d:f32, min_o:f32, max_o:f32, rng:&mut ThreadRng) -> ModulationEffect {
     let gtr_arg = AmplitudeModParams { 
         freq: min_f + rng.gen::<f32>() * (max_f * min_f), 

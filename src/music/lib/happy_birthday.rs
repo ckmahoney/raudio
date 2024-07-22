@@ -5,27 +5,12 @@ use crate::types::render::{Midi, ScoreEntry, PlayerTrack, Melody, Conf, Dimensio
 
 /// Monic representation of Happy Birthday
 /// This song is public domain
+pub const root:f32 = 1.3f32;
+pub const cps:f32 = 2.1f32;
 
-/// performed in the key of (0, 0) 
-pub fn get_track() -> PlayerTrack<Note> {
-    let progression: Progression = vec![
-        ((1, 1), (0, 0)),
 
-        ((3, 1), (0, 0)),
-        ((3, 1), (1, 0)),
-        ((3, 1), (1, 0)),
-        ((3, 1), (0, 0)),
-
-        ((3, 1), (0, 0)),
-        ((3, 1), (4, 1)),
-
-        ((2, 1), (0, 0)),
-        ((1, 1), (0, 0)),
-
-        ((3, 1), (0, 0))
-    ];
-
-    let lead: Melody<Note> = vec![
+pub fn lead_melody() -> Melody<Note> {
+    vec![
         vec![
             ((3, 4), (6, (0, 0, 3)), 1.0),
             ((1, 4), (6, (0, 0, 3)), 1.0),
@@ -61,7 +46,29 @@ pub fn get_track() -> PlayerTrack<Note> {
 
             ((3, 1), (7, (0, 0, 1)), 1.0)
         ]
+    ]
+}
+
+/// performed in the key of (0, 0) 
+pub fn get_track() -> PlayerTrack<Note> {
+    let progression: Progression = vec![
+        ((1, 1), (0, 0)),
+
+        ((3, 1), (0, 0)),
+        ((3, 1), (1, 0)),
+        ((3, 1), (1, 0)),
+        ((3, 1), (0, 0)),
+
+        ((3, 1), (0, 0)),
+        ((3, 1), (4, 1)),
+
+        ((2, 1), (0, 0)),
+        ((1, 1), (0, 0)),
+
+        ((3, 1), (0, 0))
     ];
+
+    let lead: Melody<Note> = lead_melody();
 
     let flute:Entry = (
         Arf {
@@ -77,8 +84,8 @@ pub fn get_track() -> PlayerTrack<Note> {
     let parts: Vec<ScoreEntry<Note>> = vec![flute];
     PlayerTrack {
         conf: Conf {
-            root: 1.3f32,
-            cps: 2.1f32
+            root,
+            cps
         },
         duration: parts[0].1.iter().fold(0f32, |acc_melody, line|
             acc_melody + line.iter().fold(0f32, |acc, &note| acc + note.0.1 as f32/note.0.0 as f32)

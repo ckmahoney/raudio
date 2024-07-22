@@ -134,6 +134,8 @@ pub mod synthesis {
         pub amplitudes: Vec<f32>,
         pub offsets: Vec<f32>,
     }
+    pub type Dressor = fn (f32) -> Dressing;
+
 
     /// Collection of optional additive modulations for a signal.
     /// Entries in the form of (amp, freq, offset, time) modulation vectors.
@@ -144,6 +146,7 @@ pub mod synthesis {
     /// Offset must output a value in [0, 2pi]
     /// Time must output a value in (0, Nf/t)
     pub type Modifiers<'render> = (&'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>);
+    pub type Ms<'render> = &'render (Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>);
 
     pub type ModifiersHolder = (Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>);
 }
@@ -222,16 +225,22 @@ pub mod render {
 
 
 
-    pub struct FeelingHolder {
+    pub struct Feel {
         pub bp: Bp,
         pub expr: Expr,
-        pub dressing: Dressing,
         pub modifiers: ModifiersHolder, 
         pub clippers: Clippers
     }
 
+
     /// Applied parameters to create a SampleBuffer
-    pub type Stem<'render> = (Melody<synthesis::Note>, FeelingHolder, Modifiers<'render>, &'render Vec<crate::analysis::delay::DelayParams>);
+    pub type Stem<'render> = (
+        Melody<synthesis::Note>, 
+        Dressor, 
+        Feel, 
+        ModifiersHolder, 
+        &'render Vec<crate::analysis::delay::DelayParams>
+    );
 
 }
 
