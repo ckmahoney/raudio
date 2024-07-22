@@ -1,6 +1,6 @@
 use std::time::Instant;
 use std::collections::HashMap;
-use crate::types::synthesis::Ratio;
+use crate::types::synthesis::{Note, Ratio};
 use crate::synth::{SR, SRf};
 
 /// Given dynamic playback rate and constant sample rate, 
@@ -42,6 +42,11 @@ pub fn dur(cps: f32, ratio:&Ratio) -> f32 {
 
 pub fn duration_to_cycles((numerator, denominator):Ratio) -> f32 {
     numerator as f32/denominator as f32
+}
+
+/// Given a sequence of notes, determine the total number of cycles it requests.
+pub fn count_cycles(line:&Vec<Note>) -> f32 {
+    line.iter().fold(0f32, |acc, (duration,_,_)| acc + duration_to_cycles(*duration))
 }
 
 

@@ -5,18 +5,17 @@ pub mod ninja;
 pub mod realize; 
 
 use crate::synth::{SR, SRf, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
-use crate::analysis::delay;
-use crate::reverb::convolution;
-use crate::types::render::{Span, Stem, FeelingHolder};
-use self::realize::normalize_channels;
+use crate::analysis::{delay, xform_freq};
+use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 use crate::druid::applied_modulation::update_mods;
 use crate::time;
-use crate::types::render::{Melody};
-use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
+use crate::monic_theory::tone_to_freq;
 use crate::phrasing::lifespan;
 use crate::phrasing::contour::{Expr, Position, sample, apply_contour};
+use crate::reverb::convolution;
 use crate::types::timbre::{AmpContour,Arf};
 use crate::types::synthesis::{GlideLen, Note, Range, Bp, Clippers};
+use crate::types::render::{Melody,Span, Stem, FeelingHolder};
 use rand;
 use rand::{Rng, thread_rng};
 use rand::rngs::ThreadRng;
@@ -168,8 +167,7 @@ pub fn arf(cps:f32, contour:&AmpContour, melody:&Melody<Note>, synth:&Elementor,
 fn longest_delay_length(ds:&Vec<delay::DelayParams>) -> f32 {
     ds.iter().fold(0f32, |max, params| (params.len_seconds * params.n_echoes as f32).max(max))
 }
- 
-use crate::analysis::xform_freq;
+
 
 
 pub struct Ctx<'render> {
@@ -177,30 +175,31 @@ pub struct Ctx<'render> {
     span: &'render Span,
     thresh: &'render Clippers,
 }
-fn channel(cps:f32, root:f32, stem:&Stem) -> SampleBuffer {
-    // let line_buffs:Vec<SampleBuffer> = midi_melody.iter().map(|line| {
-    //     let mut channel_samples:Vec<SampleBuffer> = Vec::new();
+fn channel(cps:f32, root:f32, (melody, feel, mods, delays):&Stem) -> SampleBuffer {
+    let line_buffs:Vec<SampleBuffer> = melody.iter().map(|line| {
+        let mut channel_samples:Vec<SampleBuffer> = Vec::new();
 
-    //     let len_cycles:f32 = line.iter().map(|(d,_,_)| d).sum();
-    //     let append_delay = time::samples_of_dur(cps, longest_delay_length(&ds));
-    //     let signal_len = crate::time::samples_of_cycles(cps, len_cycles) + append_delay;
+        let len_cycles:f32 = time::count_cycles(line);
+        let append_delay = time::samples_of_dur(cps, longest_delay_length(&delays));
+        let signal_len = time::samples_of_cycles(cps, len_cycles) + append_delay;
 
-    //     for syn_midi in line {
-    //         let freq = root * xform_freq::midi_to_freq(syn_midi.1);
-    //         let ctx:Ctx = Ctx {
-    //             span: &(cps, syn_midi.0),
-    //             freq,
-    //             thresh: &common_thresh
-    //         };
-            
-    //         channel_samples.push(ninj(&ctx, &feeling, &ds, &reverbs));
-    //     }
+        for (duration, tone, amp) in line {
+            let freq = root * tone_to_freq(tone);
+            channel_samples.push(summit(cps, root, time::duration_to_cycles(*duration), &feel, &delays));
+        }
 
-    //     let durs:Vec<f32> = line.iter().map(|(d,_,_)| *d).collect();
-    //     stitch(signal_len, cps, durs, &mut channel_samples)
-    // }).collect();
-    vec![0f32]
+        let durs:Vec<f32> = line.iter().map(|(d,_,_)| time::duration_to_cycles(*d)).collect();
+        stitch(signal_len, cps, durs, &mut channel_samples)
+    }).collect();
 
+    match pad_and_mix_buffers(line_buffs) {
+        Ok(channel_signal) => {
+            channel_signal
+        },
+        Err(msg) => {
+            panic!("Failed to mix and render audio: {}", msg)
+        }
+    }
 }
 
 pub fn stitch(len:usize, cps:f32, durs:Vec<f32>, samples:&mut Vec<SampleBuffer>) -> SampleBuffer {
@@ -214,13 +213,9 @@ pub fn stitch(len:usize, cps:f32, durs:Vec<f32>, samples:&mut Vec<SampleBuffer>)
     signal
 }
 
-fn channels(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:Vec<&convolution::ReverbParams>) -> SampleBuffer {
+fn channels(cps:f32, root:f32, stems:&Vec<Stem>) -> SampleBuffer {
     let mut rng = rand::thread_rng();
     
-    let reverbs:Vec<&convolution::ReverbParams> = vec![
-        &convolution::ReverbParams { mix: 1f32, amp: 0.5f32, dur: 0.01f32, rate: 0.8f32},
-        &convolution::ReverbParams { mix: 0.3f32, amp: 0.5f32, dur: 4f32, rate: 0.1f32},
-    ];
 
     let mut channels:Vec<SampleBuffer> = Vec::new();
     // for (index, (midi_melody, synth_gen)) in stems.iter().enumerate() {
@@ -247,14 +242,16 @@ fn channels(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:Vec<&convolution::Rever
 
 /// Additive synthesis with dynamic modulators supporting inline delay
 pub fn summit<'render>(
-    Ctx { freq, span, thresh: &(gate_thresh, clip_thresh) }: &'render Ctx,
+    cps:f32, 
+    fundamental:f32,
+    n_cycles:f32,
     FeelingHolder { bp, expr, dressing, modifiers, clippers }: &'render FeelingHolder,
-    delays: &Vec::<delay::DelayParams>,
-    reverbs: &Vec::<&convolution::ReverbParams>,
+    delays: &Vec::<delay::DelayParams>
 ) -> Vec<f32> {
-    let append_delay = time::samples_of_dur(span.0, longest_delay_length(delays));
-    let n_samples = crate::time::samples_of_cycles(span.0, span.1) + append_delay;
+    let append_delay = time::samples_of_dur(cps, longest_delay_length(delays));
+    let n_samples = crate::time::samples_of_cycles(cps, n_cycles) + append_delay;
     let mut sig = vec![0f32; n_samples];
+    let (gate_thresh, clip_thresh) = clippers;
 
     let (modAmp, modFreq, modPhase, modTime) = modifiers;
 
@@ -267,7 +264,7 @@ pub fn summit<'render>(
                 } else {
                     delay::gain(j, replica_n, delay_params)
                 };
-                if gain < gate_thresh {
+                if gain < *gate_thresh {
                     continue;
                 }
 
@@ -287,7 +284,7 @@ pub fn summit<'render>(
                 let amplifiers = &dressing.amplitudes;
                 let phases = &dressing.offsets;
 
-                if (am*gain) < gate_thresh {
+                if (am*gain) < *gate_thresh {
                     continue;
                 }
 
@@ -295,11 +292,11 @@ pub fn summit<'render>(
                     let a0 = amplifiers[i];
                     if a0 > 0f32 {
                         let amplifier = modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
-                        if (amplifier*am*gain) < gate_thresh {
+                        if (amplifier*am*gain) < *gate_thresh {
                             continue
                         }
                         let k = i + 1;
-                        let f0:f32 = m * fm * freq;
+                        let f0:f32 = m * fm * fundamental;
                         let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc)); 
                         let amp = gain * amplifier * am * filter(p, frequency, &bp);
                         let p0 = frequency * pi2 * t;
@@ -309,25 +306,17 @@ pub fn summit<'render>(
                 };
 
                 // apply gating and clipping to the summed sample
-                if v.abs() > clip_thresh {
-                    sig[j] += v.signum() * clip_thresh;
-                } else if v.abs() >= gate_thresh {
+                if v.abs() > *clip_thresh {
+                    sig[j] += v.signum() * (*clip_thresh);
+                } else if v.abs() >= *gate_thresh {
                     sig[j] += v;
+                } else {
+                    // don't mix this [too quiet] sample!
                 }
             }
         }
     }
-    if reverbs.len() == 0 {
-        return sig
-    }
-
-    let wets:Vec<SampleBuffer> = reverbs.iter().map(|params| {
-        convolution::of(&sig, &params)
-    }).collect();
-    match pad_and_mix_buffers(wets) {
-        Ok(signal) => signal,
-        Err(msg) => panic!("Uncaught error while mixing in reverbs: {}",msg)
-    }
+    sig
 }
 
 

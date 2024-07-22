@@ -35,9 +35,9 @@ pub fn velocity_to_amplitude(velocity: i8) -> f32 {
 //     (dur, frequency, amp)
 // }
 
-// fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
-//     (time::dur(cps,ratio), tone_to_freq(tone), *ampl)
-// }
+fn note_to_mote(cps:f32, (ratio, tone, ampl):&Note) -> Mote {
+    (time::dur(cps,ratio), tone_to_freq(tone), *ampl)
+}
 
 // fn fill_zeros(cps:f32, n_cycles:f32) -> SampleBuffer {
 //     let n_samples = (time::samples_per_cycle(cps) as f32 * n_cycles) as usize;
