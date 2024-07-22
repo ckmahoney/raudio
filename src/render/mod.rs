@@ -168,13 +168,7 @@ fn longest_delay_length(ds:&Vec<delay::DelayParams>) -> f32 {
     ds.iter().fold(0f32, |max, params| (params.len_seconds * params.n_echoes as f32).max(max))
 }
 
-
-
-pub struct Ctx<'render> {
-    freq: f32,
-    span: &'render Span,
-    thresh: &'render Clippers,
-}
+/// Render an audio sample for an applied melody.
 fn channel(cps:f32, root:f32, (melody, feel, mods, delays):&Stem) -> SampleBuffer {
     let line_buffs:Vec<SampleBuffer> = melody.iter().map(|line| {
         let mut channel_samples:Vec<SampleBuffer> = Vec::new();
@@ -182,27 +176,25 @@ fn channel(cps:f32, root:f32, (melody, feel, mods, delays):&Stem) -> SampleBuffe
         let len_cycles:f32 = time::count_cycles(line);
         let append_delay = time::samples_of_dur(cps, longest_delay_length(&delays));
         let signal_len = time::samples_of_cycles(cps, len_cycles) + append_delay;
-
         for (duration, tone, amp) in line {
             let freq = root * tone_to_freq(tone);
-            channel_samples.push(summit(cps, root, time::duration_to_cycles(*duration), &feel, &delays));
+            let moment = summit(cps, root, time::duration_to_cycles(*duration), &feel, &delays);
+            channel_samples.push(moment);
         }
 
         let durs:Vec<f32> = line.iter().map(|(d,_,_)| time::duration_to_cycles(*d)).collect();
-        stitch(signal_len, cps, durs, &mut channel_samples)
+        overlapping(signal_len, cps, durs, &channel_samples)
     }).collect();
 
     match pad_and_mix_buffers(line_buffs) {
-        Ok(channel_signal) => {
-            channel_signal
-        },
-        Err(msg) => {
-            panic!("Failed to mix and render audio: {}", msg)
-        }
+        Ok(sig) => sig,
+        Err(msg) => panic!("Failed to mix and render channel: {}", msg)
     }
 }
 
-pub fn stitch(len:usize, cps:f32, durs:Vec<f32>, samples:&mut Vec<SampleBuffer>) -> SampleBuffer {
+/// Given a list of signals that may overlap with one another (e.g. long delay or release times)
+/// Create a sample representing their ordered mixing.
+pub fn overlapping(len:usize, cps:f32, durs:Vec<f32>, samples:&Vec<SampleBuffer>) -> SampleBuffer {
     let mut signal:SampleBuffer = vec![0f32; len];
     durs.iter().enumerate().fold(0, |pos, (i, dur)| { 
         for (j,s) in samples[i].iter().enumerate() {
@@ -213,34 +205,25 @@ pub fn stitch(len:usize, cps:f32, durs:Vec<f32>, samples:&mut Vec<SampleBuffer>)
     signal
 }
 
-fn channels(cps:f32, root:f32, stems:&Vec<Stem>) -> SampleBuffer {
-    let mut rng = rand::thread_rng();
-    
-
-    let mut channels:Vec<SampleBuffer> = Vec::new();
-    // for (index, (midi_melody, synth_gen)) in stems.iter().enumerate() {
-    //     match pad_and_mix_buffers(line_buffs) {
-    //         Ok(channel_signal) => {
-    //             channels.push(channel_signal)
-    //         },
-    //         Err(msg) => {
-    //             panic!("Failed to mix and render audio: {}", msg)
-    //         }
-    //     }
-    // }
-
-    // match pad_and_mix_buffers(channels) {
-    //     Ok(signal) => signal,
-    //     Err(msg) => {
-    //         panic!("Failed to mix and render audio: {}", msg)
-    //     }
-    // }
-
-    vec![0f32]
+/// Given a list of stems and how to represent them in space, 
+/// Generate the signals and apply reverberation. Return the new signal.
+fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::ReverbParams>) -> SampleBuffer {
+    let mut channels:Vec<SampleBuffer> = stems.iter().map(|stem| channel(cps, root, &stem)).collect();
+    match pad_and_mix_buffers(channels) {
+        Ok(signal) => {
+            reverbs.iter().fold(signal, |sig, params| {
+                convolution::of(&sig, &params)
+            })
+        },
+        Err(msg) => {
+            panic!("Failed to mix and render audio: {}", msg)
+        }
+    }
 }
 
 
-/// Additive synthesis with dynamic modulators supporting inline delay
+/// Render a signal from contextual and decorative paramters. 
+/// Returns a SampleBuffer representing the moment produced from this request.
 pub fn summit<'render>(
     cps:f32, 
     fundamental:f32,

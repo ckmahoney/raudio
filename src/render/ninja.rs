@@ -21,7 +21,7 @@ use rand::Rng;
 use rand::rngs::ThreadRng;
 use serde::de;
 
-use super::{stitch, pad_and_mix_buffers};
+use super::{overlapping, pad_and_mix_buffers};
 
 /// Returns an amplitude identity or cancellation value
 /// for the given frequency and bandpass settings
@@ -684,10 +684,10 @@ mod test {
     }
 
     #[test]
-    fn test_ninja_xfiles_stitched_delay() {
+    fn test_ninja_xfiles_overlapping_delay() {
         let melody1 = x_files::lead_melody();
         let melody2 = x_files::piano_melody();
-        let test_name = "x_files_stitched_delay";
+        let test_name = "x_files_overlapping_delay";
         let mut rng = rand::thread_rng();
 
         let rs:Vec<(Vec<Vec<(f32, i32, i8)>>, fn (f32,f32) -> FeelingHolder)> = vec![
@@ -739,7 +739,7 @@ mod test {
                 }
 
                 let durs:Vec<f32> = line.iter().map(|(d,_,_)| *d).collect();
-                let channel_signal = stitch(signal_len, x_files::cps, durs, &mut channel_samples);
+                let channel_signal = overlapping(signal_len, x_files::cps, durs, &mut channel_samples);
                 
                 write_test_asset(&channel_signal, &stem_name);
                 
@@ -815,7 +815,7 @@ mod test {
                 }
 
                 let durs:Vec<f32> = line.iter().map(|(d,_,_)| *d).collect();
-                stitch(signal_len, x_files::cps, durs, &mut channel_samples)
+                overlapping(signal_len, x_files::cps, durs, &mut channel_samples)
             }).collect();
 
             match render::pad_and_mix_buffers(line_buffs) {
@@ -899,7 +899,7 @@ mod test {
                 }
 
                 let durs:Vec<f32> = line.iter().map(|(d,_,_)| *d).collect();
-                stitch(signal_len, x_files::cps, durs, &mut channel_samples)
+                overlapping(signal_len, x_files::cps, durs, &mut channel_samples)
             }).collect();
 
             match render::pad_and_mix_buffers(line_buffs) {
