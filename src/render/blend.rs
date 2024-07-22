@@ -1,13 +1,10 @@
 use crate::synth::{SR, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
-use crate::types::synthesis::{GlideLen, Frex, Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};
+use crate::types::synthesis::{Clippers, GlideLen, Frex, Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
 use crate::phrasing::ranger::{Ranger, Modders, Mixer, WRangers, mix, example_options};
 
-
-/// Amplitude threshold values for gating and clipping a signal
-pub type Clippers = (f32, f32);
 
 
 /// Returns an amplitude identity or cancellation value

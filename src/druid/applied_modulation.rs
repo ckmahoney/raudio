@@ -1,52 +1,19 @@
 use crate::synth::pi2;
 use super::compute::ModulationMode;
+pub use crate::types::synthesis::{Modifiers, ModifiersHolder, Dressing, ModulationEffect, AmplitudeModParams, FrequencyModParams, PhaseModParams};
 
-/// Parameters for amplitude modulation effects.
-#[derive(Debug, Clone, Copy)]
-pub struct AmplitudeModParams {
-    pub freq: f32,
-    pub depth: f32,
-    pub offset: f32,
+
+/// Macro to create a simple preset.
+#[macro_export]
+macro_rules! create_simple_preset {
+    ($name:expr, $description:expr, $effect:expr) => {
+        SimplePreset {
+            name: $name.to_string(),
+            description: $description.to_string(),
+            effect: $effect,
+        }
+    };
 }
-
-/// Parameters for frequency modulation effects.
-#[derive(Debug, Clone, Copy)]
-pub struct FrequencyModParams {
-    pub rate: f32, 
-    pub offset: f32,
-}
-
-/// Parameters for phase modulation effects.
-#[derive(Debug, Clone, Copy)]
-pub struct PhaseModParams {
-    pub rate: f32, 
-    pub depth: f32,
-    pub offset: f32,
-}
-
-/// Different modulation effects that can be applied to an audio signal.
-#[derive(Debug, Clone, Copy)]
-pub enum ModulationEffect {
-    Tremelo(AmplitudeModParams),
-    Vibrato(PhaseModParams),
-    Noise(PhaseModParams),
-    Chorus(PhaseModParams),
-    Sway(FrequencyModParams),
-    Warp(PhaseModParams)
-}
-
-
-pub type ModifiersHolder = (Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>);
-
-/// Collection of optional modulations for a signal.
-/// Entries in the form of (amp, freq, offset, time) modulation vectors.
-/// Use a 0 length entry to skip modulation of that paramter.
-/// Amp must output value in [0,1]
-/// Freq must output value in (0, Nf/f)
-/// Offset must output a value in [0, 2pi]
-/// Time must output a value in (0, Nf/t)
-pub type Modifiers<'render> = (&'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>);
-
 impl ModulationEffect {
     /// Applies the modulation effect at a given time to a base value.
     ///
@@ -135,18 +102,6 @@ pub struct SimplePreset {
     pub effect: ModulationEffect,
 }
 
-/// Macro to create a simple preset.
-#[macro_export]
-macro_rules! create_simple_preset {
-    ($name:expr, $description:expr, $effect:expr) => {
-        SimplePreset {
-            name: $name.to_string(),
-            description: $description.to_string(),
-            effect: $effect,
-        }
-    };
-}
-
 /// Macro to create a combined preset.
 #[macro_export]
 macro_rules! create_combined_preset {
@@ -172,15 +127,6 @@ macro_rules! create_combined_preset {
 /// The modulated value after applying all effects.
 pub fn chain(effects: &[ModulationEffect], time: f32, y: f32) -> f32 {
     effects.iter().fold(y, |acc, effect| effect.apply(time, acc))
-}
-
-/// Struct to hold dressing data.
-#[derive(Debug)]
-pub struct Dressing {
-    len: usize,
-    pub multipliers: Vec<f32>,
-    pub amplitudes: Vec<f32>,
-    pub offsets: Vec<f32>,
 }
 
 impl Dressing {

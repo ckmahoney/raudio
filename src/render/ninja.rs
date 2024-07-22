@@ -54,7 +54,7 @@ pub struct FeelingHolder {
     modifiers: ModifiersHolder
 }
 
-pub struct Feeling<'render> {
+pub struct FeelingRef<'render> {
     bp: &'render Bp,
     expr: &'render Expr,
     dressing: &'render Dressing,
@@ -455,8 +455,7 @@ mod test {
         (
             vec![], 
             vec![], 
-            // vec![vibrato], 
-            vec![], 
+            vec![vibrato], 
             vec![]
         )
     }

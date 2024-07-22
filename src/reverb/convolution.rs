@@ -138,7 +138,7 @@ pub fn of(sig: &SampleBuffer, params: &ReverbParams) -> SampleBuffer {
 /// `dur_seconds` - duration of reverb in seconds
 /// `gain` - gain for the reverb
 /// `wet` - mix ratio for wet signal (0.0 = fully dry, 1.0 = fully wet)
-fn mix(sig: &SampleBuffer, dur_seconds: f32, gain: f32, wet: f32) -> SampleBuffer {
+fn mix(sig: &SampleBuffer, dur: f32, gain: f32, wet: f32) -> SampleBuffer {
     /*
      * 
      * observations:
@@ -150,7 +150,7 @@ fn mix(sig: &SampleBuffer, dur_seconds: f32, gain: f32, wet: f32) -> SampleBuffe
      * 
      * 
      */
-    let reverb_len = time::samples_of_dur(1f32, dur_seconds);
+    let reverb_len = time::samples_of_dur(1f32, dur);
     let impulse_response = noise_buffer(gain, reverb_len);
     let n = sig.len() + impulse_response.len() - 1;
 

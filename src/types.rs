@@ -30,6 +30,7 @@ pub mod synthesis {
     
     pub type Radian = f32;
     pub type Range = f32;
+    pub type Clippers = (f32, f32);
 
     /// Sample values in -1 to 1
     pub type SampleBuffer = Vec<f32>;
@@ -92,12 +93,66 @@ pub mod synthesis {
     /// as of May 25 2024 the glide modulation logic is yet to be implemented in the ugen
     pub type Frex = (GlideLen, Option<Freq>, Freq, Option<Freq>, GlideLen);
 
+    /// Parameters for amplitude modulation effects.
+    #[derive(Debug, Clone, Copy)]
+    pub struct AmplitudeModParams {
+        pub freq: f32,
+        pub depth: f32,
+        pub offset: f32,
+    }
+
+    /// Parameters for frequency modulation effects.
+    #[derive(Debug, Clone, Copy)]
+    pub struct FrequencyModParams {
+        pub rate: f32, 
+        pub offset: f32,
+    }
+
+    /// Parameters for phase modulation effects.
+    #[derive(Debug, Clone, Copy)]
+    pub struct PhaseModParams {
+        pub rate: f32, 
+        pub depth: f32,
+        pub offset: f32,
+    }
+
+    /// Different modulation effects that can be applied to an audio signal.
+    #[derive(Debug, Clone, Copy)]
+    pub enum ModulationEffect {
+        Tremelo(AmplitudeModParams),
+        Vibrato(PhaseModParams),
+        Noise(PhaseModParams),
+        Chorus(PhaseModParams),
+        Sway(FrequencyModParams),
+        Warp(PhaseModParams)
+    }
+
+    #[derive(Debug)]
+    pub struct Dressing {
+        pub len: usize,
+        pub multipliers: Vec<f32>,
+        pub amplitudes: Vec<f32>,
+        pub offsets: Vec<f32>,
+    }
+
+    /// Collection of optional additive modulations for a signal.
+    /// Entries in the form of (amp, freq, offset, time) modulation vectors.
+    /// Use a 0 length entry to skip modulation of that parameter.
+    /// 
+    /// Amp must output value in [0,1]
+    /// Freq must output value in (0, Nf/f)
+    /// Offset must output a value in [0, 2pi]
+    /// Time must output a value in (0, Nf/t)
+    pub type Modifiers<'render> = (&'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>, &'render Vec<ModulationEffect>);
+
+    pub type ModifiersHolder = (Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>);
 }
 
 pub mod render {
     use serde::{Deserialize, Serialize};
-    use super::synthesis;
+    use super::synthesis::{self, *};
     use super::timbre;
+    use crate::phrasing::contour::Expr;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Dimensions {
@@ -162,8 +217,22 @@ pub mod render {
     pub type Melody<C> = Vec<Vec<C>>;
     pub type ScoreEntry<C> = (timbre::Arf, Melody<C>);
     pub type DruidicScoreEntry<C> = (timbre::AmpContour, timbre::Arf, Melody<C>);
-    pub type Part = (timbre::Arf, Melody<synthesis::Monae>);
-    pub type Entry = (timbre::Arf, Melody<synthesis::Note>);
+    pub type Part = (timbre::Arf, Melody<Monae>);
+    pub type Entry = (timbre::Arf, Melody<Note>);
+
+
+
+    pub struct FeelingHolder {
+        bp: Bp,
+        expr: Expr,
+        dressing: Dressing,
+        modifiers: ModifiersHolder, 
+        clippers: Clippers
+    }
+
+    /// Applied parameters to create a SampleBuffer
+    pub type Stem<'render> = (Melody<synthesis::Note>, FeelingHolder, Modifiers<'render>, &'render Vec<crate::analysis::delay::DelayParams>);
+
 }
 
 pub mod timbre {
