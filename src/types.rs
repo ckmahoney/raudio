@@ -223,11 +223,11 @@ pub mod render {
 
 
     pub struct FeelingHolder {
-        bp: Bp,
-        expr: Expr,
-        dressing: Dressing,
-        modifiers: ModifiersHolder, 
-        clippers: Clippers
+        pub bp: Bp,
+        pub expr: Expr,
+        pub dressing: Dressing,
+        pub modifiers: ModifiersHolder, 
+        pub clippers: Clippers
     }
 
     /// Applied parameters to create a SampleBuffer

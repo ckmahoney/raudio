@@ -8,7 +8,7 @@
 use crate::synth::{SR, SRf, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
 use crate::analysis::delay;
 use crate::analysis::xform_freq;
-use crate::druid::applied_modulation::{Dressing, ModulationEffect, Modifiers, ModifiersHolder};
+use crate::druid::applied_modulation::{Dressing, ModulationEffect, Modifiers, ModifiersHolder, gen_vibrato, gen_tremelo, update_mods};
 use crate::druid::compute::ModulationMode;
 use crate::time;
 use crate::types::synthesis::{Frex, GlideLen, Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};
@@ -21,7 +21,7 @@ use rand::Rng;
 use rand::rngs::ThreadRng;
 use serde::de;
 
-use super::pad_and_mix_buffers;
+use super::{stitch, pad_and_mix_buffers};
 
 /// Returns an amplitude identity or cancellation value
 /// for the given frequency and bandpass settings
@@ -344,17 +344,6 @@ pub fn ninja<'render>(
 }
 
 
-pub fn stitch(len:usize, cps:f32, durs:Vec<f32>, samples:&mut Vec<SampleBuffer>) -> SampleBuffer {
-    let mut signal:SampleBuffer = vec![0f32; len];
-    durs.iter().enumerate().fold(0, |pos, (i, dur)| { 
-        for (j,s) in samples[i].iter().enumerate() {
-            signal[pos + j] += s
-        }
-        pos + time::samples_of_dur(cps, *dur)
-    });
-    signal
-}
-
 #[cfg(test)]
 mod test {
     use convolution::ReverbParams;
@@ -374,7 +363,6 @@ mod test {
         let filename = format!("{}/{}.wav", TEST_DIR, test_name);
         engrave::samples(SR, &signal, &filename);
     } 
-
 
     #[test]
     fn test_ninja() {
@@ -563,73 +551,6 @@ mod test {
         write_test_asset(&signal, &test_name)
     }
 
-
-    fn gen_tremelo(min_f:f32, max_f:f32, min_d:f32, max_d:f32, min_o:f32, max_o:f32, rng:&mut ThreadRng) -> ModulationEffect {
-        let gtr_arg = AmplitudeModParams { 
-            freq: min_f + rng.gen::<f32>() * (max_f * min_f), 
-            depth: min_d + rng.gen::<f32>() * (max_d - min_d),  
-            offset: min_o + rng.gen::<f32>() * (max_o - min_o),  
-        };
-        ModulationEffect::Tremelo(gtr_arg)
-    }
-
-    fn gen_vibrato(min_f:f32, max_f:f32, min_d:f32, max_d:f32, min_o:f32, max_o:f32, rng:&mut ThreadRng) -> ModulationEffect {
-        let gtr_arg = PhaseModParams { 
-            rate: min_f + rng.gen::<f32>() * (max_f * min_f), 
-            depth: min_d + rng.gen::<f32>() * (max_d - min_d),  
-            offset: min_o + rng.gen::<f32>() * (max_o - min_o),  
-        };
-        ModulationEffect::Vibrato(gtr_arg)
-    }
-
-    /// Reroll some params for the mods using the test/example updater defined here
-    fn update_mods(holder:&ModifiersHolder, rng:&mut ThreadRng) -> ModifiersHolder {
-        (
-            holder.0.iter().map(|m| update_modifier(m, rng)).collect(),
-            holder.1.iter().map(|m| update_modifier(m, rng)).collect(),
-            holder.2.iter().map(|m| update_modifier(m, rng)).collect(),
-            holder.3.iter().map(|m| update_modifier(m, rng)).collect(),
-        )
-    }
-
-    fn update_modifier(modifier:&ModulationEffect, rng:&mut ThreadRng) -> ModulationEffect {
-        match *modifier {
-            ModulationEffect::Tremelo(ref tremelo) => {
-                let gtr_arg:AmplitudeModParams = AmplitudeModParams {
-                    freq: tremelo.freq,
-                    depth: rng.gen(), 
-                    offset: tremelo.offset
-                };
-                ModulationEffect::Tremelo(gtr_arg)
-            },
-            ModulationEffect::Vibrato(ref vibrato) => {
-                let gtr_arg:PhaseModParams = PhaseModParams {
-                    rate: vibrato.rate,
-                    depth: rng.gen(), 
-                    offset: vibrato.offset
-                };
-                ModulationEffect::Vibrato(gtr_arg)
-            },
-            ModulationEffect::Noise(ref noise) => {
-                let gtr_arg:PhaseModParams = PhaseModParams {
-                    rate: noise.rate,
-                    depth: rng.gen(), 
-                    offset: noise.offset
-                };
-                ModulationEffect::Vibrato(gtr_arg)
-            },
-            ModulationEffect::Chorus(ref chorus) => {
-                let gtr_arg:PhaseModParams = PhaseModParams {
-                    rate: chorus.rate,
-                    depth: rng.gen(), 
-                    offset: chorus.offset
-                };
-                ModulationEffect::Vibrato(gtr_arg)
-            },
-            _ => *modifier
-        }
-    }
-
     #[test]
     fn test_ninja_xfiles_render() {
         let melody1 = x_files::lead_melody();
@@ -762,8 +683,6 @@ mod test {
         }
     }
 
-
-
     #[test]
     fn test_ninja_xfiles_stitched_delay() {
         let melody1 = x_files::lead_melody();
@@ -839,7 +758,6 @@ mod test {
             }
         }
     }
-
 
     #[test]
     fn test_ninja_xfiles_reverb() {

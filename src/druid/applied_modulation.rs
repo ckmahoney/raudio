@@ -1,7 +1,8 @@
 use crate::synth::pi2;
 use super::compute::ModulationMode;
 pub use crate::types::synthesis::{Modifiers, ModifiersHolder, Dressing, ModulationEffect, AmplitudeModParams, FrequencyModParams, PhaseModParams};
-
+use rand::Rng;
+use rand::rngs::ThreadRng;
 
 /// Macro to create a simple preset.
 #[macro_export]
@@ -268,4 +269,72 @@ mod test {
 
 pub fn add(a: f32, b: f32) -> f32 {
     a + b
+}
+
+
+
+pub fn gen_tremelo(min_f:f32, max_f:f32, min_d:f32, max_d:f32, min_o:f32, max_o:f32, rng:&mut ThreadRng) -> ModulationEffect {
+    let gtr_arg = AmplitudeModParams { 
+        freq: min_f + rng.gen::<f32>() * (max_f * min_f), 
+        depth: min_d + rng.gen::<f32>() * (max_d - min_d),  
+        offset: min_o + rng.gen::<f32>() * (max_o - min_o),  
+    };
+    ModulationEffect::Tremelo(gtr_arg)
+}
+
+pub fn gen_vibrato(min_f:f32, max_f:f32, min_d:f32, max_d:f32, min_o:f32, max_o:f32, rng:&mut ThreadRng) -> ModulationEffect {
+    let gtr_arg = PhaseModParams { 
+        rate: min_f + rng.gen::<f32>() * (max_f * min_f), 
+        depth: min_d + rng.gen::<f32>() * (max_d - min_d),  
+        offset: min_o + rng.gen::<f32>() * (max_o - min_o),  
+    };
+    ModulationEffect::Vibrato(gtr_arg)
+}
+
+/// Reroll some params for the mods using the test/example updater defined here
+pub fn update_mods(holder:&ModifiersHolder, rng:&mut ThreadRng) -> ModifiersHolder {
+    (
+        holder.0.iter().map(|m| update_modifier(m, rng)).collect(),
+        holder.1.iter().map(|m| update_modifier(m, rng)).collect(),
+        holder.2.iter().map(|m| update_modifier(m, rng)).collect(),
+        holder.3.iter().map(|m| update_modifier(m, rng)).collect(),
+    )
+}
+
+fn update_modifier(modifier:&ModulationEffect, rng:&mut ThreadRng) -> ModulationEffect {
+    match *modifier {
+        ModulationEffect::Tremelo(ref tremelo) => {
+            let gtr_arg:AmplitudeModParams = AmplitudeModParams {
+                freq: tremelo.freq,
+                depth: rng.gen(), 
+                offset: tremelo.offset
+            };
+            ModulationEffect::Tremelo(gtr_arg)
+        },
+        ModulationEffect::Vibrato(ref vibrato) => {
+            let gtr_arg:PhaseModParams = PhaseModParams {
+                rate: vibrato.rate,
+                depth: rng.gen(), 
+                offset: vibrato.offset
+            };
+            ModulationEffect::Vibrato(gtr_arg)
+        },
+        ModulationEffect::Noise(ref noise) => {
+            let gtr_arg:PhaseModParams = PhaseModParams {
+                rate: noise.rate,
+                depth: rng.gen(), 
+                offset: noise.offset
+            };
+            ModulationEffect::Vibrato(gtr_arg)
+        },
+        ModulationEffect::Chorus(ref chorus) => {
+            let gtr_arg:PhaseModParams = PhaseModParams {
+                rate: chorus.rate,
+                depth: rng.gen(), 
+                offset: chorus.offset
+            };
+            ModulationEffect::Vibrato(gtr_arg)
+        },
+        _ => *modifier
+    }
 }
