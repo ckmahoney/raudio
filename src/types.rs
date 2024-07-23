@@ -224,7 +224,6 @@ pub mod render {
     pub type Entry = (timbre::Arf, Melody<Note>);
 
 
-
     pub struct Feel {
         pub bp: Bp,
         pub expr: Expr,
@@ -305,7 +304,8 @@ pub mod timbre {
         pub note: Timeframe
     }
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum AmpLifespan {
         Fall,
         Snap,
@@ -324,13 +324,37 @@ pub mod timbre {
         Click
     }
     
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum AmpContour {
         Fade,
         Throb,
         Surge,
         Chops,
         Flutter,
+    }
+
+    pub enum Distance {
+        Adjacent, 
+        Far
+    }
+
+    pub enum Enclosure {
+        Spring,
+        Room,
+        Hall, 
+        Vast
+    }
+
+    pub enum Echo {
+        Slapback,
+        Trailing
+    }
+
+    pub struct Design {
+        contour:AmpContour, 
+        distance: Distance,
+        echoes: Echo
     }
 
     /// - mode and role are the primary selectors for mebn druid
@@ -348,7 +372,8 @@ pub mod timbre {
         pub presence: Presence,
     }
 
-    #[derive(Debug, Serialize, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum Visibility {
         Foreground,
         Visible,
@@ -356,7 +381,8 @@ pub mod timbre {
         Hidden,
     }
 
-    #[derive(Debug, Serialize, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")] 
     pub enum Mode {
         Melodic,
         Enharmonic,
@@ -365,7 +391,8 @@ pub mod timbre {
         Noise
     }
 
-    #[derive(Debug, Serialize, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum Role {
         Kick,
         Perc,
@@ -375,14 +402,16 @@ pub mod timbre {
         Lead
     }
 
-    #[derive(Debug, Serialize, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum Energy {
         Low,
         Medium,
         High
     }
 
-    #[derive(Debug, Serialize, Copy, Clone)]
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum Presence {
         Staccatto,
         Legato,
