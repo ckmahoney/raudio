@@ -18,12 +18,12 @@ use crate::types::timbre;
 use crate::types::timbre::*;
 use crate::types::render::*;
 
-mod arg_parse;
 mod analysis;
 pub use analysis::monic_theory;
 mod demo;
-mod files;
 mod druid;
+mod files;
+mod inp;
 mod music;
 mod phrasing;
 mod presets;
@@ -50,7 +50,7 @@ fn render_playbook(out_path: &str, playbook_path: &str) {
     use std::path::Path;
     use std::fs;
 
-    match arg_parse::load_score_from_file(&playbook_path) {
+    match inp::arg_parse::load_score_from_file(&playbook_path) {
         Ok(score) => {
             match render_score(out_path, score) {
                 Ok(_) => {
@@ -70,14 +70,6 @@ fn render_playbook(out_path: &str, playbook_path: &str) {
 
 pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::Error> {
     files::with_dir(filename);
-    let lens:Vec::<f32> = (&score.parts)
-        .iter()
-        .map(|(_, _, melody)| 
-            melody[0].iter()
-            .fold(0f32, |acc, note| acc + time::dur(score.conf.cps, &note.0)) 
-        )
-    .collect();
-
     let mut pre_mix_buffs:Vec<synth::SampleBuffer> = Vec::new();
     for (contour, arf, melody) in &score.parts {
         let preset = presets::select(&arf);
@@ -87,8 +79,8 @@ pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::
     }
 
     match render::pad_and_mix_buffers(pre_mix_buffs) {
-        Ok(signal) => {
-            render::engrave::samples(44100, &signal, &filename);
+        Ok(dry_signal) => {
+            render::engrave::samples(44100, &dry_signal, &filename);
             Ok(())
         },
         Err(msg) => {
