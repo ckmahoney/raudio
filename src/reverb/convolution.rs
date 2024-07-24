@@ -95,10 +95,11 @@ fn apply(sig: &SampleBuffer, reverb_len: usize) -> SampleBuffer {
 
 
 /// Applies convolution with a noise buffer
-/// onto a given signal. Intended for reverb
+/// onto a given signal. Here it genereates an impulse response to produce a reverberation effect.
 pub fn of(sig: &SampleBuffer, params: &ReverbParams) -> SampleBuffer {
     let impulse_response = gen_impulse(params.amp, params.rate, params.dur);
-    let n = sig.len() + impulse_response.len() - 1;
+    let n = sig.len() + impulse_response.len();
+    println!("Lenght of input signal {} and length of wet signal {}", sig.len(), n);
     
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(n);
@@ -113,7 +114,7 @@ pub fn of(sig: &SampleBuffer, params: &ReverbParams) -> SampleBuffer {
     fft.process(&mut sig_padded);
     fft.process(&mut ir_padded);
 
-    let mut          result = vec![Complex::new(0.0, 0.0); n];
+    let mut result = vec![Complex::new(0.0, 0.0); n];
     for i in 0..n {
         result[i] = sig_padded[i] * ir_padded[i];
     }
@@ -124,7 +125,7 @@ pub fn of(sig: &SampleBuffer, params: &ReverbParams) -> SampleBuffer {
     let wet_signal: SampleBuffer = result.iter().map(|c| c.re / n as f32).collect();
 
     // Mix dry and wet signals
-    let mut mixed_signal: SampleBuffer = vec![0.0; sig.len()];
+    let mut mixed_signal: SampleBuffer = vec![0.0; n];
     for i in 0..sig.len() {
         mixed_signal[i] = (1.0 - params.mix) * sig[i] + params.mix * wet_signal[i];
     }
