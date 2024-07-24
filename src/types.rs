@@ -345,6 +345,7 @@ pub mod timbre {
     #[serde(rename_all = "kebab-case")]
     pub enum Distance {
         Adjacent, 
+        Near,
         Far
     }
 
@@ -374,7 +375,6 @@ pub mod timbre {
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
     #[serde(rename_all = "kebab-case")]
     pub struct Positioning {
-        pub contour:AmpContour, 
         pub distance: Distance,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub echo: Option<Echo>,

@@ -1,5 +1,6 @@
 use crate::time;
 
+#[derive(Copy,Clone)]
 pub struct DelayParams {
     pub len_seconds: f32,
     pub n_echoes: usize,
@@ -10,6 +11,13 @@ pub struct DelayParams {
 pub fn is_passthrough(params:&DelayParams) -> bool {
     params.mix == 0f32 || params.len_seconds == 0f32 || params.gain == 0f32 || params.n_echoes == 0
 }
+
+pub static passthrough:DelayParams = DelayParams {
+    mix: 0f32, 
+    len_seconds: 0f32,
+    gain: 0f32,
+    n_echoes: 0
+};
 
 /// determine the amplitude coeffecieint for a delay replica index
 pub fn gain(j:usize, replica:usize, params: &DelayParams) -> f32 {
