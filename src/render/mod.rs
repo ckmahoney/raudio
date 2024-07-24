@@ -9,11 +9,11 @@ use crate::analysis::{delay, xform_freq};
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 use crate::druid::applied_modulation::{self, update_mods};
 use crate::monic_theory::tone_to_freq;
-use crate::phrasing::lifespan;
+use crate::phrasing::lifespan::{self};
 use crate::phrasing::contour::{Expr, Position, sample, apply_contour};
 use crate::reverb::convolution;
 use crate::time;
-use crate::types::timbre::{AmpContour, Arf};
+use crate::types::timbre::{AmpContour, Arf, AmpLifespan};
 use crate::types::synthesis::{GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Dressing, Dressor};
 use crate::types::render::{Melody,Span, Stem, Feel};
 use rand;
@@ -309,7 +309,7 @@ mod test {
     use convolution::ReverbParams;
 
     use super::*;
-    use crate::files;
+    use crate::{files, phrasing};
     use crate::music::lib::{happy_birthday, x_files};
     use crate::druid::melodic;
     static TEST_DIR:&str = "dev-audio/render";
@@ -346,7 +346,7 @@ mod test {
 
     fn feeling_lead() -> Feel {
         Feel {
-            expr: (vec![1f32],vec![1f32],vec![0f32]),
+            expr: (lifespan::mod_lifespan(SR, 1f32, &AmpLifespan::Snap, 1, 1f32),vec![1f32],vec![0f32]),
             bp: (vec![MFf],vec![NFf]),
             modifiers: modifiers_lead(),
             clippers: (0f32, 1f32)
@@ -411,21 +411,23 @@ mod test {
 
     #[test]
     fn test_space_effects() {
-        let mods_chords:ModifiersHolder = modifiers_chords();
-        let mods_lead:ModifiersHolder = modifiers_lead();
+        for i in (0..5) {
+            let mods_chords:ModifiersHolder = modifiers_chords();
+            let mods_lead:ModifiersHolder = modifiers_lead();
 
-        let enclosure = gen_enclosure();
-        let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
-        let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+            let enclosure = gen_enclosure();
+            let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+            let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
 
-        let stems:Vec<Stem> = vec![
-            (happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &se_lead.delays),
-            (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
-        ];
+            let stems:Vec<Stem> = vec![
+                (happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &se_lead.delays),
+                // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
+            ];
 
-        // let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
-        let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &vec![]);
-        write_test_asset(&result, "combine_with_space ");
-        println!("Completed test render")
+            // let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
+            let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs);
+            write_test_asset(&result, &format!("combine_with_space_{}", i));
+            println!("Completed test render")
+        }
     }
 }
