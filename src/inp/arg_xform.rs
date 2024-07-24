@@ -1,3 +1,4 @@
+use crate::analysis::volume::db_to_amp;
 use crate::analysis::delay::{DelayParams, passthrough};
 use crate::reverb::convolution::ReverbParams;
 use crate::types::timbre::{Enclosure, SpaceEffects, Positioning, AmpContour, Distance, Echo};
@@ -6,47 +7,92 @@ use rand::{self, Rng, rngs::ThreadRng};
 /// Given a client request for positioning and artifacting a melody,
 /// produce application parameters to create the effect.
 /// 
-/// enclosure contributes to reverb and delay time
-/// distance contributes to gain and reverb
-/// echoes contributes to delay
-/// complexity contributes to reverb, reverb as saturation, and delay times 
+/// `enclosure` contributes to reverb and delay time
+/// `distance` contributes to gain and reverb
+/// `echoes` contributes to delay
+/// `complexity` contributes to reverb, reverb as saturation, and delay times 
 fn positioning(cps:f32, enclosure:&Enclosure, Positioning {complexity, distance, echo}:&Positioning) -> SpaceEffects  {
-    let delays:Vec<DelayParams>=vec![];
-    let reverbs:Vec<ReverbParams>=vec![];
-    let mut gain = 1f32;
     let mut rng = rand::thread_rng();
-
-
-    match distance {
-        Distance::Far => 1f32,
-        Distance::Near => 3f32,
-        Distance::Adjacent => 2f32
-    };
-
-    match enclosure {
-        Enclosure::Spring => 1,
-        Enclosure::Room => 2,
-        Enclosure::Hall => 3,
-        Enclosure::Vast => 4,
-    };
-
-    match echo {
-        None => vec![passthrough],
-        Some(Echo::Slapback) => vec![
-            gen_slapback(&mut rng, *complexity)
-        ],
-        Some(Echo::Trailing) => vec![
-            gen_trailing(cps, &mut rng, *complexity)
-        ]
+    let gain:f32 = match distance {
+        Distance::Adjacent => 1f32,
+        Distance::Near => db_to_amp(-6f32),
+        Distance::Far => db_to_amp(-12f32),
     };
 
     SpaceEffects {
-        delays,
-        reverbs,
-        gain: 0f32
+        delays: gen_delays(&mut rng, cps, echo, *complexity),
+        reverbs: gen_reverbs(&mut rng, cps, distance, enclosure, *complexity),
+        gain
     }
 }
 
+fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Option<Echo>, complexity:f32) -> Vec<DelayParams> {
+    match *echo {
+        None => vec![passthrough],
+        Some(Echo::Slapback) => vec![
+            gen_slapback(rng, complexity)
+        ],
+        Some(Echo::Trailing) => vec![
+            gen_trailing(cps, rng, complexity)
+        ]
+    }
+}
+
+/// Create a saturation layer and room layer
+fn gen_reverbs(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&Enclosure, complexity:f32) -> Vec<ReverbParams> {
+    let gain = match distance {
+        Distance::Far => rng.gen::<f32>().powf(0.5f32),
+        Distance::Adjacent => rng.gen::<f32>() * 0.1,
+        Distance::Near => rng.gen::<f32>().powi(2i32),
+    };
+
+    let rate:f32 = match enclosure {
+        Enclosure::Spring => rng.gen::<f32>().powi(8i32).min(0.05),
+        Enclosure::Room => rng.gen::<f32>().powi(2i32).min(0.25).max(0.75),
+        Enclosure::Hall => rng.gen::<f32>(),
+        Enclosure::Vast => rng.gen::<f32>().powf(0.5f32).max(0.5),
+    };
+
+    let mul_seconds:f32 = match distance {
+        Distance::Far => 1.5f32,
+        Distance::Adjacent => 1f32,
+        Distance::Near => 0.5f32,
+    };
+
+    let dur:f32 = mul_seconds * match enclosure {
+        Enclosure::Spring => rng.gen::<f32>().powi(8i32).min(0.05),
+        Enclosure::Room => rng.gen::<f32>().powi(2i32).min(0.5).max(0.1),
+        Enclosure::Hall => rng.gen::<f32>(),
+        Enclosure::Vast => rng.gen::<f32>().powf(0.5f32).max(0.5),
+    } / cps;
+
+    let amp:f32 = gain * match enclosure {
+        Enclosure::Spring => 2f32.powi(-8i32),
+        Enclosure::Room => 2f32.powi(-9i32),
+        Enclosure::Hall => 2f32.powi(-10i32),
+        Enclosure::Vast => 2f32.powi(-11i32),
+    } * complexity.powf(0.25f32);
+
+    let mix:f32 = match distance {
+        Distance::Far => 0.1f32,
+        Distance::Adjacent => 0.1f32,
+        Distance::Near => 0.1f32,
+    };
+
+    vec![
+        gen_saturation(cps, complexity),
+        ReverbParams { mix, amp, dur, rate }
+    ]
+}
+
+fn gen_saturation(cps:f32, complexity:f32) -> ReverbParams {
+    ReverbParams { mix: 0.5f32, rate: 0.005 * complexity/cps, dur: complexity/cps, amp: complexity.powi(3) }
+}
+
+/// Very transparent and live sounding room effect
+fn gen_spring(distance:&Distance) -> ReverbParams {
+    ReverbParams { mix: 0.05, amp: 1f32, dur: 1f32, rate: 1f32 }
+}
 
 /// short delay with loud echo
 /// works best with percussive or plucky sounds
