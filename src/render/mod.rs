@@ -384,7 +384,48 @@ mod test {
         ];
 
         let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
-        write_test_asset(&result, "combine.wav");
+        write_test_asset(&result, "combine");
+        println!("Completed test render")
+    }
+    use crate::types::timbre::{ SpaceEffects, Positioning, Distance, Echo, Enclosure};
+    use rand::seq::SliceRandom;
+    use rand::thread_rng;
+
+    fn gen_enclosure() -> Enclosure {
+        let mut rng = thread_rng();
+        *[Enclosure::Spring, Enclosure::Room, Enclosure::Hall, Enclosure::Vast].choose(&mut rng).unwrap()
+    }
+
+    fn gen_positioning() -> Positioning {
+        let mut rng = thread_rng();
+
+        Positioning {
+            distance: *[Distance::Far, Distance::Near].choose(&mut rng).unwrap(),
+            echo: *[Some(Echo::Slapback), Some(Echo::Trailing), None].choose(&mut rng).unwrap(),
+            complexity: if rng.gen::<f32>() < 0.25 { 0f32 } else { rng.gen() } 
+        }
+    }
+
+
+    use crate::inp::arg_xform;
+
+    #[test]
+    fn test_space_effects() {
+        let mods_chords:ModifiersHolder = modifiers_chords();
+        let mods_lead:ModifiersHolder = modifiers_lead();
+
+        let enclosure = gen_enclosure();
+        let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+        let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+
+        let stems:Vec<Stem> = vec![
+            (happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &se_lead.delays),
+            (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
+        ];
+
+        // let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
+        let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &vec![]);
+        write_test_asset(&result, "combine_with_space ");
         println!("Completed test render")
     }
 }

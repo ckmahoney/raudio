@@ -1,8 +1,14 @@
 use crate::analysis::volume::db_to_amp;
 use crate::analysis::delay::{DelayParams, passthrough};
 use crate::reverb::convolution::ReverbParams;
+use crate::types::render::{DruidicScoreEntry};
 use crate::types::timbre::{Enclosure, SpaceEffects, Positioning, AmpContour, Distance, Echo};
 use rand::{self, Rng, rngs::ThreadRng};
+
+pub fn entry<C>((_, arf, _):&DruidicScoreEntry<C>) {
+    
+    
+}
 
 /// Given a client request for positioning and artifacting a melody,
 /// produce application parameters to create the effect.
@@ -11,7 +17,7 @@ use rand::{self, Rng, rngs::ThreadRng};
 /// `distance` contributes to gain and reverb
 /// `echoes` contributes to delay
 /// `complexity` contributes to reverb, reverb as saturation, and delay times 
-fn positioning(cps:f32, enclosure:&Enclosure, Positioning {complexity, distance, echo}:&Positioning) -> SpaceEffects  {
+pub fn positioning(cps:f32, enclosure:&Enclosure, Positioning {complexity, distance, echo}:&Positioning) -> SpaceEffects  {
     let mut rng = rand::thread_rng();
     let gain:f32 = match distance {
         Distance::Adjacent => 1f32,
