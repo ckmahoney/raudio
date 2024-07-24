@@ -36,7 +36,6 @@ mod test_unit {
             .expect(&format!("Failed to read file {}", input_score_path));
         
         let score: Result<DruidicScore, SerdeError> = serde_json::from_str(&file_content);
-        println!("Score: {:?}",score);
         assert!(
             score.is_ok(),
             "Failed to parse a druidic score from {}: {}",

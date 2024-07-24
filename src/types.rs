@@ -247,8 +247,15 @@ pub mod timbre {
     use super::render;
     use super::synthesis;
     use serde::{Deserialize, Serialize};
+    use crate::analysis::delay::DelayParams;
+    use crate::reverb::convolution::ReverbParams;
 
-
+    /// Signal offsets and reverberations to apply to a part
+    pub struct SpaceEffects {
+        pub delays: Vec<DelayParams>,
+        pub reverbs: Vec<ReverbParams>,
+        pub gain: f32,
+    }
     /// How the filter goes from point A to point B
     #[derive(Debug, Clone, Copy)]
     pub enum FilterMode {
@@ -334,11 +341,15 @@ pub mod timbre {
         Flutter,
     }
 
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum Distance {
         Adjacent, 
         Far
     }
 
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum Enclosure {
         Spring,
         Room,
@@ -346,22 +357,36 @@ pub mod timbre {
         Vast
     }
 
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
     pub enum Echo {
         Slapback,
         Trailing
     }
 
-    pub struct Design {
-        contour:AmpContour, 
-        distance: Distance,
-        echoes: Echo
+    /// High level description for audio effect generation.
+    /// 
+    /// ### Arguments
+    /// - `contour`: Impression of the mean amplitude envelope
+    /// - `distance`: Amplitude, reverb, and delay macro. Farther away means quiter with more dispersion whereas closer is louder with more slapback and less dispersion. 
+    /// - `echoes`: When provided, a style of delay effect to emphasize a part.
+    /// - `complexity`: Range in [0,1] describing the richness of sound. 0 represents a plain wave (for example, a sine wave) and 1 a more complex version of that wave (saturated). Has a similar effect on delay and reverb parameters generation.
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
+    pub struct Positioning {
+        pub contour:AmpContour, 
+        pub distance: Distance,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub echo: Option<Echo>,
+        pub complexity: f32
     }
 
-    /// - mode and role are the primary selectors for mebn druid
-    /// - register defines how much harmonic space is available
-    /// - visibility affects overall amplitude
-    /// - energy defines how much harmonic content is present
-    /// - presence is an envelope selector
+    /// ### Arguments
+    /// - `mode` 
+    /// - `register` defines how much harmonic space is available
+    /// - `visibility` affects overall amplitude
+    /// - `energy` defines how much harmonic content is present
+    /// - `presence` is an envelope selector
     #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
     pub struct Arf {
         pub mode: Mode,
