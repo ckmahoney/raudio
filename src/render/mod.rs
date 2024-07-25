@@ -183,8 +183,9 @@ fn channel(cps:f32, root:f32, (melody, dressor, feel, mods, delays):&Stem) -> Sa
             channel_samples.push(moment);
         });
 
-        let mixed = overlapping(signal_len, cps, durs, &channel_samples);
-        trim_zeros(mixed)
+        let mut mixed = overlapping(signal_len, cps, durs, &channel_samples);
+        // trim_zeros(&mut mixed);
+        mixed
     }).collect();
 
     match pad_and_mix_buffers(line_buffs) {
@@ -192,19 +193,17 @@ fn channel(cps:f32, root:f32, (melody, dressor, feel, mods, delays):&Stem) -> Sa
         Err(msg) => panic!("Failed to mix and render channel: {}", msg)
     }
 }
-
 /// Convolution and delay effects may produce a long tail of empty signal.
 /// Remove it.
-pub fn trim_zeros(signal:SampleBuffer) -> SampleBuffer {
-    let last_sound = find_last_audible_index(&signal, 0.001);
-    match last_sound {
-        None => signal, 
-        Some(ind) => (&signal[0..ind]).to_vec()
+pub fn trim_zeros(signal: &mut Vec<f32>) {
+    if let Some(last_sound) = find_last_audible_index(signal, 0.001) {
+        signal.truncate(last_sound + 1);
     }
 }
-fn find_last_audible_index(vec: &Vec<f32>, thresh:f32) -> Option<usize> {
+
+fn find_last_audible_index(vec: &Vec<f32>, thresh: f32) -> Option<usize> {
     for (i, &value) in vec.iter().enumerate().rev() {
-        if value.abs() > thresh{
+        if value.abs() > thresh {
             return Some(i);
         }
     }
@@ -243,16 +242,19 @@ pub fn summit<'render>(
 
     let (modAmp, modFreq, modPhase, modTime) = modifiers;
     for delay_params in delays {
+        println!("Using delay {:?}", delay_params);
         for j in 0..n_samples {
-            for replica_n in 0..(delay_params.n_echoes.max(1)) {
+            for replica_n in 1..(delay_params.n_echoes.max(1)) {
+                let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
                 let gain =  delay::gain(j, replica_n, delay_params);
                 if gain < *gate_thresh {
                     continue;
                 }
+                let offset_j = samples_per_echo * replica_n;
 
                 // do not advace p with the delay; it should use the "p" of its source just delayed in time
                 let p: f32 = j as f32 / n_samples as f32;
-                let t0:f32 = j as f32 / SRf;
+                let t0:f32 = (j as f32 + offset_j as f32) / SRf;
                 let t: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
                 let mut v: f32 = 0f32;
 
@@ -311,7 +313,9 @@ fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::Reverb
                 signal
             } else {
                 reverbs.iter().fold(signal, |sig, params| {
-                    trim_zeros(convolution::of(&sig, &params))
+                    let mut sig =convolution::of(&sig, &params);
+                    trim_zeros(&mut sig);
+                    sig
                 })
             }
         },
