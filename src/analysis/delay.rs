@@ -1,6 +1,6 @@
 use crate::time;
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,Debug)]
 pub struct DelayParams {
     pub len_seconds: f32,
     pub n_echoes: usize,
@@ -30,7 +30,7 @@ pub fn gain(j:usize, replica:usize, params: &DelayParams) -> f32 {
         return 0f32
     }
 
-    params.mix * params.gain.powf(replica as f32)
+    params.mix * params.gain.powi(replica as i32)
 }
 
 /// Given a delay params, identify the new duration of the sample for a given context. 
