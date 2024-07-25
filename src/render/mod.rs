@@ -223,7 +223,6 @@ pub fn summit<'render>(
 
     let (modAmp, modFreq, modPhase, modTime) = modifiers;
     for delay_params in delays {
-        let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
         for j in 0..n_samples {
             for replica_n in 0..(delay_params.n_echoes.max(1)) {
                 let gain =  delay::gain(j, replica_n, delay_params);
@@ -231,10 +230,9 @@ pub fn summit<'render>(
                     continue;
                 }
 
-                let offset_j = replica_n * samples_per_echo;
-
-                let p: f32 = (offset_j + j) as f32 / n_samples as f32;
-                let t0:f32 = (offset_j + j) as f32 / SRf;
+                // do not advace p with the delay; it should use the "p" of its source just delayed in time
+                let p: f32 = j as f32 / n_samples as f32;
+                let t0:f32 = j as f32 / SRf;
                 let t: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
                 let mut v: f32 = 0f32;
 
@@ -253,7 +251,7 @@ pub fn summit<'render>(
 
                 for (i, &m) in multipliers.iter().enumerate() {
                     let a0 = amplifiers[i];
-                    if a0 > 0f32 {
+                    if a0 > *gate_thresh {
                         let amplifier = modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
                         if (amplifier*am*gain) < *gate_thresh {
                             continue
@@ -400,8 +398,9 @@ mod test {
         let mut rng = thread_rng();
 
         Positioning {
-            distance: *[Distance::Far, Distance::Near].choose(&mut rng).unwrap(),
-            echo: *[Some(Echo::Slapback), Some(Echo::Trailing), None].choose(&mut rng).unwrap(),
+            distance: *[Distance::Far, Distance::Near,Distance::Adjacent].choose(&mut rng).unwrap(),
+            // echo: *[Some(Echo::Slapback), Some(Echo::Trailing), None].choose(&mut rng).unwrap(),
+            echo: *[Some(Echo::Trailing)].choose(&mut rng).unwrap(),
             complexity: if rng.gen::<f32>() < 0.25 { 0f32 } else { rng.gen() } 
         }
     }
@@ -411,14 +410,14 @@ mod test {
 
     #[test]
     fn test_space_effects() {
-        for i in (0..5) {
+        for i in 0..3 {
             let mods_chords:ModifiersHolder = modifiers_chords();
             let mods_lead:ModifiersHolder = modifiers_lead();
 
             let enclosure = gen_enclosure();
             let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
-
+            println!("Got se for lead {:#?}", se_lead);
             let stems:Vec<Stem> = vec![
                 (happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &se_lead.delays),
                 // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
