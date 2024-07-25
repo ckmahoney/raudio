@@ -174,9 +174,11 @@ fn channel(cps:f32, root:f32, (melody, dressor, feel, mods, delays):&Stem) -> Sa
         let mut channel_samples:Vec<SampleBuffer> = Vec::new();
 
         let len_cycles:f32 = time::count_cycles(line);
-        let append_delay = time::samples_of_dur(cps, longest_delay_length(&delays));
+        let rounding_offset = 10; // sould actually be n_echoes
+        let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(&delays));
         let signal_len = time::samples_of_cycles(cps, len_cycles) + append_delay;
         let durs:Vec<f32> = line.iter().map(|(d,_,_)| time::duration_to_cycles(*d)).collect();
+
         line.iter().enumerate().for_each(|(i, (duration, tone, amp))| {
             let freq = root * tone_to_freq(tone);
             let moment = summit(cps, root, freq, durs[i], &dressor(freq), &feel, &delays);
@@ -235,65 +237,64 @@ pub fn summit<'render>(
     Feel { bp, expr, modifiers, clippers }: &'render Feel,
     delays: &Vec::<delay::DelayParams>
 ) -> Vec<f32> {
-    let append_delay = time::samples_of_dur(cps, longest_delay_length(delays));
-    let n_samples = crate::time::samples_of_cycles(cps, n_cycles) + append_delay;
+    let rounding_offset = 10;
+    let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(delays));
+    let sig_samples = time::samples_of_cycles(cps, n_cycles);
+    let n_samples = sig_samples + append_delay;
     let mut sig = vec![0f32; n_samples];
     let (gate_thresh, clip_thresh) = clippers;
-
     let (modAmp, modFreq, modPhase, modTime) = modifiers;
     for delay_params in delays {
-        println!("Using delay {:?}", delay_params);
-        for j in 0..n_samples {
-            for replica_n in 1..(delay_params.n_echoes.max(1)) {
-                let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
+        let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
+        for j in 0..sig_samples {
+            // setup position and progress 
+            let p: f32 = j as f32 / sig_samples as f32;
+            let t0:f32 = (j as f32 ) / SRf;
+            let t: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
+            let mut v: f32 = 0f32;
+
+            // sample the amp, freq, and phase offset envelopes
+            let mut am = sample(&expr.0, p);
+            let mut fm = sample(&expr.1, p);
+            let mut pm = sample(&expr.2, p);
+
+            let multipliers = &dressing.multipliers;
+            let amplifiers = &dressing.amplitudes;
+            let phases = &dressing.offsets;
+
+            if (am) < *gate_thresh {
+                continue;
+            }
+
+            for (i, &m) in multipliers.iter().enumerate() {
+                let a0 = amplifiers[i];
+                if a0 > *gate_thresh {
+                    let amplifier = modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
+                    if (amplifier*am) < *gate_thresh {
+                        continue
+                    }
+                    let k = i + 1;
+                    let f0:f32 = m * fm * fundamental;
+                    let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc)); 
+                    let amp = amplifier * am * filter(p, frequency, &bp);
+                    let p0 = frequency * pi2 * t;
+                    let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
+                    
+                    v += amp * phase.sin();
+                }
+            };
+
+            for replica_n in 0..=(delay_params.n_echoes.max(1)) {
+                let offset_j = samples_per_echo * replica_n;
                 let gain =  delay::gain(j, replica_n, delay_params);
                 if gain < *gate_thresh {
                     continue;
                 }
-                let offset_j = samples_per_echo * replica_n;
-
-                // do not advace p with the delay; it should use the "p" of its source just delayed in time
-                let p: f32 = j as f32 / n_samples as f32;
-                let t0:f32 = (j as f32 + offset_j as f32) / SRf;
-                let t: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
-                let mut v: f32 = 0f32;
-
-                // sample the amp, freq, and phase offset envelopes
-                let mut am = sample(&expr.0, p);
-                let mut fm = sample(&expr.1, p);
-                let mut pm = sample(&expr.2, p);
-
-                let multipliers = &dressing.multipliers;
-                let amplifiers = &dressing.amplitudes;
-                let phases = &dressing.offsets;
-
-                if (am*gain) < *gate_thresh {
-                    continue;
-                }
-
-                for (i, &m) in multipliers.iter().enumerate() {
-                    let a0 = amplifiers[i];
-                    if a0 > *gate_thresh {
-                        let amplifier = modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
-                        if (amplifier*am*gain) < *gate_thresh {
-                            continue
-                        }
-                        let k = i + 1;
-                        let f0:f32 = m * fm * fundamental;
-                        let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc)); 
-                        let amp = gain * amplifier * am * filter(p, frequency, &bp);
-                        let p0 = frequency * pi2 * t;
-                        let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
-                        
-                        v += amp * phase.sin();
-                    }
-                };
-
                 // apply gating and clipping to the summed sample
-                if v.abs() > *clip_thresh {
-                    sig[j] += v.signum() * (*clip_thresh);
-                } else if v.abs() >= *gate_thresh {
-                    sig[j] += v;
+                if gain *  v.abs() > *clip_thresh {
+                    sig[j+offset_j] += gain *  v.signum() * (*clip_thresh);
+                } else if gain * v.abs() >= *gate_thresh {
+                    sig[j+offset_j] += v;
                 } else {
                     // don't mix this [too quiet] sample!
                 }
@@ -407,7 +408,6 @@ mod test {
 
         let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
         write_test_asset(&result, "combine");
-        println!("Completed test render")
     }
     use crate::types::timbre::{ SpaceEffects, Positioning, Distance, Echo, Enclosure};
     use rand::seq::SliceRandom;
@@ -424,7 +424,7 @@ mod test {
         Positioning {
             distance: *[Distance::Far, Distance::Near,Distance::Adjacent].choose(&mut rng).unwrap(),
             // echo: *[Some(Echo::Slapback), Some(Echo::Trailing), None].choose(&mut rng).unwrap(),
-            echo: *[Some(Echo::Trailing)].choose(&mut rng).unwrap(),
+            echo: *[Some(Echo::Bouncy)].choose(&mut rng).unwrap(),
             complexity: if rng.gen::<f32>() < 0.25 { 0f32 } else { rng.gen() } 
         }
     }
@@ -449,7 +449,18 @@ mod test {
             // let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
             let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs);
             write_test_asset(&result, &format!("combine_with_space_{}", i));
-            println!("Completed test render")
         }
+    }
+
+    #[test]
+    fn test_longest_delay_length() {
+        let params:Vec<delay::DelayParams> = vec![
+            delay::DelayParams { len_seconds: 1f32, n_echoes: 5, gain: 1f32, mix: 1f32 },
+            delay::DelayParams { len_seconds: 3f32, n_echoes: 5, gain: 1f32, mix: 1f32 },
+        ];
+
+        let expected = 15f32;
+        let actual = longest_delay_length(&params);
+        assert_eq!(expected, actual, "Invalid longest delay time")
     }
 }
