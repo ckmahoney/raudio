@@ -183,7 +183,8 @@ fn channel(cps:f32, root:f32, (melody, dressor, feel, mods, delays):&Stem) -> Sa
             channel_samples.push(moment);
         });
 
-        overlapping(signal_len, cps, durs, &channel_samples)
+        let mixed = overlapping(signal_len, cps, durs, &channel_samples);
+        trim_zeros(mixed)
     }).collect();
 
     match pad_and_mix_buffers(line_buffs) {
@@ -191,6 +192,25 @@ fn channel(cps:f32, root:f32, (melody, dressor, feel, mods, delays):&Stem) -> Sa
         Err(msg) => panic!("Failed to mix and render channel: {}", msg)
     }
 }
+
+/// Convolution and delay effects may produce a long tail of empty signal.
+/// Remove it.
+pub fn trim_zeros(signal:SampleBuffer) -> SampleBuffer {
+    let last_sound = find_last_audible_index(&signal, 0.001);
+    match last_sound {
+        None => signal, 
+        Some(ind) => (&signal[0..ind]).to_vec()
+    }
+}
+fn find_last_audible_index(vec: &Vec<f32>, thresh:f32) -> Option<usize> {
+    for (i, &value) in vec.iter().enumerate().rev() {
+        if value.abs() > thresh{
+            return Some(i);
+        }
+    }
+    None
+}
+
 
 /// Given a list of signals that may overlap with one another (e.g. long delay or release times)
 /// Create a sample representing their ordered mixing.
@@ -291,7 +311,7 @@ fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::Reverb
                 signal
             } else {
                 reverbs.iter().fold(signal, |sig, params| {
-                    convolution::of(&sig, &params)
+                    trim_zeros(convolution::of(&sig, &params))
                 })
             }
         },
