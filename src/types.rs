@@ -250,6 +250,7 @@ pub mod timbre {
     use crate::analysis::delay::DelayParams;
     use crate::reverb::convolution::ReverbParams;
 
+    #[derive(Debug)]
     /// Signal offsets and reverberations to apply to a part
     pub struct SpaceEffects {
         pub delays: Vec<DelayParams>,
