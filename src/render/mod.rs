@@ -423,12 +423,10 @@ mod test {
 
         Positioning {
             distance: *[Distance::Far, Distance::Near,Distance::Adjacent].choose(&mut rng).unwrap(),
-            // echo: *[Some(Echo::Slapback), Some(Echo::Trailing), None].choose(&mut rng).unwrap(),
-            echo: *[Some(Echo::Bouncy)].choose(&mut rng).unwrap(),
+            echo: *[Some(Echo::Slapback), Some(Echo::Trailing), Some(Echo::Bouncy), None].choose(&mut rng).unwrap(),
             complexity: if rng.gen::<f32>() < 0.25 { 0f32 } else { rng.gen() } 
         }
     }
-
 
     use crate::inp::arg_xform;
 

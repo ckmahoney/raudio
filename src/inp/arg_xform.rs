@@ -15,7 +15,7 @@ pub fn entry<C>((_, arf, _):&DruidicScoreEntry<C>) {
 /// 
 /// `enclosure` contributes to reverb and delay time
 /// `distance` contributes to gain and reverb
-/// `echoes` contributes to delay
+/// `echoes` contributes to delay n artifacts
 /// `complexity` contributes to reverb, reverb as saturation, and delay times 
 pub fn positioning(cps:f32, enclosure:&Enclosure, Positioning {complexity, distance, echo}:&Positioning) -> SpaceEffects  {
     let mut rng = rand::thread_rng();
@@ -120,17 +120,19 @@ fn gen_slapback(cps:f32, rng:&mut ThreadRng, complexity:f32) -> DelayParams {
 /// longer delay with fading echoes
 fn gen_trailing(cps:f32, rng:&mut ThreadRng, complexity:f32) -> DelayParams {
     let n_echoes = if complexity < 0.33f32 { 
-            rng.gen_range(3..5) 
+            rng.gen_range(4..7) 
         } else if complexity < 0.66 { 
-            rng.gen_range(4..7)
-        } else {
             rng.gen_range(5..9)
+        } else {
+            rng.gen_range(6..11)
     };
 
+    // choose delay lengths that are probably more than one cycle, 
+    // and likely to be syncopated. 
     let factor = 1.5f32 * rng.gen_range(1..4) as f32;
-    let rate = factor / rng.gen_range(1..5) as f32;
+    let rate = factor / rng.gen_range(1..9) as f32;
     let len_seconds:f32 = rate / cps;
-    let gain:f32 = 0.5 * (rng.gen::<f32>()/2f32);
+    let gain:f32 = 0.333 + (rng.gen::<f32>()/3f32);
     let mix:f32  = 0.5f32;
     DelayParams { mix, len_seconds, n_echoes, gain }
 }
