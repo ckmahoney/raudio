@@ -36,22 +36,35 @@ fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Option<Echo>, complexity:f32) -
     match *echo {
         None => vec![passthrough],
         Some(Echo::Slapback) => vec![
-            gen_slapback(rng, complexity)
+            gen_slapback(cps, rng, complexity)
         ],
         Some(Echo::Trailing) => vec![
             gen_trailing(cps, rng, complexity)
-        ]
+        ],
+        Some(Echo::Bouncy) => {
+            let n_copies = (complexity * 10f32).max(2f32) as usize;
+            let mix:f32 = 1f32/n_copies as f32;
+            (0..n_copies).map(|i| if i % 2 == 0 { 
+                let mut dp = gen_trailing(cps, rng, complexity);
+                dp.mix = mix;
+                dp
+            } else { 
+                let mut dp = gen_slapback(cps, rng, complexity);
+                dp.mix = mix;
+                dp
+            }).collect()
+        }
     }
 }
 
 /// Create a saturation layer and room layer
 fn gen_reverbs(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&Enclosure, complexity:f32) -> Vec<ReverbParams> {
+    let distance= Distance::Near;
     let gain = match distance {
         Distance::Far => rng.gen::<f32>().powf(0.25f32),
         Distance::Adjacent => rng.gen::<f32>(),
         Distance::Near => rng.gen::<f32>().powi(4i32),
     };
-    let gain:f32=0.1f32;
 
     let rate:f32 = match enclosure {
         Enclosure::Spring => rng.gen::<f32>().powi(8i32).min(0.05),
@@ -75,9 +88,9 @@ fn gen_reverbs(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&Enclo
     } * complexity.powf(0.25f32);
 
     let mix:f32 = match distance {
-        Distance::Far => 1f32,
-        Distance::Adjacent => 0.33f32,
-        Distance::Near => 0.1f32,
+        Distance::Far => 0.33f32,
+        Distance::Adjacent => 0.22f32,
+        Distance::Near => 0.11f32,
     };
     vec![
         gen_saturation(cps, complexity),
@@ -96,10 +109,11 @@ fn gen_spring(distance:&Distance) -> ReverbParams {
 
 /// short delay with loud echo
 /// works best with percussive or plucky sounds
-fn gen_slapback(rng:&mut ThreadRng, complexity:f32) -> DelayParams {
+fn gen_slapback(cps:f32, rng:&mut ThreadRng, complexity:f32) -> DelayParams {
     let n_echoes = if complexity < 0.5f32 { 1 } else { 2 };
-    let len_seconds:f32 = rng.gen::<f32>().powi(2i32)/2f32;
-    let gain:f32 = 0.5f32 + rng.gen::<f32>()/3f32;
+    let rate = 2f32.powi(-rng.gen_range(0..4) as i32);
+    let len_seconds:f32 = rate/cps;
+    let gain:f32 = 0.9f32 + rng.gen::<f32>()*0.1f32;
     DelayParams { mix: 0.5f32, len_seconds, n_echoes, gain }
 }
 
@@ -112,8 +126,11 @@ fn gen_trailing(cps:f32, rng:&mut ThreadRng, complexity:f32) -> DelayParams {
         } else {
             rng.gen_range(5..9)
     };
-    let rate = 1f32 / 2f32 * rng.gen_range(1..5) as f32;
+
+    let factor = 1.5f32 * rng.gen_range(1..4) as f32;
+    let rate = factor / rng.gen_range(1..5) as f32;
     let len_seconds:f32 = rate / cps;
-    let gain:f32 = 0.66 * rng.gen::<f32>();
-    DelayParams { mix: 0.5f32, len_seconds, n_echoes, gain }
+    let gain:f32 = 0.5 * (rng.gen::<f32>()/2f32);
+    let mix:f32  = 0.5f32;
+    DelayParams { mix, len_seconds, n_echoes, gain }
 }
