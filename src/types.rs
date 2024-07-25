@@ -363,7 +363,8 @@ pub mod timbre {
     #[serde(rename_all = "kebab-case")]
     pub enum Echo {
         Slapback,
-        Trailing
+        Trailing,
+        Bouncy
     }
 
     /// High level description for audio effect generation.
