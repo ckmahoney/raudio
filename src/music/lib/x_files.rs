@@ -1,5 +1,5 @@
 use crate::types::synthesis::{Note, Progression};
-use crate::types::timbre::{Role, Visibility, Energy, Mode, Presence, Arf};
+use crate::types::timbre::{Role, Positioning,Echo, Distance, Visibility, Energy, Mode, Presence, Arf};
 use crate::types::render::{Midi, ScoreEntry, PlayerTrack, Melody, Conf, Dimensions};
 
 /// MIDI representation of the X-Files theme
@@ -219,6 +219,11 @@ let FLUTE_LINE: Vec<Midi> = vec![
             visibility: Visibility::Foreground,
             energy:Energy::High,
             presence:Presence::Tenuto,
+            positioning: Positioning {
+                distance: Distance::Adjacent,
+                echo: Echo::None,
+                complexity: 0f32
+            }
 
         },
         vec![PIANO_LINE.to_vec()]
@@ -232,6 +237,11 @@ let FLUTE_LINE: Vec<Midi> = vec![
             visibility: Visibility::Visible,
             energy: Energy::High,
             presence: Presence::Legato,
+            positioning: Positioning {
+                distance: Distance::Adjacent,
+                echo: Echo::None,
+                complexity: 0f32
+            }
 
         },
         vec![FLUTE_LINE.to_vec()]

@@ -219,10 +219,9 @@ pub mod render {
 
     pub type Melody<C> = Vec<Vec<C>>;
     pub type ScoreEntry<C> = (timbre::Arf, Melody<C>);
-    pub type DruidicScoreEntry<C> = (timbre::AmpContour, timbre::Arf, Melody<C>);
+    pub type DruidicScoreEntry<C> = (timbre::Arf, Melody<C>);
     pub type Part = (timbre::Arf, Melody<Monae>);
     pub type Entry = (timbre::Arf, Melody<Note>);
-
 
     pub struct Feel {
         pub bp: Bp,
@@ -230,7 +229,6 @@ pub mod render {
         pub modifiers: ModifiersHolder, 
         pub clippers: Clippers
     }
-
 
     /// Applied parameters to create a SampleBuffer
     pub type Stem<'render> = (
@@ -248,6 +246,7 @@ pub mod timbre {
     use super::synthesis;
     use serde::{Deserialize, Serialize};
     use crate::analysis::delay::DelayParams;
+    use crate::phrasing::contour::Position;
     use crate::reverb::convolution::ReverbParams;
 
     #[derive(Debug)]
@@ -362,9 +361,16 @@ pub mod timbre {
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
     #[serde(rename_all = "kebab-case")]
     pub enum Echo {
+        None,
         Slapback,
         Trailing,
         Bouncy
+    }
+
+    pub struct ClientSpacing {
+        echo: Echo,
+        enclosure: Enclosure,
+        distance: Distance
     }
 
     /// High level description for audio effect generation.
@@ -378,8 +384,7 @@ pub mod timbre {
     #[serde(rename_all = "kebab-case")]
     pub struct Positioning {
         pub distance: Distance,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub echo: Option<Echo>,
+        pub echo: Echo,
         pub complexity: f32
     }
 
@@ -397,6 +402,7 @@ pub mod timbre {
         pub visibility: Visibility,
         pub energy: Energy,
         pub presence: Presence,
+        pub positioning: Positioning
     }
 
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]

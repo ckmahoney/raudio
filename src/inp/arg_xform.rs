@@ -1,16 +1,19 @@
 use crate::analysis::volume::db_to_amp;
 use crate::analysis::delay::{DelayParams, passthrough};
 use crate::reverb::convolution::ReverbParams;
-use crate::types::render::{DruidicScoreEntry};
+use crate::types::render::DruidicScoreEntry;
 use crate::types::timbre::{Enclosure, SpaceEffects, Positioning, AmpContour, Distance, Echo};
 use rand::{self, Rng, rngs::ThreadRng};
+pub struct PrePositioning {
+    echo: Echo, 
+    enclosure: Enclosure, 
+    distance: Distance
+}
+pub fn into_positioning(pre_positioning:PrePositioning) -> Positioning {
 
-pub fn entry<C>((_, arf, _):&DruidicScoreEntry<C>) {
-    
-    
 }
 
-/// Given a client request for positioning and artifacting a melody,
+/// Given a client request for positioning and echoing a melody,
 /// produce application parameters to create the effect.
 /// 
 /// `enclosure` contributes to reverb and delay time
@@ -32,16 +35,16 @@ pub fn positioning(cps:f32, enclosure:&Enclosure, Positioning {complexity, dista
     }
 }
 
-fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Option<Echo>, complexity:f32) -> Vec<DelayParams> {
+fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Echo, complexity:f32) -> Vec<DelayParams> {
     match *echo {
-        None => vec![passthrough],
-        Some(Echo::Slapback) => vec![
+        Echo::None => vec![passthrough],
+        Echo::Slapback => vec![
             gen_slapback(cps, rng, complexity)
         ],
-        Some(Echo::Trailing) => vec![
+        Echo::Trailing => vec![
             gen_trailing(cps, rng, complexity)
         ],
-        Some(Echo::Bouncy) => {
+        Echo::Bouncy => {
             let n_copies = (complexity * 10f32).max(2f32) as usize;
             let mix:f32 = 1f32/n_copies as f32;
             (0..n_copies).map(|i| if i % 2 == 0 { 

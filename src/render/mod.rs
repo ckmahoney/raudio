@@ -329,12 +329,17 @@ fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::Reverb
 
 #[cfg(test)]
 mod test {
-    use convolution::ReverbParams;
 
     use super::*;
     use crate::{files, phrasing};
     use crate::music::lib::{happy_birthday, x_files};
     use crate::druid::melodic;
+    use crate::types::timbre::{ SpaceEffects, Positioning, Distance, Echo, Enclosure};
+    use convolution::ReverbParams;
+    use rand::seq::SliceRandom;
+    use rand::thread_rng;
+    use crate::inp::arg_xform;
+
     static TEST_DIR:&str = "dev-audio/render";
 
     fn write_test_asset(signal:&SampleBuffer, test_name:&str) {
@@ -409,9 +414,7 @@ mod test {
         let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
         write_test_asset(&result, "combine");
     }
-    use crate::types::timbre::{ SpaceEffects, Positioning, Distance, Echo, Enclosure};
-    use rand::seq::SliceRandom;
-    use rand::thread_rng;
+    
 
     fn gen_enclosure() -> Enclosure {
         let mut rng = thread_rng();
@@ -423,12 +426,11 @@ mod test {
 
         Positioning {
             distance: *[Distance::Far, Distance::Near,Distance::Adjacent].choose(&mut rng).unwrap(),
-            echo: *[Some(Echo::Slapback), Some(Echo::Trailing), Some(Echo::Bouncy), None].choose(&mut rng).unwrap(),
+            echo: *[Echo::Slapback, Echo::Trailing, Echo::Bouncy, Echo::None].choose(&mut rng).unwrap(),
             complexity: if rng.gen::<f32>() < 0.25 { 0f32 } else { rng.gen() } 
         }
     }
 
-    use crate::inp::arg_xform;
 
     #[test]
     fn test_space_effects() {

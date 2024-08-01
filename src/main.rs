@@ -71,10 +71,11 @@ fn render_playbook(out_path: &str, playbook_path: &str) {
 pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::Error> {
     files::with_dir(filename);
     let mut pre_mix_buffs:Vec<synth::SampleBuffer> = Vec::new();
-    for (contour, arf, melody) in &score.parts {
+    for (arf, melody) in &score.parts {
         let preset = presets::select(&arf);
         let synth = preset(&arf);
-        let mut signal = render::arf(score.conf.cps, contour, &melody, &synth, *arf);
+        let contour:AmpContour = AmpContour::Fade;
+        let mut signal = render::arf(score.conf.cps, &contour, &melody, &synth, *arf);
         pre_mix_buffs.push(signal)
     }
 
