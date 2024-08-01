@@ -2,25 +2,22 @@ use crate::analysis::volume::db_to_amp;
 use crate::analysis::delay::{DelayParams, passthrough};
 use crate::reverb::convolution::ReverbParams;
 use crate::types::render::DruidicScoreEntry;
-use crate::types::timbre::{Enclosure, SpaceEffects, Positioning, AmpContour, Distance, Echo};
+use crate::types::timbre::{Enclosure, SpaceEffects, IntermediateObject, AmpContour, Distance, Echo};
 use rand::{self, Rng, rngs::ThreadRng};
-pub struct PrePositioning {
-    echo: Echo, 
-    enclosure: Enclosure, 
-    distance: Distance
-}
-pub fn into_positioning(pre_positioning:PrePositioning) -> Positioning {
+
+
+pub fn into_IntermediateObject(pre_IntermediateObject:PreIntermediateObject) -> IntermediateObject {
 
 }
 
-/// Given a client request for positioning and echoing a melody,
+/// Given a client request for IntermediateObject and echoing a melody,
 /// produce application parameters to create the effect.
 /// 
 /// `enclosure` contributes to reverb and delay time
 /// `distance` contributes to gain and reverb
 /// `echoes` contributes to delay n artifacts
 /// `complexity` contributes to reverb, reverb as saturation, and delay times 
-pub fn positioning(cps:f32, enclosure:&Enclosure, Positioning {complexity, distance, echo}:&Positioning) -> SpaceEffects  {
+pub fn IntermediateObject(cps:f32, enclosure:&Enclosure, IntermediateObject {complexity, distance, echo}:&IntermediateObject) -> SpaceEffects  {
     let mut rng = rand::thread_rng();
     let gain:f32 = match distance {
         Distance::Adjacent => 1f32,

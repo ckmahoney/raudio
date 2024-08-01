@@ -1,5 +1,5 @@
 use crate::types::synthesis::{Note, Progression};
-use crate::types::timbre::{Positioning, Distance,Echo, Role, Visibility, Energy, Mode, Presence, Arf};
+use crate::types::timbre::{IntermediateObject, Distance,Echo, Role, Visibility, Energy, Mode, Presence, Arf};
 use crate::types::render::{Midi, ScoreEntry, PlayerTrack, Melody, Conf, Dimensions, Entry};
 
 
@@ -78,7 +78,7 @@ pub fn get_track() -> PlayerTrack<Note> {
             visibility: Visibility::Visible,
             energy: Energy::High,
             presence: Presence::Tenuto,
-            positioning: Positioning {
+            IntermediateObject: IntermediateObject {
                 distance: Distance::Adjacent,
                 echo: Echo::None,
                 complexity: 0f32

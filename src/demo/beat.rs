@@ -5,7 +5,7 @@ use crate::files;
 use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
 use crate::types::synthesis::{Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::{Melody};
-use crate::types::timbre::{Visibility,Echo,Distance,Positioning, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
+use crate::types::timbre::{Visibility,Echo,Distance,IntermediateObject, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
 use presets::{kick, kick_hard, snare, snare_hard, hats, hats_hard};
@@ -173,7 +173,7 @@ fn gen_arfs(spec:&Coverage) -> Vec<(String, Arf)> {
                                 visibility: (*visibility).clone(),
                                 energy: **energy,
                                 presence: **presence,
-                                positioning: Positioning {
+                                IntermediateObject: IntermediateObject {
                                     distance: Distance::Adjacent,
                                     echo: Echo::None,
                                     complexity: 0f32
@@ -200,7 +200,7 @@ fn get_arfs() -> [Arf;3] {
         visibility: Visibility::Foreground,
         energy: Energy::Low,
         presence: Presence::Legato,
-        positioning: Positioning {
+        IntermediateObject: IntermediateObject {
             distance: Distance::Adjacent,
             echo: Echo::None,
             complexity: 0f32
@@ -214,7 +214,7 @@ fn get_arfs() -> [Arf;3] {
         visibility: Visibility::Foreground,
         energy: Energy::Medium,
         presence: Presence::Legato,
-        positioning: Positioning {
+        IntermediateObject: IntermediateObject {
             distance: Distance::Adjacent,
             echo: Echo::None,
             complexity: 0f32
@@ -228,7 +228,7 @@ fn get_arfs() -> [Arf;3] {
         visibility: Visibility::Foreground,
         energy: Energy::Low,
         presence: Presence::Legato,
-        positioning: Positioning {
+        IntermediateObject: IntermediateObject {
             distance: Distance::Adjacent,
             echo: Echo::None,
             complexity: 0f32

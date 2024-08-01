@@ -382,7 +382,7 @@ pub mod timbre {
     /// - `complexity`: Range in [0,1] describing the richness of sound. 0 represents a plain wave (for example, a sine wave) and 1 a more complex version of that wave (saturated). Has a similar effect on delay and reverb parameters generation.
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
     #[serde(rename_all = "kebab-case")]
-    pub struct Positioning {
+    pub struct IntermediateObject {
         pub distance: Distance,
         pub echo: Echo,
         pub complexity: f32
@@ -402,7 +402,7 @@ pub mod timbre {
         pub visibility: Visibility,
         pub energy: Energy,
         pub presence: Presence,
-        pub positioning: Positioning
+        pub IntermediateObject: IntermediateObject
     }
 
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
