@@ -52,14 +52,8 @@ fn render_playbook(out_path: &str, playbook_path: &str) {
 
     match inp::arg_parse::load_score_from_file(&playbook_path) {
         Ok(score) => {
-            match render_score(out_path, score) {
-                Ok(_) => {
-                    println!("{}", out_path)
-                },
-                Err(msg) => {
-                    eprint!("Problem while writing {}", msg)
-                }
-            }
+           render_score(out_path, score);
+           println!("{}", out_path)
         },
         Err(msg) => {
             panic!("Failed to open score: {}", msg)
@@ -67,27 +61,74 @@ fn render_playbook(out_path: &str, playbook_path: &str) {
     }
 }
 
+// pub fn part_to_stem<'render>(
+//     rng:&mut ThreadRng, 
+//     cps:f32, 
+//     pos: &types::timbre::ClientPositioning, 
+//     arf:&Arf, 
+//     melody: &'render Melody<Note>,
+//     delays: &'render types::timbre::DelayLine
+// ) -> types::render::Stem<'render> {
+//     types::render::Instrument::unit(melody, arf.energy, delays)
+// }
 
-pub fn render_score(filename:&str, score:DruidicScore) -> Result<(), core::fmt::Error> {
+pub fn complexity(v:&Visibility, e:&Energy, p:&Presence) -> f32 {
+    let cv:f32 = match *v {
+        Visibility::Hidden => 0f32,
+        Visibility::Background => 0.333f32,
+        Visibility::Foreground => 0.666f32,
+        Visibility::Visible => 1f32,
+    };
+
+    let ce:f32 = match *e {
+        Energy::Low => 0f32,
+        Energy::Medium => 0.5f32,
+        Energy::High => 1f32,
+    };
+
+    let cp:f32 = match *p {
+        Presence::Staccatto => 0f32,
+        Presence::Legato => 0.5f32,
+        Presence::Tenuto => 1f32,
+    };
+
+    (cv + ce + cp) / 3f32
+}
+
+use rand::{self, Rng, rngs::ThreadRng};
+pub fn render_score(filename:&str, score:DruidicScore)  {
     files::with_dir(filename);
     let mut pre_mix_buffs:Vec<synth::SampleBuffer> = Vec::new();
-    for (client_positioning, arf, melody) in &score.parts {
-        let preset = presets::select(&arf);
-        let synth = preset(&arf);
-        let contour:AmpContour = AmpContour::Fade;
-        let mut signal = render::arf(score.conf.cps, &contour, &melody, &synth, *arf);
-        pre_mix_buffs.push(signal)
-    }
+    let mut rng:ThreadRng = rand::thread_rng();
+    let mut stems:Vec<Stem> = Vec::with_capacity(score.parts.len());
 
-    match render::pad_and_mix_buffers(pre_mix_buffs) {
-        Ok(dry_signal) => {
-            render::engrave::samples(44100, &dry_signal, &filename);
-            Ok(())
-        },
-        Err(msg) => {
-            panic!("Failed to mix and render audio: {}", msg)
-        }
+    for (client_positioning, arf, melody) in &score.parts {
+        // let preset = presets::select(&arf);
+        // let synth = preset(&arf);
+        let delays = inp::arg_xform::gen_delays(&mut rng, score.conf.cps, &client_positioning.echo, complexity(&arf.visibility, &arf.energy, &arf.presence));
+        let stem = types::render::Instrument::unit(melody, arf.energy, delays);
+        stems.push(stem)
     }
+    let verb_complexity:f32 = rng.gen::<f32>()/10f32;
+    let group_reverbs:Vec<reverb::convolution::ReverbParams> = inp::arg_xform::gen_reverbs(
+        &mut rng, 
+        score.conf.cps, 
+        &Distance::Near, 
+        &score.groupEnclosure, 
+        verb_complexity
+    );
+    let signal = render::combine(score.conf.cps, score.conf.root, &stems, &group_reverbs);
+    render::engrave::samples(44100, &signal, &filename);
+
+    // match render::pad_and_mix_buffers(pre_mix_buffs) {
+    //     Ok(dry_signal) => {
+    //         render::engrave::samples(44100, &dry_signal, &filename);
+    //         Ok(())
+    //     },
+    //     Err(msg) => {
+    //         panic!("Failed to mix and render audio: {}", msg)
+    //     }
+    // }
 }
 
 

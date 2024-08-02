@@ -306,7 +306,7 @@ pub fn summit<'render>(
 
 /// Given a list of stems and how to represent them in space, 
 /// Generate the signals and apply reverberation. Return the new signal.
-fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::ReverbParams>) -> SampleBuffer {
+pub fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::ReverbParams>) -> SampleBuffer {
     let mut channels:Vec<SampleBuffer> = stems.iter().map(|stem| channel(cps, root, &stem)).collect();
     match pad_and_mix_buffers(channels) {
         Ok(signal) => {
@@ -393,13 +393,14 @@ mod test {
         let delays_lead = vec![
             delay::DelayParams { mix: 0.25f32, gain: 0.66, len_seconds: 0.33f32, n_echoes: 5}
         ];
+        
         let delays_chords = vec![
-            delay::DelayParams { mix: 0f32, gain: 0f32, len_seconds: 0.15f32, n_echoes: 5}
+            delay::DelayParams { mix: 0f32, gain: 0f32, len_seconds: 0.15f32, n_echoes: 5 }
         ];
 
         let stems:Vec<Stem> = vec![
-            (happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &delays_lead),
-            (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &delays_chords)
+            (&happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &delays_lead),
+            (&happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &delays_chords)
         ];
 
         let reverbs:Vec<convolution::ReverbParams> = vec![
@@ -441,7 +442,7 @@ mod test {
             let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let stems:Vec<Stem> = vec![
-                (happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &se_lead.delays),
+                (&happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &se_lead.delays),
                 // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
             ];
 

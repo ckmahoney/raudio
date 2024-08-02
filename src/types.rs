@@ -7,7 +7,7 @@ pub mod synthesis {
     use serde::{Deserialize, Serialize};
     use super::timbre;
     use super::render;
-
+    use crate::druid::melodic;
     pub type Rotation = i8;
     pub type Q = i8;
     pub type Ratio = (i32, i32);
@@ -137,6 +137,18 @@ pub mod synthesis {
     pub type Dressor = fn (f32) -> Dressing;
 
 
+    pub struct Armoir;
+    impl Armoir {
+        pub fn select_melodic(energy:timbre::Energy) -> Dressor {
+            match energy {
+                timbre::Energy::Low => melodic::dress_triangle as fn(f32) -> Dressing,
+                timbre::Energy::Medium => melodic::dress_square as fn(f32) -> Dressing,
+                timbre::Energy::High => melodic::dress_sawtooth as fn(f32) -> Dressing 
+            }
+        }
+    }
+
+
     /// Collection of optional additive modulations for a signal.
     /// Entries in the form of (amp, freq, offset, time) modulation vectors.
     /// Use a 0 length entry to skip modulation of that parameter.
@@ -149,12 +161,24 @@ pub mod synthesis {
     pub type Ms<'render> = &'render (Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>);
 
     pub type ModifiersHolder = (Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>, Vec<ModulationEffect>);
+    pub struct ModBox;
+    impl ModBox {
+        pub fn unit() -> ModifiersHolder {
+            (
+                vec![], // amplitude
+                vec![], // frequency 
+                vec![], // phase
+                vec![]  // time (cps)
+            )
+        }
+    }
 }
 
 pub mod render {
     use serde::{Deserialize, Serialize};
     use super::synthesis::{self, *};
     use super::timbre;
+    use crate::analysis::delay::DelayParams;
     use crate::phrasing::contour::Expr;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -201,7 +225,8 @@ pub mod render {
         pub conf: Conf,
         pub dimensions: Dimensions,
         pub parts: Vec<DruidicScoreEntry<synthesis::Note>>,
-        pub markers:Vec<Marker>
+        pub markers:Vec<Marker>,
+        pub groupEnclosure: timbre::Enclosure
     }
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -230,15 +255,38 @@ pub mod render {
         pub clippers: Clippers
     }
 
+    impl Feel {
+        pub fn unit() -> Self {
+            Feel {
+                bp: (vec![crate::synth::MFf], vec![crate::synth::NFf]), 
+                expr: (vec![1f32], vec![1f32], vec![0f32]),
+                modifiers: (vec![], vec![], vec![], vec![]), 
+                clippers: (0f32, 1f32)
+            }
+        }
+    }
+
     /// Applied parameters to create a SampleBuffer
     pub type Stem<'render> = (
-        Melody<synthesis::Note>, 
+        &'render Melody<synthesis::Note>, 
         Dressor, 
         Feel, 
         ModifiersHolder, 
-        &'render Vec<crate::analysis::delay::DelayParams>
+        Vec<crate::analysis::delay::DelayParams>
     );
 
+    pub struct Instrument;
+    impl Instrument {
+        pub fn unit<'render>(melody:&'render Melody<Note>, energy:timbre::Energy, delays:Vec<DelayParams>) -> Stem<'render> {
+            (
+                melody,
+                Armoir::select_melodic(energy),
+                Feel::unit(),
+                ModBox::unit(),
+                delays
+            )
+        }
+    }
 }
 
 pub mod timbre {
@@ -248,6 +296,13 @@ pub mod timbre {
     use crate::analysis::delay::DelayParams;
     use crate::phrasing::contour::Position;
     use crate::reverb::convolution::ReverbParams;
+
+    pub struct DelayLine;
+    impl DelayLine {
+        pub fn unit() -> Vec<DelayParams> {
+            vec![]
+        }
+    }
 
     #[derive(Debug)]
     /// Signal offsets and reverberations to apply to a part
@@ -370,9 +425,9 @@ pub mod timbre {
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
     #[serde(rename_all = "kebab-case")]
     pub struct ClientPositioning {
-        echo: Echo,
-        enclosure: Enclosure,
-        distance: Distance
+        pub echo: Echo,
+        pub enclosure: Enclosure,
+        pub distance: Distance
     }
 
     /// High level description for audio effect generation.

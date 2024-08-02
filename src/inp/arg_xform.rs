@@ -50,7 +50,7 @@ pub fn create_space_effects(cps:f32, enclosure:&Enclosure, complexity:f32, dista
     }
 }
 
-fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Echo, complexity:f32) -> Vec<DelayParams> {
+pub fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Echo, complexity:f32) -> Vec<DelayParams> {
     match *echo {
         Echo::None => vec![passthrough],
         Echo::Slapback => vec![
@@ -76,7 +76,7 @@ fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Echo, complexity:f32) -> Vec<De
 }
 
 /// Create a saturation layer and room layer
-fn gen_reverbs(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&Enclosure, complexity:f32) -> Vec<ReverbParams> {
+pub fn gen_reverbs(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&Enclosure, complexity:f32) -> Vec<ReverbParams> {
     let distance= Distance::Near;
     let gain = match distance {
         Distance::Far => rng.gen::<f32>().powf(0.25f32),
