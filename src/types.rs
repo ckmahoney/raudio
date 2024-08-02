@@ -219,7 +219,7 @@ pub mod render {
 
     pub type Melody<C> = Vec<Vec<C>>;
     pub type ScoreEntry<C> = (timbre::Arf, Melody<C>);
-    pub type DruidicScoreEntry<C> = (timbre::Arf, Melody<C>);
+    pub type DruidicScoreEntry<C> = (timbre::ClientPositioning, timbre::Arf, Melody<C>);
     pub type Part = (timbre::Arf, Melody<Monae>);
     pub type Entry = (timbre::Arf, Melody<Note>);
 
@@ -366,8 +366,10 @@ pub mod timbre {
         Trailing,
         Bouncy
     }
-
-    pub struct ClientSpacing {
+    
+    #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+    #[serde(rename_all = "kebab-case")]
+    pub struct ClientPositioning {
         echo: Echo,
         enclosure: Enclosure,
         distance: Distance
@@ -382,7 +384,7 @@ pub mod timbre {
     /// - `complexity`: Range in [0,1] describing the richness of sound. 0 represents a plain wave (for example, a sine wave) and 1 a more complex version of that wave (saturated). Has a similar effect on delay and reverb parameters generation.
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
     #[serde(rename_all = "kebab-case")]
-    pub struct IntermediateObject {
+    pub struct Positioning {
         pub distance: Distance,
         pub echo: Echo,
         pub complexity: f32
@@ -401,8 +403,7 @@ pub mod timbre {
         pub role: Role,
         pub visibility: Visibility,
         pub energy: Energy,
-        pub presence: Presence,
-        pub IntermediateObject: IntermediateObject
+        pub presence: Presence
     }
 
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]

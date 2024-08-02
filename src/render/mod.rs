@@ -329,17 +329,12 @@ fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::Reverb
 
 #[cfg(test)]
 mod test {
+    use convolution::ReverbParams;
 
     use super::*;
     use crate::{files, phrasing};
     use crate::music::lib::{happy_birthday, x_files};
     use crate::druid::melodic;
-    use crate::types::timbre::{ SpaceEffects, IntermediateObject, Distance, Echo, Enclosure};
-    use convolution::ReverbParams;
-    use rand::seq::SliceRandom;
-    use rand::thread_rng;
-    use crate::inp::arg_xform;
-
     static TEST_DIR:&str = "dev-audio/render";
 
     fn write_test_asset(signal:&SampleBuffer, test_name:&str) {
@@ -414,23 +409,27 @@ mod test {
         let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
         write_test_asset(&result, "combine");
     }
-    
+    use crate::types::timbre::{ SpaceEffects, Positioning, Distance, Echo, Enclosure};
+    use rand::seq::SliceRandom;
+    use rand::thread_rng;
 
     fn gen_enclosure() -> Enclosure {
         let mut rng = thread_rng();
+        
         *[Enclosure::Spring, Enclosure::Room, Enclosure::Hall, Enclosure::Vast].choose(&mut rng).unwrap()
     }
 
-    fn gen_IntermediateObject() -> IntermediateObject {
+    fn gen_positioning() -> Positioning {
         let mut rng = thread_rng();
 
-        IntermediateObject {
+        Positioning {
             distance: *[Distance::Far, Distance::Near,Distance::Adjacent].choose(&mut rng).unwrap(),
             echo: *[Echo::Slapback, Echo::Trailing, Echo::Bouncy, Echo::None].choose(&mut rng).unwrap(),
             complexity: if rng.gen::<f32>() < 0.25 { 0f32 } else { rng.gen() } 
         }
     }
 
+    use crate::inp::arg_xform;
 
     #[test]
     fn test_space_effects() {
@@ -439,8 +438,8 @@ mod test {
             let mods_lead:ModifiersHolder = modifiers_lead();
 
             let enclosure = gen_enclosure();
-            let se_lead:SpaceEffects = arg_xform::IntermediateObject(happy_birthday::cps, &enclosure, &gen_IntermediateObject());
-            let se_chords:SpaceEffects = arg_xform::IntermediateObject(happy_birthday::cps, &enclosure, &gen_IntermediateObject());
+            let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+            let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let stems:Vec<Stem> = vec![
                 (happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &se_lead.delays),
                 // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)

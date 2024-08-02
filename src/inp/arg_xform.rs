@@ -2,22 +2,18 @@ use crate::analysis::volume::db_to_amp;
 use crate::analysis::delay::{DelayParams, passthrough};
 use crate::reverb::convolution::ReverbParams;
 use crate::types::render::DruidicScoreEntry;
-use crate::types::timbre::{Enclosure, SpaceEffects, IntermediateObject, AmpContour, Distance, Echo};
+use crate::types::timbre::{Enclosure, SpaceEffects, Positioning, AmpContour, Distance, Echo};
 use rand::{self, Rng, rngs::ThreadRng};
 
 
-pub fn into_IntermediateObject(pre_IntermediateObject:PreIntermediateObject) -> IntermediateObject {
-
-}
-
-/// Given a client request for IntermediateObject and echoing a melody,
+/// Given a client request for positioning and echoing a melody,
 /// produce application parameters to create the effect.
 /// 
 /// `enclosure` contributes to reverb and delay time
 /// `distance` contributes to gain and reverb
 /// `echoes` contributes to delay n artifacts
 /// `complexity` contributes to reverb, reverb as saturation, and delay times 
-pub fn IntermediateObject(cps:f32, enclosure:&Enclosure, IntermediateObject {complexity, distance, echo}:&IntermediateObject) -> SpaceEffects  {
+pub fn positioning(cps:f32, enclosure:&Enclosure, Positioning {complexity, distance, echo}:&Positioning) -> SpaceEffects  {
     let mut rng = rand::thread_rng();
     let gain:f32 = match distance {
         Distance::Adjacent => 1f32,
@@ -28,6 +24,28 @@ pub fn IntermediateObject(cps:f32, enclosure:&Enclosure, IntermediateObject {com
     SpaceEffects {
         delays: gen_delays(&mut rng, cps, echo, *complexity),
         reverbs: gen_reverbs(&mut rng, cps, distance, enclosure, *complexity),
+        gain
+    }
+}
+
+/// Given a client request for positioning and echoing a melody,
+/// produce application parameters to create the effect.
+/// 
+/// `enclosure` contributes to reverb and delay time
+/// `distance` contributes to gain and reverb
+/// `echoes` contributes to delay n artifacts
+/// `complexity` contributes to reverb, reverb as saturation, and delay times 
+pub fn create_space_effects(cps:f32, enclosure:&Enclosure, complexity:f32, distance:&Distance, echo:&Echo) -> SpaceEffects  {
+    let mut rng = rand::thread_rng();
+    let gain:f32 = match distance {
+        Distance::Adjacent => 1f32,
+        Distance::Near => db_to_amp(-6f32),
+        Distance::Far => db_to_amp(-12f32),
+    };
+
+    SpaceEffects {
+        delays: gen_delays(&mut rng, cps, echo, complexity),
+        reverbs: gen_reverbs(&mut rng, cps, distance, enclosure, complexity),
         gain
     }
 }
