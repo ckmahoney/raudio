@@ -397,10 +397,10 @@ mod test {
         let delays_chords = vec![
             delay::DelayParams { mix: 0f32, gain: 0f32, len_seconds: 0.15f32, n_echoes: 5 }
         ];
-
+        let mel = happy_birthday::lead_melody();
         let stems:Vec<Stem> = vec![
-            (&happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &delays_lead),
-            (&happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &delays_chords)
+            (&mel, melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, delays_lead),
+            (&mel, melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, delays_chords)
         ];
 
         let reverbs:Vec<convolution::ReverbParams> = vec![
@@ -441,8 +441,9 @@ mod test {
             let enclosure = gen_enclosure();
             let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+            let mel = happy_birthday::lead_melody();
             let stems:Vec<Stem> = vec![
-                (&happy_birthday::lead_melody(), melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, &se_lead.delays),
+                (&mel, melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, se_lead.delays),
                 // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
             ];
 
