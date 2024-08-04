@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::synthesis::Dressing;
+use crate::types::synthesis::{Dressing, Soids};
 
 /// Constant for square wave amplitude calculation
 static C_SQUARE: f32 = 4f32 / pi;
@@ -115,6 +115,14 @@ pub fn dress_square(freq:f32) -> Dressing {
     }
 }
 
+pub fn soids_square(freq:f32) -> Soids {
+    let multipliers = muls_square(freq);
+    let amplitudes = amps_square(freq);
+    let offsets = vec![0f32; multipliers.len()];
+
+    (amplitudes, multipliers, offsets)
+}
+
 pub fn dress_sawtooth(freq: f32) -> Dressing {
     let multipliers = muls_sawtooth(freq);
     let amplitudes = amps_sawtooth(freq);
@@ -127,6 +135,15 @@ pub fn dress_sawtooth(freq: f32) -> Dressing {
     }
 }
 
+
+pub fn soids_sawtooth(freq: f32) -> Soids {
+    let multipliers = muls_sawtooth(freq);
+    let amplitudes = amps_sawtooth(freq);
+    let offsets = vec![0f32; multipliers.len()];
+
+    (amplitudes, multipliers, offsets)
+}
+
 pub fn dress_triangle(freq: f32) -> Dressing {
     let multipliers = muls_triangle(freq);
     let amplitudes = amps_triangle(freq);
@@ -137,6 +154,13 @@ pub fn dress_triangle(freq: f32) -> Dressing {
         multipliers,
         offsets,
     }
+}
+
+pub fn soids_triangle(freq: f32) -> Soids {
+    let multipliers = muls_triangle(freq);
+    let amplitudes = amps_triangle(freq);
+    let offsets = vec![0f32; multipliers.len()];
+    (amplitudes, multipliers, offsets)
 }
 
 #[cfg(test)]

@@ -172,6 +172,22 @@ pub mod synthesis {
             )
         }
     }
+
+    pub type Soids = (Vec<f32>, Vec<f32>, Vec<f32>);
+
+    pub struct Ely {
+        pub soids: (Vec<f32>, Vec<f32>, Vec<f32>),
+        pub modders: ModifiersHolder
+    }
+
+    impl Ely {
+        pub fn from_soids(amps:Vec<f32>, muls:Vec<f32>, phis:Vec<f32>) -> Self {
+            Ely {
+                soids: (amps, muls, phis),
+                modders: ModBox::unit()
+            }
+        }
+    }
 }
 
 pub mod render {
@@ -179,6 +195,7 @@ pub mod render {
     use super::synthesis::{self, *};
     use super::timbre;
     use crate::analysis::delay::DelayParams;
+    use crate::analysis::trig;
     use crate::phrasing::contour::Expr;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -260,7 +277,7 @@ pub mod render {
             Feel {
                 bp: (vec![crate::synth::MFf], vec![crate::synth::NFf]), 
                 expr: (vec![1f32], vec![1f32], vec![0f32]),
-                modifiers: (vec![], vec![], vec![], vec![]), 
+                modifiers: ModBox::unit(),
                 clippers: (0f32, 1f32)
             }
         }
@@ -269,23 +286,29 @@ pub mod render {
     /// Applied parameters to create a SampleBuffer
     pub type Stem<'render> = (
         &'render Melody<synthesis::Note>, 
-        Dressor, 
+        Soids, 
         Feel, 
-        ModifiersHolder, 
         Vec<crate::analysis::delay::DelayParams>
     );
 
     pub struct Instrument;
     impl Instrument {
         pub fn unit<'render>(melody:&'render Melody<Note>, energy:timbre::Energy, delays:Vec<DelayParams>) -> Stem<'render> {
+            let dressor = Armoir::select_melodic(energy);
+            let dressing:Dressing = dressor(crate::synth::MFf);
+            
+            // overly verbose code to demonstrate the pattern 
+            let dressing_as_vecs = vec![(dressing.amplitudes, dressing.multipliers, dressing.offsets)];
+            let tmp = trig::prepare_soids_input(dressing_as_vecs);
+            let soids = trig::process_soids(tmp);
             (
                 melody,
-                Armoir::select_melodic(energy),
+                soids,
                 Feel::unit(),
-                ModBox::unit(),
                 delays
             )
         }
+
     }
 }
 

@@ -11,10 +11,11 @@ use crate::druid::applied_modulation::{self, update_mods};
 use crate::monic_theory::tone_to_freq;
 use crate::phrasing::lifespan::{self};
 use crate::phrasing::contour::{Expr, Position, sample, apply_contour};
+use crate::render;
 use crate::reverb::convolution;
 use crate::time;
 use crate::types::timbre::{AmpContour, Arf, AmpLifespan};
-use crate::types::synthesis::{GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Dressing, Dressor};
+use crate::types::synthesis::{GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Soids, Dressor};
 use crate::types::render::{Melody,Span, Stem, Feel};
 use rand;
 use rand::{Rng, thread_rng};
@@ -169,22 +170,22 @@ fn longest_delay_length(ds:&Vec<delay::DelayParams>) -> f32 {
 }
 
 /// Render an audio sample for an applied polyphonic or monophonic melody.
-fn channel(cps:f32, root:f32, (melody, dressor, feel, mods, delays):&Stem) -> SampleBuffer {
+fn channel(cps:f32, root:f32, (melody, soids, feel, delays):&Stem) -> SampleBuffer {
     let line_buffs:Vec<SampleBuffer> = melody.iter().map(|line| {
         let mut channel_samples:Vec<SampleBuffer> = Vec::new();
 
         let len_cycles:f32 = time::count_cycles(line);
-        let rounding_offset = 10; // sould actually be n_echoes
+        let rounding_offset = 10; // since usize rounding might cutoff some sample
         let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(&delays));
+
         let signal_len = time::samples_of_cycles(cps, len_cycles) + append_delay;
         let durs:Vec<f32> = line.iter().map(|(d,_,_)| time::duration_to_cycles(*d)).collect();
 
         line.iter().enumerate().for_each(|(i, (duration, tone, amp))| {
             let freq = root * tone_to_freq(tone);
-            let moment = summit(cps, root, freq, durs[i], &dressor(freq), &feel, &delays);
+            let moment = summit(cps, root, freq, durs[i], soids, &feel, &delays);
             channel_samples.push(moment);
         });
-
         let mut mixed = overlapping(signal_len, cps, durs, &channel_samples);
         // trim_zeros(&mut mixed);
         mixed
@@ -214,10 +215,14 @@ fn find_last_audible_index(vec: &Vec<f32>, thresh: f32) -> Option<usize> {
 
 
 /// Given a list of signals that may overlap with one another (e.g. long delay or release times)
-/// Create a sample representing their ordered mixing.
-pub fn overlapping(len:usize, cps:f32, durs:Vec<f32>, samples:&Vec<SampleBuffer>) -> SampleBuffer {
-    let mut signal:SampleBuffer = vec![0f32; len];
+/// Create a sample representing their overlapped mixing.
+pub fn overlapping(base_len:usize, cps:f32, durs:Vec<f32>, samples:&Vec<SampleBuffer>) -> SampleBuffer {
+    let mut signal:SampleBuffer = vec![0f32; base_len];
     durs.iter().enumerate().fold(0, |pos, (i, dur)| { 
+        if signal.len() < pos + samples[i].len() {
+            signal.append(&mut vec![0f32; samples[i].len()]);
+        }
+        
         for (j,s) in samples[i].iter().enumerate() {
             signal[pos + j] += s
         }
@@ -226,14 +231,14 @@ pub fn overlapping(len:usize, cps:f32, durs:Vec<f32>, samples:&Vec<SampleBuffer>
     signal
 }
 
-/// Render a signal from contextual and decorative paramters. 
+/// Render a signal from contextual and decorative parameters. 
 /// Returns a SampleBuffer representing the moment produced from this request.
 pub fn summit<'render>(
     cps:f32, 
     root: f32, 
     fundamental:f32,
     n_cycles:f32,
-    dressing:&Dressing,
+    soids:&Soids,
     Feel { bp, expr, modifiers, clippers }: &'render Feel,
     delays: &Vec::<delay::DelayParams>
 ) -> Vec<f32> {
@@ -258,9 +263,9 @@ pub fn summit<'render>(
             let mut fm = sample(&expr.1, p);
             let mut pm = sample(&expr.2, p);
 
-            let multipliers = &dressing.multipliers;
-            let amplifiers = &dressing.amplitudes;
-            let phases = &dressing.offsets;
+            let amplifiers = &soids.0;
+            let multipliers = &soids.1;
+            let phases = &soids.2;
 
             if (am) < *gate_thresh {
                 continue;
@@ -269,14 +274,16 @@ pub fn summit<'render>(
             for (i, &m) in multipliers.iter().enumerate() {
                 let a0 = amplifiers[i];
                 if a0 > *gate_thresh {
-                    let amplifier = modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
-                    if (amplifier*am) < *gate_thresh {
+                    let amp = am * modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
+                    if amp < *gate_thresh {
                         continue
                     }
                     let k = i + 1;
                     let f0:f32 = m * fm * fundamental;
-                    let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc)); 
-                    let amp = amplifier * am * filter(p, frequency, &bp);
+                    let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc));
+                    if frequency > NFf || frequency < MFf {
+                        continue
+                    }
                     let p0 = frequency * pi2 * t;
                     let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
                     
@@ -306,13 +313,23 @@ pub fn summit<'render>(
 
 /// Given a list of stems and how to represent them in space, 
 /// Generate the signals and apply reverberation. Return the new signal.
-pub fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::ReverbParams>) -> SampleBuffer {
+/// Accepts an optional parameter keep_stems. When provided, it is the directory for placing the stems.
+pub fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::ReverbParams>, keep_stems:Option<&str>) -> SampleBuffer {
     let mut channels:Vec<SampleBuffer> = stems.iter().map(|stem| channel(cps, root, &stem)).collect();
+    if keep_stems.is_some() {
+        let stem_dir:&str = keep_stems.unwrap();
+        channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+            let filename:String = format!("{}/stem-{}.wav", stem_dir, stem_num);
+            render::engrave::samples(44100, &channel_samples, &filename);
+        });
+    }
     match pad_and_mix_buffers(channels) {
         Ok(signal) => {
+            println!("Completed rendering of signal. It has length {}", signal.len());
             if reverbs.len() == 0 {
                 signal
             } else {
+                println!("Preparing group reverb");
                 reverbs.iter().fold(signal, |sig, params| {
                     let mut sig =convolution::of(&sig, &params);
                     trim_zeros(&mut sig);
@@ -399,15 +416,15 @@ mod test {
         ];
         let mel = happy_birthday::lead_melody();
         let stems:Vec<Stem> = vec![
-            (&mel, melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, delays_lead),
-            (&mel, melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, delays_chords)
+            (&mel, melodic::soids_square(MFf), feeling_lead(),  delays_lead),
+            (&mel, melodic::soids_sawtooth(MFf), feeling_chords(), delays_chords)
         ];
 
         let reverbs:Vec<convolution::ReverbParams> = vec![
             ReverbParams { mix: 0.005, amp: 0.2, dur: 3f32, rate: 0.1 }
         ];
 
-        let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
+        let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs, None);
         write_test_asset(&result, "combine");
     }
     use crate::types::timbre::{ SpaceEffects, Positioning, Distance, Echo, Enclosure};
@@ -443,14 +460,38 @@ mod test {
             let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let mel = happy_birthday::lead_melody();
             let stems:Vec<Stem> = vec![
-                (&mel, melodic::dress_square as fn(f32) -> Dressing, feeling_lead(), mods_lead, se_lead.delays),
+                (&mel, melodic::soids_square(MFf), feeling_lead(),se_lead.delays),
                 // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
             ];
 
-            // let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs);
-            let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs);
+            let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs, None);
             write_test_asset(&result, &format!("combine_with_space_{}", i));
         }
+    }
+
+    #[test]
+    fn test_mixing_soids() {
+        use crate::analysis::trig;
+
+        let mods_chords:ModifiersHolder = modifiers_chords();
+        let mods_lead:ModifiersHolder = modifiers_lead();
+
+        let enclosure = gen_enclosure();
+        let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+        let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+        let mel = happy_birthday::lead_melody();
+        let soidss:Vec<Soids> = vec![
+            melodic::soids_triangle(MFf),
+            melodic::soids_sawtooth(MFf)
+        ];
+        let soids:Soids = trig::process_soids(trig::prepare_soids_input(soidss));
+        let stems:Vec<Stem> = vec![
+            (&mel, soids, feeling_lead(),se_lead.delays),
+            // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
+        ];
+
+        let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs, None);
+        write_test_asset(&result, &format!("combine_with_merged_soids"));
     }
 
     #[test]

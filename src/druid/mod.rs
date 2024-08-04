@@ -21,7 +21,7 @@ pub mod noise;
 use crate::phrasing::ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
 use crate::render::ninja::ninja;
-use crate::{time};
+use crate::{time, ModifiersHolder};
 use crate::types::synthesis::{GlideLen,Frex, Range,Freq,Bp,Muls, Amps, Phases, Note};
 use crate::types::timbre::{Mode, Arf, Energy,Presence, Visibility};
 use crate::types::render::{Span};
@@ -50,6 +50,17 @@ pub struct Element {
     pub thresh: (Range, Range)
 }
 
+
+impl Element {
+    pub fn gain(self, amod:f32) -> Element {
+        let amps = self.amps.iter().map(|v| v * amod).collect();
+        Element {
+            amps, 
+            ..self
+        }
+    }
+}
+
 /// # Druid
 /// 
 /// A collection of weighted arfutors for a syntehsizer.
@@ -71,6 +82,7 @@ fn weighted_amps(weight:f32, amps:&Vec<f32>) -> Vec<f32> {
     }
     amps.iter().map(|y| y * weight).collect()
 }
+
 
 pub fn inflect(frex:&Frex, at:&ApplyAt, synth:&Elementor, vis:&Visibility, energy:&Energy, presence:&Presence) -> SampleBuffer {
     let n_samples = crate::time::samples_of_cycles(at.span.0, at.span.1);

@@ -9,8 +9,7 @@
 use std::env;
 use std::process;
 
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::{self, Rng, rngs::ThreadRng, seq::SliceRandom, thread_rng};
 
 use crate::types::synthesis;
 use crate::types::synthesis::*;
@@ -37,22 +36,24 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        eprintln!(r#"Usage: raudio "/abspath/in/to/playbook.json" "/abspath/out/to/audio.wav""#);
+        eprintln!(r#"Usage: raudio "/abspath/in/to/playbook.json" "/abspath/to/dir" "asset-filename""#);
         process::exit(1);
     }
 
     let file_path = &args[1];
-    let out_path = &args[2];
-    render_playbook(out_path, file_path);
+    let out_dir = &args[2];
+    let mixdown_name = &args[3];
+    render_playbook(out_dir, file_path, mixdown_name);
 }
 
-fn render_playbook(out_path: &str, playbook_path: &str) {
+fn render_playbook(out_dir: &str, playbook_path: &str, asset_name: &str) {
     use std::path::Path;
     use std::fs;
+    let keep_stems = true;
 
     match inp::arg_parse::load_score_from_file(&playbook_path) {
         Ok(score) => {
-           render_score(out_path, score);
+           let out_path  =render_score(score, out_dir, asset_name, keep_stems);
            println!("{}", out_path)
         },
         Err(msg) => {
@@ -95,9 +96,9 @@ pub fn complexity(v:&Visibility, e:&Energy, p:&Presence) -> f32 {
     (cv + ce + cp) / 3f32
 }
 
-use rand::{self, Rng, rngs::ThreadRng};
-pub fn render_score(filename:&str, score:DruidicScore)  {
-    files::with_dir(filename);
+pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stems:bool) -> String  {
+    let mixdown_name = format!("{}/{}.wav", out_dir, asset_name);
+    files::with_dir(&mixdown_name);
     let mut pre_mix_buffs:Vec<synth::SampleBuffer> = Vec::new();
     let mut rng:ThreadRng = rand::thread_rng();
     let mut stems:Vec<Stem> = Vec::with_capacity(score.parts.len());
@@ -106,7 +107,9 @@ pub fn render_score(filename:&str, score:DruidicScore)  {
         // let preset = presets::select(&arf);
         // let synth = preset(&arf);
         let delays = inp::arg_xform::gen_delays(&mut rng, score.conf.cps, &client_positioning.echo, complexity(&arf.visibility, &arf.energy, &arf.presence));
+        let delays: Vec<analysis::delay::DelayParams> = vec![analysis::delay::passthrough];
         let stem = types::render::Instrument::unit(melody, arf.energy, delays);
+        
         stems.push(stem)
     }
     let verb_complexity:f32 = rng.gen::<f32>()/10f32;
@@ -117,8 +120,10 @@ pub fn render_score(filename:&str, score:DruidicScore)  {
         &score.groupEnclosure, 
         verb_complexity
     );
-    let signal = render::combine(score.conf.cps, score.conf.root, &stems, &group_reverbs);
-    render::engrave::samples(44100, &signal, &filename);
+    let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
+    let signal = render::combine(score.conf.cps, score.conf.root, &stems, &group_reverbs, Some(out_dir));
+    render::engrave::samples(44100, &signal, &mixdown_name);
+    mixdown_name
 
     // match render::pad_and_mix_buffers(pre_mix_buffs) {
     //     Ok(dry_signal) => {
@@ -134,5 +139,5 @@ pub fn render_score(filename:&str, score:DruidicScore)  {
 
 #[test]
 fn test_render_playbook() {
-    render_playbook("src/demo/test-druidic-render.wav", "src/demo/test-druidic-score.json")
+    render_playbook("/media/naltroc/engraver 2/music-gen/demo/test_render_playbook", "src/demo/test-druidic-score.json", "test-druidic-render")
 }

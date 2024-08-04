@@ -15,7 +15,7 @@ pub mod lead_smoother;
 
 /// Shared imports for all presets in this mod
 static contour_resolution:usize = 1200;
-static unit_decay:f32 = 9.210340372;
+static unit_decay:f32 = 9.210340372; 
 use rand;
 use rand::Rng;
 
@@ -24,8 +24,9 @@ use crate::phrasing::ranger::{Modders,Ranger,WRangers};
 use crate::phrasing::lifespan;
 use crate::phrasing::micro;     
 use crate::timbre::AmpLifespan;
+use crate::analysis::trig;
 
-use crate::types::synthesis::{Freq, Note, Direction};
+use crate::types::synthesis::{Freq, Note, Direction, Ely};
 use crate::types::timbre::{Arf, Role, Mode,  Visibility, Sound, Sound2, Energy, Presence, Phrasing};
 use crate::types::{Range, Radian};
 use crate::druid::{Element, Elementor, melodic, bell, noise};
@@ -86,3 +87,4 @@ pub fn select(arf:&Arf) -> SynthGen {
         Role::Lead => lead_smoother::synth,
     }
 }
+
