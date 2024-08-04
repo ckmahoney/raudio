@@ -95,3 +95,18 @@ pub fn synth(arf:&Arf) -> Elementor {
         (0.66f32, layer_impulse),
     ]
 }
+
+pub fn driad(arf:&Arf) -> Ely {
+    let melodic:Element = melodic_pluck(MFf, &arf.visibility, &arf.energy, &arf.presence);
+    let impulse:Element = layer_impulse(MFf, &arf.visibility, &arf.energy, &arf.presence);
+
+    let all_soids = vec![
+        melodic.gain(0.33f32),
+        impulse.gain(0.66f32),
+    ].iter().map(trig::el_to_soid).collect();
+
+    let merged_soids = trig::prepare_soids_input(all_soids);
+    let (amps, muls, phis) = trig::process_soids(merged_soids);
+    Ely::from_soids(amps, muls, phis)
+}
+

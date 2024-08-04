@@ -144,3 +144,20 @@ pub fn synth(arf:&Arf) -> Elementor {
         (0.76f32, noise_pluck),
     ]
 }
+
+pub fn driad(arf:&Arf) -> Ely {
+    let bell:Element = layer_bell(MFf, &arf.visibility, &arf.energy, &arf.presence);
+    let impulse:Element = layer_impulse(MFf, &arf.visibility, &arf.energy, &arf.presence);
+    let pluck:Element = noise_pluck(MFf, &arf.visibility, &arf.energy, &arf.presence);
+
+    let all_soids = vec![
+        bell.gain(0.12f32),
+        impulse.gain(0.12f32),
+        pluck.gain(0.76f32)
+    ].iter().map(trig::el_to_soid).collect();
+
+    let merged_soids = trig::prepare_soids_input(all_soids);
+    let (amps, muls, phis) = trig::process_soids(merged_soids);
+    Ely::from_soids(amps, muls, phis)
+}
+

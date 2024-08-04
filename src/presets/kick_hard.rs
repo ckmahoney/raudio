@@ -90,15 +90,16 @@ pub fn synth(arf:&Arf) -> Elementor {
 }
 
 pub fn driad(arf:&Arf) -> Ely {
+    println!("Selected a kick drum");
     let impulse:Element = layer_impulse(MFf, &arf.visibility, &arf.energy, &arf.presence);
     let sustain:Element = layer_sustain(MFf, &arf.visibility, &arf.energy, &arf.presence);
 
-    let many_soids = vec![
+    let all_soids = vec![
         impulse.gain(0.005f32),
         sustain.gain(0.995f32),
     ].iter().map(trig::el_to_soid).collect();
 
-    let merged_soids = trig::prepare_soids_input(many_soids);
+    let merged_soids = trig::prepare_soids_input(all_soids);
     let (amps, muls, phis) = trig::process_soids(merged_soids);
     Ely::from_soids(amps, muls, phis)
 }

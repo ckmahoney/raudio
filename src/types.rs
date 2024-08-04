@@ -187,6 +187,21 @@ pub mod synthesis {
                 modders: ModBox::unit()
             }
         }
+
+        pub fn push_amod(self, amod:ModulationEffect) -> Self {
+            let mut amods = self.modders.1;
+            amods.push(amod);
+            let modders = (
+                self.modders.0,
+                amods,
+                self.modders.2,
+                self.modders.3,
+            );
+            Ely {
+                modders,
+                ..self
+            }
+        }
     }
 }
 
@@ -196,6 +211,7 @@ pub mod render {
     use super::timbre;
     use crate::analysis::delay::DelayParams;
     use crate::analysis::trig;
+    use crate::druid::melodic::{soids_triangle, soids_square, soids_sawtooth};
     use crate::phrasing::contour::Expr;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -265,6 +281,7 @@ pub mod render {
     pub type Part = (timbre::Arf, Melody<Monae>);
     pub type Entry = (timbre::Arf, Melody<Note>);
 
+    #[derive(Clone)]
     pub struct Feel {
         pub bp: Bp,
         pub expr: Expr,
@@ -281,6 +298,39 @@ pub mod render {
                 clippers: (0f32, 1f32)
             }
         }
+
+        pub fn select(arf:&timbre::Arf) -> Self {
+            use timbre::Role::*;
+            use timbre::AmpLifespan;
+            let n_samples = crate::synth::SR;
+            let amp_contour:Vec<f32> = match arf.role {
+                Kick => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Pluck, 1, 1f32),
+                Perc => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Snap, 1, 1f32),
+                Hats => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Burst, 1, 1f32),
+                Lead => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Spring, 1, 1f32),
+                Chords => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Bloom, 1, 1f32),
+                Bass => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Fall, 1, 1f32),
+            };
+            
+            Feel {
+                expr: (amp_contour, vec![1f32], vec![0f32]),
+                ..Self::unit()
+            }
+        }
+
+        pub fn with_expr(expr:Expr) -> Self {
+            Feel {
+                expr, 
+                ..Feel::unit()
+            }
+        }
+
+        pub fn with_modifiers(self, modifiers:ModifiersHolder) -> Self {
+            Feel {
+                modifiers,
+                ..self
+            }
+        }
     }
 
     /// Applied parameters to create a SampleBuffer
@@ -291,12 +341,13 @@ pub mod render {
         Vec<crate::analysis::delay::DelayParams>
     );
 
+    use crate::{presets, AmpContour};
     pub struct Instrument;
     impl Instrument {
         pub fn unit<'render>(melody:&'render Melody<Note>, energy:timbre::Energy, delays:Vec<DelayParams>) -> Stem<'render> {
             let dressor = Armoir::select_melodic(energy);
             let dressing:Dressing = dressor(crate::synth::MFf);
-            
+
             // overly verbose code to demonstrate the pattern 
             let dressing_as_vecs = vec![(dressing.amplitudes, dressing.multipliers, dressing.offsets)];
             let tmp = trig::prepare_soids_input(dressing_as_vecs);
@@ -309,6 +360,40 @@ pub mod render {
             )
         }
 
+        pub fn select<'render>(melody:&'render Melody<Note>, arf:&timbre::Arf, delays:Vec<DelayParams>) -> Stem<'render> {
+            use timbre::Role::*;
+            use crate::synth::MFf;
+            let Ely {soids, modders} = match arf.role {
+                Kick => presets::kick_hard::driad(arf), 
+                Perc => presets::snare_hard::driad(arf), 
+                Hats => presets::hats_hard::driad(arf), 
+                Bass => {
+                    Ely {
+                        soids: soids_square(MFf),
+                        modders: ModBox::unit()
+                    }
+                },
+                Chords => {
+                    Ely {
+                        soids: soids_triangle(MFf),
+                        modders: ModBox::unit()
+                    }
+                },
+                Lead => {
+                    Ely {
+                        soids: soids_sawtooth(MFf),
+                        modders: ModBox::unit()
+                    }
+                },
+            };
+
+            (
+                melody,
+                soids,
+                Feel::select(arf).with_modifiers(modders),
+                delays
+            )
+        }
     }
 }
 

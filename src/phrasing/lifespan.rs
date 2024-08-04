@@ -273,6 +273,29 @@ pub fn mod_lifespan(n_samples: usize, n_cycles: f32, lifespan: &AmpLifespan, k: 
     modulator
 }
 
+/// Create an amplitude modulation buffer sampled from the provided variant.
+/// actual duration is determined by n_samples; n_cycles may or not be applied based on the selected modulator.
+pub fn sample_lifespan(n_samples: usize, lifespan: &AmpLifespan, k: usize, n_cycles: f32) -> AmpModulation {
+    let mut modulator: AmpModulation = vec![0f32; n_samples];
+    let ns = n_samples as f32;
+
+    for (i, sample) in modulator.iter_mut().enumerate() {
+        let x = (i + 1) as f32 / ns;
+        *sample = match lifespan {
+            AmpLifespan::Fall => mod_db_fall(k, x, n_cycles),
+            AmpLifespan::Burst => mod_burst(k, x, n_cycles),
+            AmpLifespan::Snap => mod_snap(k, x, n_cycles),
+            AmpLifespan::Spring => mod_spring(k, x, n_cycles),
+            AmpLifespan::Pluck => mod_db_pluck(k, x, n_cycles),
+            AmpLifespan::Bloom => mod_bloom(k, x, n_cycles),
+            AmpLifespan::Pad => mod_pad(k, x, n_cycles),
+            AmpLifespan::Drone => mod_drone(k, x, n_cycles),
+        };
+    }
+
+    modulator
+}
+
 pub fn select_lifespan(contour:&AmpContour) -> AmpLifespan {
     match contour {
         AmpContour::Chops => AmpLifespan::Spring,

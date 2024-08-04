@@ -49,7 +49,7 @@ fn main() {
 fn render_playbook(out_dir: &str, playbook_path: &str, asset_name: &str) {
     use std::path::Path;
     use std::fs;
-    let keep_stems = true;
+    let keep_stems = false;
 
     match inp::arg_parse::load_score_from_file(&playbook_path) {
         Ok(score) => {
@@ -104,11 +104,12 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
     let mut stems:Vec<Stem> = Vec::with_capacity(score.parts.len());
 
     for (client_positioning, arf, melody) in &score.parts {
-        // let preset = presets::select(&arf);
-        // let synth = preset(&arf);
+        
         let delays = inp::arg_xform::gen_delays(&mut rng, score.conf.cps, &client_positioning.echo, complexity(&arf.visibility, &arf.energy, &arf.presence));
-        let delays: Vec<analysis::delay::DelayParams> = vec![analysis::delay::passthrough];
-        let stem = types::render::Instrument::unit(melody, arf.energy, delays);
+        
+        // override for testing
+        // let delays: Vec<analysis::delay::DelayParams> = vec![analysis::delay::passthrough];
+        let stem = types::render::Instrument::select(melody, arf, delays);
         
         stems.push(stem)
     }
@@ -120,8 +121,10 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
         &score.groupEnclosure, 
         verb_complexity
     );
-    let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
-    let signal = render::combine(score.conf.cps, score.conf.root, &stems, &group_reverbs, Some(out_dir));
+        // override for testing
+    // let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
+    let keeps = if keep_stems { Some(out_dir) } else { None };
+    let signal = render::combine(score.conf.cps, score.conf.root, &stems, &group_reverbs, keeps);
     render::engrave::samples(44100, &signal, &mixdown_name);
     mixdown_name
 

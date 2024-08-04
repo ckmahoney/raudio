@@ -181,9 +181,17 @@ fn channel(cps:f32, root:f32, (melody, soids, feel, delays):&Stem) -> SampleBuff
         let signal_len = time::samples_of_cycles(cps, len_cycles) + append_delay;
         let durs:Vec<f32> = line.iter().map(|(d,_,_)| time::duration_to_cycles(*d)).collect();
 
-        line.iter().enumerate().for_each(|(i, (duration, tone, amp))| {
+        line.iter().enumerate().for_each(|(i, (_, tone, amp))| {
             let freq = root * tone_to_freq(tone);
-            let moment = summit(cps, root, freq, durs[i], soids, &feel, &delays);
+            let f:Feel = if *amp > (*feel).clippers.0 { 
+                (*feel).to_owned()
+            } else {
+                Feel {
+                    expr: (vec![0f32], vec![1f32], vec![0f32]),
+                        ..(*feel).to_owned()
+                }               
+            };
+            let moment = summit(cps, root, freq, durs[i], soids, &f, &delays);
             channel_samples.push(moment);
         });
         let mut mixed = overlapping(signal_len, cps, durs, &channel_samples);
