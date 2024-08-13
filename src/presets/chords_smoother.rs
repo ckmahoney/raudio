@@ -19,7 +19,7 @@ fn amod_detune(k:usize, x:f32, d:f32) -> f32 {
     (pi2*cycle).sin()
 }
 
-fn choose_amod(e:&Energy) -> WRangers {
+fn choose_amod(e:&Energy) -> WOldRangerDeprecateds {
     match e {
         Energy::Low => vec![(1f32, amod_detune)],
         Energy::Medium => vec![(1f32, amod_chorus)],

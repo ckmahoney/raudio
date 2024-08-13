@@ -3,7 +3,7 @@ use crate::types::synthesis::{Clippers, GlideLen, Frex, Bp,Range, Direction, Dur
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{Span};
 use crate::phrasing::contour::{Expr, Position, sample};
-use crate::phrasing::ranger::{Ranger, Modders, Mixer, WRangers, mix, example_options};
+use crate::phrasing::older_ranger::{OldRangerDeprecated, Modders, Mixer, WOldRangerDeprecateds, mix, example_options};
 
 
 
@@ -25,7 +25,7 @@ fn filter(p:f32, freq:f32, bandpass:&Bp) -> Range {
 
 /// Given a cocktail, apply it at (k,x,d) iff it exists 
 /// Otherwise apply the default value.
-fn mix_or(default:f32, maybe_cocktail:&Option<WRangers>, k:usize, x:f32, d:f32) -> f32 {
+fn mix_or(default:f32, maybe_cocktail:&Option<WOldRangerDeprecateds>, k:usize, x:f32, d:f32) -> f32 {
     if maybe_cocktail.is_some() {
         let cocktail = maybe_cocktail.clone().unwrap();
         mix(k, x, d, &cocktail)
@@ -44,7 +44,7 @@ fn mix_or(default:f32, maybe_cocktail:&Option<WRangers>, k:usize, x:f32, d:f32) 
 /// * `bp` Bandpass filter buffers. First entry is a list of highpass values; second entry is a list of lowpass values.
 /// * `multipliers` Frequencies for multiplying the curr frequency. For example, integer harmonics or bell partials. Values must be in range of (0, NF/2]
 /// * `amplifiers` Amplitudes for each multiplier. Values must be in the range of [0, 1].
-/// * `rangers` Optional callbacks to apply for modulating amp, freq,and phase on each multiplier (by index + 1 as k).
+/// * `OldRangerDeprecateds` Optional callbacks to apply for modulating amp, freq,and phase on each multiplier (by index + 1 as k).
 /// * `gate_thresh` Minimum allowed amplitude. Use 0 for an allpass. 
 /// * `clip_thresh` Maximum allowed amplitude, truncating larger values to `clip_thresh`. Use 1 for an allpass. 
 /// 
@@ -118,7 +118,7 @@ pub fn gen_cocktail(n:usize)-> Vec<Mixer> {
     let mut rng = rand::thread_rng();
 
     if n > example_options.len() {
-        panic!("Requested more rangers than are available. Repeating the same ranger is the same as boosting its weight.")
+        panic!("Requested more OldRangerDeprecateds than are available. Repeating the same OldRangerDeprecated is the same as boosting its weight.")
     }
 
     let weights:Vec<f32> = if n == 1usize {
@@ -139,8 +139,8 @@ pub fn gen_cocktail(n:usize)-> Vec<Mixer> {
 
     let mut opts = example_options.to_vec();
     opts.shuffle(&mut rng);
-    let rangers:Vec<Ranger> = opts.to_vec().iter().cloned().take(n).collect();   
-    weights.into_iter().zip(rangers.into_iter()).collect()
+    let OldRangerDeprecateds:Vec<OldRangerDeprecated> = opts.to_vec().iter().cloned().take(n).collect();   
+    weights.into_iter().zip(OldRangerDeprecateds.into_iter()).collect()
 }
 
 #[cfg(test)]
@@ -478,11 +478,11 @@ mod test {
                 if y < 1f32 && !not_one {
                     not_one = true
                 };
-                assert!(y >= min, "Mixing rangers must not produce values below {}", min);
-                assert!(y <= max, "Mixing rangers must not produce values above {}", max);
+                assert!(y >= min, "Mixing OldRangerDeprecateds must not produce values below {}", min);
+                assert!(y <= max, "Mixing OldRangerDeprecateds must not produce values above {}", max);
             }
-            assert!(has_value, "Mixing rangers must not be 0 valued over its domain");
-            assert!(not_one, "Mixing rangers must not be 1 valued over its domain");
+            assert!(has_value, "Mixing OldRangerDeprecateds must not be 0 valued over its domain");
+            assert!(not_one, "Mixing OldRangerDeprecateds must not be 1 valued over its domain");
         }
     }
 

@@ -10,6 +10,7 @@ pub mod contour;
 pub mod lifespan;
 pub mod micro;
 pub mod ranger;
+pub mod older_ranger;
 
 use crate::synth::{pi2, SR};
 use once_cell::sync::Lazy;

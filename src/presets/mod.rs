@@ -20,7 +20,7 @@ use rand;
 use rand::Rng;
 
 use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2};
-use crate::phrasing::ranger::{Modders,Ranger,WRangers};
+use crate::phrasing::older_ranger::{Modders,OldRangerDeprecated,WOldRangerDeprecateds};
 use crate::phrasing::lifespan;
 use crate::phrasing::micro;     
 use crate::timbre::AmpLifespan;
@@ -31,6 +31,7 @@ use crate::types::timbre::{Arf, Role, Mode,  Visibility, Sound, Sound2, Energy, 
 use crate::types::{Range, Radian};
 use crate::druid::{Element, Elementor, melodic, bell, noise};
 use crate::phrasing::contour::expr_none;
+use crate::phrasing::ranger::{self, Knob,KnobMods};
 
 pub type SynthGen = fn (arf:&Arf) -> Elementor;
 

@@ -3,14 +3,16 @@ use std::iter::FromIterator;
 
 use crate::files;
 use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
-use crate::types::synthesis::{Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
-use crate::types::render::{Melody};
+use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
+use crate::types::render::{Stem, Melody, Feel, Instrument};
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
 use presets::{kick, kick_hard, snare, snare_hard, hats, hats_hard};
 
-use crate::phrasing::lifespan;
+use crate::phrasing::{ranger::KnobMods, lifespan};
+use crate::reverb;
+use crate::analysis::delay::{self, DelayParams};
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 
 static demo_name:&str = "beat";
@@ -58,7 +60,7 @@ fn test_note(duration:Duration, register:i8, amp:f32, overs:bool) -> Note {
 fn make_melodies() -> [Melody<Note>; 3] {
     let tala_hats:Vec<Duration> = vec![(1i32, 4i32); 16];
     let tala_perc:Vec<Duration> = vec![
-        (1i32,1i32), // rest
+        (-1i32,1i32), // rest
         (3i32,4i32),
         (5i32,4i32),
         (1i32,1i32)
@@ -66,7 +68,7 @@ fn make_melodies() -> [Melody<Note>; 3] {
     let tala_kick:Vec<Duration> = vec![
         (1i32, 2i32),
         (1i32, 2i32),
-        (1i32, 1i32), // rest
+        (-1i32, 1i32), // rest
         (2i32, 1i32)
     ];
 
@@ -151,6 +153,8 @@ fn make_specs<'hyper>() -> [Coverage<'hyper>; 3] {
     [kick, snare, hats]
 }
 
+
+
 /// Iterate the available VEP parameters to produce a beat trio
 fn gen_arfs(spec:&Coverage) -> Vec<(String, Arf)> {
     let mut arfs: Vec<(String, Arf)> = Vec::new();
@@ -219,31 +223,31 @@ fn get_arfs() -> [Arf;3] {
 }
 
 
-fn enumerate() {
-    let cps:f32 = 1.15;
-    let labels:Vec<&str> = vec!["kick", "perc", "hat"];
-    let melodies = make_melodies();
-    let arfs = get_arfs();
-    let synths = make_synths(&arfs);
-    let specs = make_specs();
-    files::with_dir(out_dir);
+// fn enumerate() {
+//     let cps:f32 = 1.15;
+//     let labels:Vec<&str> = vec!["kick", "perc", "hat"];
+//     let melodies = make_melodies();
+//     let arfs = get_stems();
+//     let synths = make_synths(&arfs);
+//     let specs = make_specs();
+//     files::with_dir(out_dir);
 
-    for (i, spec) in specs.iter().enumerate() {
+//     for (i, spec) in specs.iter().enumerate() {
         
-        let labelled_arfs = gen_arfs(&spec);
-        for (label, arf) in labelled_arfs {
-            let mut channels:Vec<SampleBuffer> = render_arf(cps, &melodies[i], &synths[i], arf);
-            match render::realize::mix_buffers(&mut channels.clone()) {
-                Ok(mixdown) => {
-                    let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
-                    render::engrave::samples(SR, &mixdown, &filename);
-                    println!("Rendered stem {}", filename);
-                },
-                Err(msg) => panic!("Error while preparing mixdown: {}", msg)
-            }
-        }
-    }
-}
+//         let labelled_arfs = gen_arfs(&spec);
+//         for (label, arf) in labelled_arfs {
+//             let mut channels:Vec<SampleBuffer> = render_arf(cps, &melodies[i], &synths[i], arf);
+//             match render::realize::mix_buffers(&mut channels.clone()) {
+//                 Ok(mixdown) => {
+//                     let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
+//                     render::engrave::samples(SR, &mixdown, &filename);
+//                     println!("Rendered stem {}", filename);
+//                 },
+//                 Err(msg) => panic!("Error while preparing mixdown: {}", msg)
+//             }
+//         }
+//     }
+// }
 
 fn render_arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> Vec<SampleBuffer> {
     let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
@@ -273,68 +277,24 @@ fn render_arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> Vec<S
 }
 
 
+
 fn demonstrate(selection:Option<usize>) {
+    files::with_dir(out_dir);
     let cps:f32 = 1.15;
+    let root:f32 = 1.2;
     let labels:Vec<&str> = vec!["kick", "perc", "hat"];
     let melodies = make_melodies();
     let arfs = get_arfs();
-    let synths = make_synths(&arfs);
 
-    files::with_dir(out_dir);
+    let stems:[Stem;3] = [
+        Instrument::select(&melodies[0], &arfs[0], vec![delay::passthrough]),
+        Instrument::select(&melodies[1], &arfs[1], vec![delay::passthrough]),
+        Instrument::select(&melodies[2], &arfs[2], vec![delay::passthrough]),
+    ];
+    let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
 
-    let mut stems:Vec<SampleBuffer> = Vec::with_capacity(melodies.len());
-
-
-    for (i, label) in labels.iter().enumerate() {
-        if selection.is_some() && selection.unwrap()!= i {
-            println!("Skipping test perc {}",i);
-            continue
-        }
-        let melody = &melodies[i];
-        let synth = &synths[i];
-        let arf = &arfs[i];
-        let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);
-        let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
-        let mut channels:Vec<SampleBuffer> = Vec::with_capacity(melody.len());
-
-        for (index, line_frexd) in melody_frexd.iter().enumerate() {
-            let mut line_buff:SampleBuffer = Vec::new();
-            let line = &melody[index];
-
-            for (jindex, frex) in line_frexd.iter().enumerate() {
-                let dur = time::duration_to_cycles(line[jindex].0);
-                let at = ApplyAt { frex: *frex, span: (cps, dur) };
-                line_buff.append(&mut inflect(
-                    &frex, 
-                    &at, 
-                    &synth, 
-                    &arf.visibility,
-                    &arf.energy,
-                    &arf.presence
-                ));
-            }
-            channels.push(line_buff)
-        }
-
-        match render::realize::mix_buffers(&mut channels.clone()) {
-            Ok(mixdown) => {
-                let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
-                render::engrave::samples(SR, &mixdown, &filename);
-                println!("Rendered stem {}", filename);
-                stems.push(mixdown)
-            },
-            Err(msg) => panic!("Error while preparing mixdown: {}", msg)
-        }
-    }
-
-    match render::realize::mix_buffers(&mut stems) {
-        Ok(mixdown) => {
-            let filename = format!("{}/{}.wav", out_dir, demo_name);
-            render::engrave::samples(SR, &mixdown, &filename);
-            println!("Rendered mixdown {}", filename);
-        },
-        Err(msg) => panic!("Error while preparing mixdown: {}", msg)
-    }
+    let keep_stems = Some(out_dir);
+    render::combine(cps, root, &stems.to_vec(), &group_reverbs, keep_stems);
 }
 
 #[cfg(test)]

@@ -63,7 +63,7 @@ fn triangle_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence)
     };
     let phss = vec![0f32; muls.len()];
     let expr = (vec![0.5f32],vec![1f32], vec![0f32]);
-    let a_modu:Option<WRangers> = Some(
+    let a_modu:Option<WOldRangerDeprecateds> = Some(
         match presence {
             Presence::Staccatto => vec![(1f32, lifespan::mod_db_pluck)],
             Presence::Legato => vec![(1f32, lifespan::mod_db_fall)],

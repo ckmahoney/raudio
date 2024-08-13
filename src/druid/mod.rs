@@ -18,7 +18,7 @@ pub mod compute;
 pub mod melodic;
 pub mod noise;
 
-use crate::phrasing::ranger::{Weight, Modders};
+use crate::phrasing::older_ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
 use crate::render::ninja::ninja;
 use crate::{time, ModifiersHolder};

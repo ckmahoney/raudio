@@ -7,7 +7,7 @@ fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) ->
     let phss = (0..muls.len()).map(|_| rng.gen::<f32>() * pi2).collect();
     let contour = lifespan::mod_lifespan(100usize, 1f32, &AmpLifespan::Pluck, 1usize, 0f32);
     let expr = (contour, vec![1f32], vec![0f32]);
-    let a_modu:Option<WRangers> = Some(
+    let a_modu:Option<WOldRangerDeprecateds> = Some(
         match presence {
             Presence::Staccatto => vec![(1f32, lifespan::mod_db_pluck)],
             Presence::Legato => vec![(1f32, lifespan::mod_db_fall)],

@@ -14,7 +14,7 @@ fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) ->
     let highpass_animation = vec![MFf,MFf, NFf];
     
 
-    let a_modu:Option<WRangers> = Some(
+    let a_modu:Option<WOldRangerDeprecateds> = Some(
         match presence {
             Presence::Staccatto => vec![(1f32, lifespan::mod_db_pluck)],
             Presence::Legato => vec![

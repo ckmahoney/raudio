@@ -2,12 +2,13 @@ use std::collections::HashMap;
 
 pub type Range = f32;
 pub type Radian = f32;
-
 pub mod synthesis {
     use serde::{Deserialize, Serialize};
     use super::timbre;
     use super::render;
     use crate::druid::melodic;
+    use crate::phrasing::ranger::KnobMods;
+
     pub type Rotation = i8;
     pub type Q = i8;
     pub type Ratio = (i32, i32);
@@ -29,6 +30,7 @@ pub mod synthesis {
     pub type Muls = Vec<Freq>;
     
     pub type Radian = f32;
+    /// A floating point value value in [0, 1]
     pub type Range = f32;
     pub type Clippers = (f32, f32);
 
@@ -177,14 +179,16 @@ pub mod synthesis {
 
     pub struct Ely {
         pub soids: (Vec<f32>, Vec<f32>, Vec<f32>),
-        pub modders: ModifiersHolder
+        pub modders: ModifiersHolder,
+        pub knob_mods: KnobMods
     }
 
     impl Ely {
         pub fn from_soids(amps:Vec<f32>, muls:Vec<f32>, phis:Vec<f32>) -> Self {
             Ely {
                 soids: (amps, muls, phis),
-                modders: ModBox::unit()
+                modders: ModBox::unit(),
+                knob_mods: KnobMods (vec![], vec![], vec![])
             }
         }
 
@@ -212,7 +216,8 @@ pub mod render {
     use crate::analysis::delay::DelayParams;
     use crate::analysis::trig;
     use crate::druid::melodic::{soids_triangle, soids_square, soids_sawtooth};
-    use crate::phrasing::contour::Expr;
+    use crate::phrasing::contour::{Expr, Expr2};
+    use crate::phrasing::ranger::KnobMods;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Dimensions {
@@ -281,10 +286,9 @@ pub mod render {
     pub type Part = (timbre::Arf, Melody<Monae>);
     pub type Entry = (timbre::Arf, Melody<Note>);
 
-    #[derive(Clone)]
-    pub struct Feel {
+    #[derive(Clone, Debug)]
+    pub struct Feel{
         pub bp: Bp,
-        pub expr: Expr,
         pub modifiers: ModifiersHolder, 
         pub clippers: Clippers
     }
@@ -293,7 +297,6 @@ pub mod render {
         pub fn unit() -> Self {
             Feel {
                 bp: (vec![crate::synth::MFf], vec![crate::synth::NFf]), 
-                expr: (vec![1f32], vec![1f32], vec![0f32]),
                 modifiers: ModBox::unit(),
                 clippers: (0f32, 1f32)
             }
@@ -307,20 +310,18 @@ pub mod render {
                 Kick => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Pluck, 1, 1f32),
                 Perc => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Snap, 1, 1f32),
                 Hats => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Burst, 1, 1f32),
-                Lead => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Spring, 1, 1f32),
+                // Lead => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Spring, 1, 1f32),
+                Lead => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Fall, 1, 1f32),
                 Chords => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Bloom, 1, 1f32),
                 Bass => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Fall, 1, 1f32),
             };
-            
             Feel {
-                expr: (amp_contour, vec![1f32], vec![0f32]),
                 ..Self::unit()
             }
         }
 
         pub fn with_expr(expr:Expr) -> Self {
             Feel {
-                expr, 
                 ..Feel::unit()
             }
         }
@@ -338,6 +339,7 @@ pub mod render {
         &'render Melody<synthesis::Note>, 
         Soids, 
         Feel, 
+        KnobMods,
         Vec<crate::analysis::delay::DelayParams>
     );
 
@@ -356,6 +358,7 @@ pub mod render {
                 melody,
                 soids,
                 Feel::unit(),
+                KnobMods::unit(),
                 delays
             )
         }
@@ -363,26 +366,30 @@ pub mod render {
         pub fn select<'render>(melody:&'render Melody<Note>, arf:&timbre::Arf, delays:Vec<DelayParams>) -> Stem<'render> {
             use timbre::Role::*;
             use crate::synth::MFf;
-            let Ely {soids, modders} = match arf.role {
+            use crate::phrasing::ranger::KnobMods;
+            let Ely {soids, modders, knob_mods} = match arf.role {
                 Kick => presets::kick_hard::driad(arf), 
                 Perc => presets::snare_hard::driad(arf), 
                 Hats => presets::hats_hard::driad(arf), 
                 Bass => {
                     Ely {
                         soids: soids_square(MFf),
-                        modders: ModBox::unit()
+                        modders: ModBox::unit(),
+                        knob_mods: KnobMods::unit()
                     }
                 },
                 Chords => {
                     Ely {
                         soids: soids_triangle(MFf),
-                        modders: ModBox::unit()
+                        modders: ModBox::unit(),
+                        knob_mods: KnobMods::unit()
                     }
                 },
                 Lead => {
                     Ely {
                         soids: soids_sawtooth(MFf),
-                        modders: ModBox::unit()
+                        modders: ModBox::unit(),
+                        knob_mods: KnobMods::unit()
                     }
                 },
             };
@@ -391,6 +398,7 @@ pub mod render {
                 melody,
                 soids,
                 Feel::select(arf).with_modifiers(modders),
+                knob_mods,
                 delays
             )
         }

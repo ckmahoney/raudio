@@ -49,7 +49,7 @@ fn main() {
 fn render_playbook(out_dir: &str, playbook_path: &str, asset_name: &str) {
     use std::path::Path;
     use std::fs;
-    let keep_stems = false;
+    let keep_stems = true;
 
     match inp::arg_parse::load_score_from_file(&playbook_path) {
         Ok(score) => {
@@ -104,7 +104,7 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
     let mut stems:Vec<Stem> = Vec::with_capacity(score.parts.len());
 
     for (client_positioning, arf, melody) in &score.parts {
-        
+            
         let delays = inp::arg_xform::gen_delays(&mut rng, score.conf.cps, &client_positioning.echo, complexity(&arf.visibility, &arf.energy, &arf.presence));
         
         // override for testing
@@ -125,20 +125,9 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
     // let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
     let keeps = if keep_stems { Some(out_dir) } else { None };
     let signal = render::combine(score.conf.cps, score.conf.root, &stems, &group_reverbs, keeps);
-    render::engrave::samples(44100, &signal, &mixdown_name);
+    render::engrave::samples(crate::synth::SR, &signal, &mixdown_name);
     mixdown_name
-
-    // match render::pad_and_mix_buffers(pre_mix_buffs) {
-    //     Ok(dry_signal) => {
-    //         render::engrave::samples(44100, &dry_signal, &filename);
-    //         Ok(())
-    //     },
-    //     Err(msg) => {
-    //         panic!("Failed to mix and render audio: {}", msg)
-    //     }
-    // }
 }
-
 
 #[test]
 fn test_render_playbook() {

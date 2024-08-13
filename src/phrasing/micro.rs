@@ -150,7 +150,7 @@ fn mod_phase_micro(k: usize, x: f32, d: f32) -> f32 {
     (1f32 - x) * gen_rng() * max_distortion
 }
 
-pub fn modders_chiff() -> crate::phrasing::ranger::Modders {
+pub fn modders_chiff() -> crate::phrasing::older_ranger::Modders {
     [
         None,
         Some(vec![(1f32, amp_chiff)]),
@@ -158,7 +158,7 @@ pub fn modders_chiff() -> crate::phrasing::ranger::Modders {
     ]
 }
 
-pub fn modders_click() -> crate::phrasing::ranger::Modders {
+pub fn modders_click() -> crate::phrasing::older_ranger::Modders {
     [
         None,
         Some(vec![(1f32, amp_click)]),
@@ -166,7 +166,7 @@ pub fn modders_click() -> crate::phrasing::ranger::Modders {
     ]
 }
 
-pub fn modders_pop() -> crate::phrasing::ranger::Modders {
+pub fn modders_pop() -> crate::phrasing::older_ranger::Modders {
     let mut s = rand::thread_rng();
 
     [

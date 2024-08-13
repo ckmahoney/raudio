@@ -32,7 +32,7 @@ pub fn samples_from_dur(cps:f32, dur:f32) -> usize {
 
 /// Provides the number of samples required to span k cycles at cps.
 pub fn samples_of_cycles(cps:f32, k:f32) -> usize {
-    (samples_per_cycle(cps) as f32 * k) as usize
+    (samples_per_cycle(cps) as f32 * k.abs()) as usize
 }
 
 /// Provides the time in seconds for a given duration ratio.

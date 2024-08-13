@@ -11,6 +11,7 @@ use crate::druid::applied_modulation::{self, update_mods};
 use crate::monic_theory::tone_to_freq;
 use crate::phrasing::lifespan::{self};
 use crate::phrasing::contour::{Expr, Position, sample, apply_contour};
+use crate::phrasing::ranger::{Knob, Ranger, KnobbedRanger, KnobMods};
 use crate::render;
 use crate::reverb::convolution;
 use crate::time;
@@ -170,7 +171,7 @@ fn longest_delay_length(ds:&Vec<delay::DelayParams>) -> f32 {
 }
 
 /// Render an audio sample for an applied polyphonic or monophonic melody.
-fn channel(cps:f32, root:f32, (melody, soids, feel, delays):&Stem) -> SampleBuffer {
+fn channel(cps:f32, root:f32, (melody, soids, feel, knob_mods, delays):&Stem) -> SampleBuffer {
     let line_buffs:Vec<SampleBuffer> = melody.iter().map(|line| {
         let mut channel_samples:Vec<SampleBuffer> = Vec::new();
 
@@ -183,15 +184,8 @@ fn channel(cps:f32, root:f32, (melody, soids, feel, delays):&Stem) -> SampleBuff
 
         line.iter().enumerate().for_each(|(i, (_, tone, amp))| {
             let freq = root * tone_to_freq(tone);
-            let f:Feel = if *amp > (*feel).clippers.0 { 
-                (*feel).to_owned()
-            } else {
-                Feel {
-                    expr: (vec![0f32], vec![1f32], vec![0f32]),
-                        ..(*feel).to_owned()
-                }               
-            };
-            let moment = summit(cps, root, freq, durs[i], soids, &f, &delays);
+            
+            let moment = summer(cps, root, *amp, freq, durs[i], soids, feel, knob_mods, &delays);
             channel_samples.push(moment);
         });
         let mut mixed = overlapping(signal_len, cps, durs, &channel_samples);
@@ -247,7 +241,7 @@ pub fn summit<'render>(
     fundamental:f32,
     n_cycles:f32,
     soids:&Soids,
-    Feel { bp, expr, modifiers, clippers }: &'render Feel,
+    Feel { bp,  modifiers, clippers }: &'render Feel,
     delays: &Vec::<delay::DelayParams>
 ) -> Vec<f32> {
     let rounding_offset = 10;
@@ -256,7 +250,7 @@ pub fn summit<'render>(
     let n_samples = sig_samples + append_delay;
     let mut sig = vec![0f32; n_samples];
     let (gate_thresh, clip_thresh) = clippers;
-    let (modAmp, modFreq, modPhase, modTime) = modifiers;
+    let (modsAmp, modsFreq, modsPhase, modTime) = modifiers;
     for delay_params in delays {
         let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
         for j in 0..sig_samples {
@@ -266,34 +260,127 @@ pub fn summit<'render>(
             let t: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
             let mut v: f32 = 0f32;
 
-            // sample the amp, freq, and phase offset envelopes
-            let mut am = sample(&expr.0, p);
-            let mut fm = sample(&expr.1, p);
-            let mut pm = sample(&expr.2, p);
+            // // sample the amp, freq, and phase offset envelopes
+            // let mut am = sample(&expr.0, p);
+            // let mut fm = sample(&expr.1, p);
+            // let mut pm = sample(&expr.2, p);
 
             let amplifiers = &soids.0;
             let multipliers = &soids.1;
             let phases = &soids.2;
 
-            if (am) < *gate_thresh {
+            // if (am) < *gate_thresh {
+            //     continue;
+            // }
+
+            for (i, &m) in multipliers.iter().enumerate() {
+                let a0 = amplifiers[i];
+                if a0 > *gate_thresh {
+                    // let amp = am * modsAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
+                    let amp = modsAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
+                    if amp < *gate_thresh {
+                        continue
+                    }
+                    let k = i + 1;
+                    let f0:f32 = m  * fundamental;
+                    let frequency = modsFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc));
+                    if frequency > NFf || frequency < MFf {
+                        continue
+                    }
+                    let p0 = frequency * pi2 * t;
+                    let phase = modsPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
+                    
+                    v += amp * phase.sin();
+                }
+            };
+
+            for replica_n in 0..=(delay_params.n_echoes.max(1)) {
+                let offset_j = samples_per_echo * replica_n;
+                let gain =  delay::gain(j, replica_n, delay_params);
+                if gain < *gate_thresh {
+                    continue;
+                }
+                // apply gating and clipping to the summed sample
+                if gain *  v.abs() > *clip_thresh {
+                    sig[j+offset_j] += gain *  v.signum() * (*clip_thresh);
+                } else if gain * v.abs() >= *gate_thresh {
+                    sig[j+offset_j] += v;
+                } else {
+                    // don't mix this [too quiet] sample!
+                }
+            }
+        }
+    }
+    sig
+}
+
+
+/// Render a signal from contextual and decorative parameters. 
+/// Returns a SampleBuffer representing the moment produced from this request.
+/// 
+/// This model offers three methods of modulation:
+/// The Feel.expr tuple is the simplest, offering ADSR like envelope contours for (amp, freq, phase).
+/// The next simplest is the Feel.modifiers tuple. It is analogous to a guitar pedal: a static set of parameters that are continuously modulationg the signal. 
+/// The most complex option are the rangers. These are functions of (fundamental, k, p, duration) that are applied on a per-multiplier basis. This offers the most granular control at higher  copmute cost as each function is called per-multipler per-sample.
+pub fn summer<'render>(
+    cps:f32, 
+    root: f32, 
+    vel: f32,  // amp is taken, call it vel for velicty
+    fundamental:f32,
+    n_cycles:f32,
+    soids:&Soids,
+    Feel { bp,  modifiers, clippers }: &'render Feel,
+    KnobMods (knobsAmp, knobsFreq, knobsPhase):&KnobMods,
+    delays: &Vec::<delay::DelayParams>
+) -> Vec<f32> {
+    let rounding_offset = 10;
+    let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(delays));
+    let sig_samples = time::samples_of_cycles(cps, n_cycles);
+    let n_samples = sig_samples + append_delay;
+
+    if n_cycles.signum() == -1f32 || vel == 0f32 {
+        // skip rests, fill an empty vec
+        return vec![0f32;sig_samples]
+    }
+    let mut sig = vec![0f32; n_samples];
+    let (gate_thresh, clip_thresh) = clippers;
+    let (modsAmp, modsFreq, modsPhase, modTime) = modifiers;
+    for delay_params in delays {
+        let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
+        for j in 0..sig_samples {
+            // setup position and progress 
+            let p: f32 = j as f32 / sig_samples as f32;
+            let t0:f32 = (j as f32 ) / SRf;
+            let pos_cycles: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
+            let mut v: f32 = 0f32;
+
+            let amplifiers = &soids.0;
+            let multipliers = &soids.1;
+            let phases = &soids.2;
+
+            if vel < *gate_thresh {
                 continue;
             }
 
             for (i, &m) in multipliers.iter().enumerate() {
                 let a0 = amplifiers[i];
                 if a0 > *gate_thresh {
-                    let amp = am * modAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
+                    let a1:f32 = knobsAmp.iter().fold(a0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                    let amp = vel * modsAmp.iter().fold(a1, |acc, ma| ma.apply(pos_cycles, acc)); 
                     if amp < *gate_thresh {
                         continue
                     }
-                    let k = i + 1;
-                    let f0:f32 = m * fm * fundamental;
-                    let frequency = modFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc));
+                    let f0:f32 = m * fundamental; 
+                    let f1:f32 = knobsFreq.iter().fold(f0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                    
+                    let frequency = modsFreq.iter().fold(f1, |acc, mf| mf.apply(pos_cycles, acc));
                     if frequency > NFf || frequency < MFf {
                         continue
                     }
-                    let p0 = frequency * pi2 * t;
-                    let phase = modPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
+                    
+                    let p0 = frequency * pi2 * pos_cycles;
+                    let p1:f32 = knobsPhase.iter().fold(p0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                    let phase = modsPhase.iter().fold(p1, |acc, mp| mp.apply(pos_cycles, acc)); 
                     
                     v += amp * phase.sin();
                 }
@@ -328,7 +415,7 @@ pub fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::Re
         let stem_dir:&str = keep_stems.unwrap();
         channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
             let filename:String = format!("{}/stem-{}.wav", stem_dir, stem_num);
-            render::engrave::samples(44100, &channel_samples, &filename);
+            render::engrave::samples(SR, &channel_samples, &filename);
         });
     }
     match pad_and_mix_buffers(channels) {
@@ -394,7 +481,7 @@ mod test {
 
     fn feeling_lead() -> Feel {
         Feel {
-            expr: (lifespan::mod_lifespan(SR, 1f32, &AmpLifespan::Snap, 1, 1f32),vec![1f32],vec![0f32]),
+            // expr: (lifespan::mod_lifespan(SR, 1f32, &AmpLifespan::Snap, 1, 1f32),vec![1f32],vec![0f32]),
             bp: (vec![MFf],vec![NFf]),
             modifiers: modifiers_lead(),
             clippers: (0f32, 1f32)
@@ -403,7 +490,7 @@ mod test {
 
     fn feeling_chords() -> Feel {
         Feel {
-            expr: (vec![1f32],vec![1f32],vec![0f32]),
+            // expr: (vec![1f32],vec![1f32],vec![0f32]),
             bp: (vec![MFf],vec![NFf]),
             modifiers: modifiers_chords(), 
             clippers: (0f32, 1f32)
@@ -424,8 +511,8 @@ mod test {
         ];
         let mel = happy_birthday::lead_melody();
         let stems:Vec<Stem> = vec![
-            (&mel, melodic::soids_square(MFf), feeling_lead(),  delays_lead),
-            (&mel, melodic::soids_sawtooth(MFf), feeling_chords(), delays_chords)
+            (&mel, melodic::soids_square(MFf), feeling_lead(), KnobMods::unit(),  delays_lead),
+            (&mel, melodic::soids_sawtooth(MFf), feeling_chords(), KnobMods::unit(),  delays_chords)
         ];
 
         let reverbs:Vec<convolution::ReverbParams> = vec![
@@ -468,7 +555,7 @@ mod test {
             let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let mel = happy_birthday::lead_melody();
             let stems:Vec<Stem> = vec![
-                (&mel, melodic::soids_square(MFf), feeling_lead(),se_lead.delays),
+                (&mel, melodic::soids_square(MFf), feeling_lead(),KnobMods::unit(), se_lead.delays),
                 // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
             ];
 
@@ -494,7 +581,7 @@ mod test {
         ];
         let soids:Soids = trig::process_soids(trig::prepare_soids_input(soidss));
         let stems:Vec<Stem> = vec![
-            (&mel, soids, feeling_lead(),se_lead.delays),
+            (&mel, soids, feeling_lead(),KnobMods::unit(), se_lead.delays),
             // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
         ];
 

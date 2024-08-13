@@ -26,7 +26,7 @@ fn amod_exit(x:f32) -> f32 {
     0.5f32 * (1f32 - y)
 }
 
-/// Intended to represent a finite length one valued signal with tanh decay.
+///A brief one-valued signal with tanh decay to 0.
 pub fn amod_impulse(k:usize, x:f32, d:f32) -> f32 {
     let y:f32 = -1f32 + (1f32/(1f32-(-x).exp()));
     (0.5f32*y).tanh() * amod_exit(x)
@@ -62,8 +62,8 @@ fn layer_impulse(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) 
     let muls = melodic::muls_max_k(fund);
     let amps = (1..=muls.len()).map(|i| 1f32/(i as f32)).collect();
     let phss = vec![0f32; muls.len()];
-    let expr = (vec![  0.5f32],vec![1f32], vec![0f32]);
-    let modders:Modders = [
+    let expr = (vec![0.5f32],vec![1f32], vec![0f32]);
+    let modders:Modders = [ 
         Some(vec![
             (1f32, amod_impulse),
         ]),
@@ -90,17 +90,73 @@ pub fn synth(arf:&Arf) -> Elementor {
 }
 
 pub fn driad(arf:&Arf) -> Ely {
-    println!("Selected a kick drum");
     let impulse:Element = layer_impulse(MFf, &arf.visibility, &arf.energy, &arf.presence);
     let sustain:Element = layer_sustain(MFf, &arf.visibility, &arf.energy, &arf.presence);
 
     let all_soids = vec![
-        impulse.gain(0.005f32),
-        sustain.gain(0.995f32),
+        impulse.gain(1f32),
+        sustain.gain(0.05f32),
     ].iter().map(trig::el_to_soid).collect();
+
+    let knob_mods:KnobMods = KnobMods (
+        vec![(Knob { a:0.2f32, b:0f32, c:0f32}, ranger::amod_impulse)],
+        vec![(Knob { a:0.2f32, b:0.1f32, c:0f32}, ranger::fmod_sweepdown)],
+        vec![]
+    );
 
     let merged_soids = trig::prepare_soids_input(all_soids);
     let (amps, muls, phis) = trig::process_soids(merged_soids);
-    Ely::from_soids(amps, muls, phis)
+    Ely {
+        knob_mods,
+        ..Ely::from_soids(amps, muls, phis)
+    }
 }
 
+/// This sounds good for some kind of mid range percussion, like a clave or metronome.
+pub fn driad_perc(arf:&Arf) -> Ely {
+    let impulse:Element = layer_impulse(MFf, &arf.visibility, &arf.energy, &arf.presence);
+    let sustain:Element = layer_sustain(MFf, &arf.visibility, &arf.energy, &arf.presence);
+
+    let all_soids = vec![
+        impulse.gain(1f32),
+        sustain.gain(0.05f32),
+    ].iter().map(trig::el_to_soid).collect();
+
+    let knob_mods:KnobMods = KnobMods (
+        vec![(Knob { a:0.2f32, b:0f32, c:0f32}, ranger::amod_impulse)],
+        vec![(Knob { a:0.2f32, b:0.1f32, c:0f32}, ranger::fmod_sweepdown)],
+        vec![]
+    );
+
+    let merged_soids = trig::prepare_soids_input(all_soids);
+    let (amps, muls, phis) = trig::process_soids(merged_soids);
+    Ely {
+        knob_mods,
+        ..Ely::from_soids(amps, muls, phis)
+    }
+}
+
+
+/// This sounds great for a square EDM bass
+pub fn driad_bass(arf:&Arf) -> Ely {
+    let impulse:Element = layer_impulse(MFf, &arf.visibility, &arf.energy, &arf.presence);
+    let sustain:Element = layer_sustain(MFf, &arf.visibility, &arf.energy, &arf.presence);
+
+    let all_soids = vec![
+        impulse.gain(1f32),
+        sustain.gain(0.95f32),
+    ].iter().map(trig::el_to_soid).collect();
+
+    let knob_mods:KnobMods = KnobMods (
+        vec![(Knob { a:1f32, b:0f32, c:0f32}, ranger::amod_impulse)],
+        vec![(Knob { a:0f32, b:0.1f32, c:0f32}, ranger::fmod_sweepdown)],
+        vec![]
+    );
+
+    let merged_soids = trig::prepare_soids_input(all_soids);
+    let (amps, muls, phis) = trig::process_soids(merged_soids);
+    Ely {
+        knob_mods,
+        ..Ely::from_soids(amps, muls, phis)
+    }
+}

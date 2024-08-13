@@ -50,7 +50,7 @@ fn fmod_vibrato2(k:usize, x:f32, d:f32) -> f32 {
 }
 
 
-fn choose_pmod(e:&Energy) -> WRangers {
+fn choose_pmod(e:&Energy) -> WOldRangerDeprecateds {
     match e {
         Energy::Low => vec![ (0.33f32, pmod_shimmer) ],
         Energy::Medium => vec![ (0.33f32, pmod_chorus) ],
@@ -58,7 +58,7 @@ fn choose_pmod(e:&Energy) -> WRangers {
     }
 }
 
-fn choose_fmod(v:&Visibility) -> Option<WRangers> {
+fn choose_fmod(v:&Visibility) -> Option<WOldRangerDeprecateds> {
     match v {
         Visibility::Visible => Some(vec![ (0.33f32, fmod_vibrato) ]),
         Visibility::Foreground => Some(vec![ (0.33f32, fmod_vibrato2) ]),

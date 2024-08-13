@@ -23,6 +23,7 @@ pub type PhaseCont = Cont<Radian>;
 
 /// A collection of (amp, freq, phase) contours.
 pub type Expr = (AmpCont, FreqCont, PhaseCont);
+pub type Expr2<'render> = (&'render AmpCont, &'render FreqCont, &'render PhaseCont);
 pub fn expr_none() ->Expr { (vec![1f32], vec![1f32], vec![0f32]) }
 
 pub struct Timeframe {

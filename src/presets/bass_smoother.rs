@@ -10,7 +10,7 @@ fn pmod_smooth(k:usize, x:f32, d:f32) -> f32 {
     (x * pi2  * applied_rate).sin()
 }
 
-fn amod(presence:&Presence) -> WRangers {
+fn amod(presence:&Presence) -> WOldRangerDeprecateds {
     match presence {
         Presence::Staccatto => vec![(1f32, lifespan::mod_db_pluck)],
         Presence::Tenuto => vec![

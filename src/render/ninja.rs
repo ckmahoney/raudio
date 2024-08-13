@@ -15,7 +15,7 @@ use crate::types::synthesis::{Frex, GlideLen, Bp,Range, Direction, Duration, Fil
 use crate::types::timbre::{BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 use crate::types::render::{self, Span};
 use crate::phrasing::contour::{Expr, Position, sample};
-use crate::phrasing::ranger::{Ranger, Modders, Mixer, WRangers, mix, example_options};
+use crate::phrasing::older_ranger::{OldRangerDeprecated, Modders, Mixer, WOldRangerDeprecateds, mix, example_options};
 use crate::reverb::convolution;
 use rand::Rng;
 use rand::rngs::ThreadRng;
