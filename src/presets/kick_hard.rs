@@ -14,10 +14,10 @@ fn layer_sustain(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) 
     let expr = (vec![1f32], vec![1f32], vec![0f32]);
     let modders:Modders = [
         Some(vec![
-            (1f32, lifespan::mod_db_pluck),
+            // (1f32, lifespan::mod_db_pluck),
         ]),
         Some(vec![
-            (1f32, fmod_sweep),
+            // (1f32, fmod_sweep),
         ]),
         None
     ];
@@ -40,7 +40,7 @@ fn layer_impulse(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) 
     let expr = (vec![0.5f32],vec![1f32], vec![0f32]);
     let modders:Modders = [ 
         Some(vec![
-            (1f32, amod_impulse),
+            // (1f32, amod_impulse),
         ]),
         None,
         None

@@ -6,7 +6,7 @@
 /// Generally, knob values of 0 indicate a passthrough effect while knob values of 1 indicate maximal affected modulation.
 
 use crate::types::synthesis::Range;
-use crate::synth::{MFf, NFf, SR, SRf, pi, pi2};
+use crate::synth::{MFf, NFf, SR, SRf, pi, pi2,pi_2};
 static one:f32 = 1f32;
 static half:f32 = 0.5f32;
 
@@ -78,7 +78,7 @@ pub fn pmod_noop(knob:&Knob, cps:f32, fund:f32, mul:f32, n_cycles:f32, pos_cycle
 }
 
 /// A oneshot frequency mod that starts the note octaves higher from its fundamental, logarithmically sweeping down to the k frequency.
-/// This modulator has an in-place (1/4) coefficient on the Nyquest Frequency, to prevent aliasing issues that are unexpectedly cropping up. 
+/// This modulator has an in-place (1/4) coefficient on the Nyquist Frequency, to prevent aliasing issues that are unexpectedly cropping up. 
 /// 
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
@@ -121,6 +121,84 @@ pub fn fmod_sweepdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32,
     let decay_mul:f32 = (b_coef * t).exp();
     let scaled_mul = 2f32.powf(a * max_mul.log2());
     one + decay_mul * scaled_mul
+}
+
+/// A continuous frequency mod that adds detuning to the harmonic.
+/// 
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier wrt the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// `a`: The amount of detune to apply. 0 is none, 1 is maximum amount. 
+/// `b`: Decay rate.  0 for faster decay, 1 for slower decay.
+/// `c`: unused. 
+/// 
+/// ## Observations
+/// 
+/// ## Desmos 
+/// for decay rate: https://www.desmos.com/calculator/ze5vckie3q
+/// 
+/// ## Returns
+pub fn fmod_vibrato(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let lowest = (4f32/9f32)*2f32;
+    let highest = (9f32/4f32)/2f32;
+    let applied_lower_bound = (1f32-lowest) * knob.a;
+    let applied_upper_bound = (highest-1f32) * knob.a;
+
+    let t:f32 = pos_cycles/n_cycles;
+    let decay = 0.995f32 * (1f32-t).powf(f32::tan(pi_2*(1f32 - knob.b)));
+    let y = f32::sin(t * fund.sqrt());
+    
+    decay * if y == 0f32 {
+        1f32
+    } else if y > 0f32 {
+        1f32 + y * applied_upper_bound
+    } else {
+        1f32 - y * applied_lower_bound
+    }
+}
+
+
+
+/// A continuous frequency mod that adds detuning to the harmonic.
+/// 
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier wrt the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// `a`: The amount of detune to apply. 0 is none, 1 is maximum amount. 
+/// `b`: unused.  
+/// `c`: unused. 
+/// 
+/// ## Observations
+/// 
+/// ## Desmos 
+/// 
+/// ## Returns
+pub fn fmod_chorus(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let lowest = (4f32/9f32)*2f32;
+    let highest = (9f32/4f32)/2f32;
+    let applied_lower_bound = (1f32-lowest) * knob.a;
+    let applied_upper_bound = (highest-1f32) * knob.a;
+
+    let t:f32 = pos_cycles/n_cycles;
+
+    let y = f32::sin(t * mul.sqrt());
+    if y == 0f32 {
+        1f32
+    } else if y > 0f32 {
+        1f32 + y * applied_upper_bound
+    } else {
+        1f32 - y * applied_lower_bound
+    }
 }
 
 #[cfg(test)]

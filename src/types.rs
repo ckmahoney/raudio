@@ -442,20 +442,8 @@ pub mod render {
                 Perc => presets::snare_hard::driad(arf), 
                 Hats => presets::hats_hard::driad(arf), 
                 Bass => presets::bass::driad(arf), 
-                Chords => {
-                    Ely {
-                        soids: soids_triangle(MFf),
-                        modders: ModBox::unit(),
-                        knob_mods: KnobMods::unit()
-                    }
-                },
-                Lead => {
-                    Ely {
-                        soids: soids_sawtooth(MFf),
-                        modders: ModBox::unit(),
-                        knob_mods: KnobMods::unit()
-                    }
-                },
+                Chords => presets::chords::driad(arf), 
+                Lead => presets::lead::driad(arf), 
             };
 
             (
