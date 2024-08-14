@@ -3,6 +3,7 @@ use crate::types::*;
 
 pub const pi:f32 = std::f32::consts::PI;
 pub const pi2:f32 = pi*2f32;
+pub const pi_4:f32 = std::f32::consts::FRAC_PI_4;
 pub const e:f32 = std::f32::consts::E;
 pub const epi:f32 = pi*std::f32::consts::E;
 

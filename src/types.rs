@@ -292,6 +292,8 @@ pub mod render {
         pub modifiers: ModifiersHolder, 
         pub clippers: Clippers
     }
+    use rand::seq::SliceRandom;
+    use rand::{thread_rng, Rng};
 
     impl Feel {
         pub fn unit() -> Self {
@@ -305,17 +307,55 @@ pub mod render {
         pub fn select(arf:&timbre::Arf) -> Self {
             use timbre::Role::*;
             use timbre::AmpLifespan;
-            let n_samples = crate::synth::SR;
-            let amp_contour:Vec<f32> = match arf.role {
-                Kick => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Pluck, 1, 1f32),
-                Perc => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Snap, 1, 1f32),
-                Hats => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Burst, 1, 1f32),
-                // Lead => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Spring, 1, 1f32),
-                Lead => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Fall, 1, 1f32),
-                Chords => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Bloom, 1, 1f32),
-                Bass => crate::phrasing::lifespan::sample_lifespan(n_samples, &AmpLifespan::Fall, 1, 1f32),
+            
+            let mut rng = rand::thread_rng();
+
+            let bp_reg_low = arf.register as f32;
+            const MAX_REGISTER:usize = 14;
+            let cap:f32 = if MAX_REGISTER - arf.register as usize <= 1 {
+                1f32
+            } else {
+                let max = MAX_REGISTER as f32 - arf.register as f32;
+                max * match arf.energy {
+                    timbre::Energy::Low => 0.5f32, 
+                    timbre::Energy::Medium => 0.7f32, 
+                    timbre::Energy::High => 1f32, 
+                }
+            };
+            let bp_reg_high = bp_reg_low + cap;
+            let n_segments: usize = 3 * match arf.visibility {
+                timbre::Visibility::Hidden => 1,
+                timbre::Visibility::Background => rand::thread_rng().gen_range(2..=3),
+                timbre::Visibility::Visible => rand::thread_rng().gen_range(3..=5),
+                timbre::Visibility::Foreground => rand::thread_rng().gen_range(4..=7),
+            };
+            use crate::inp::arg_xform::gen_bp_contour;
+            // arbitrary number of samples for the filter contour
+            let resolution = 1000;
+            let bp:Bp = match arf.visibility {
+                timbre::Visibility::Hidden => {
+                    let highpass = gen_bp_contour(n_segments, 2f32.powf(bp_reg_low), 2f32.powf(bp_reg_low-1f32), resolution);
+                    let lowpass = gen_bp_contour(n_segments, 2f32.powf(bp_reg_high-2f32), 2f32.powf(bp_reg_high), resolution);
+                    (highpass, lowpass)
+                },
+                timbre::Visibility::Background => {
+                    let highpass = gen_bp_contour(n_segments, 2f32.powf(bp_reg_low-1f32), 2f32.powf(bp_reg_low), resolution);
+                    let lowpass = vec![crate::synth::NFf];
+                    (highpass, lowpass)
+                },
+                timbre::Visibility::Foreground => {
+                    let highpass = vec![crate::synth::MFf];
+                    let lowpass = gen_bp_contour(n_segments, 2f32.powf(bp_reg_high-1f32), 2f32.powf(bp_reg_high+1f32), resolution);
+                    (highpass, lowpass)
+                },
+                timbre::Visibility::Visible => {
+                    let highpass = gen_bp_contour(n_segments, 2f32.powf(bp_reg_low-1f32), 2f32.powf(bp_reg_low+1f32), resolution);
+                    let lowpass = gen_bp_contour(n_segments, 2f32.powf(bp_reg_high-1f32), 2f32.powf(bp_reg_high+1f32), resolution);
+                    (highpass, lowpass)
+                },
             };
             Feel {
+                bp,
                 ..Self::unit()
             }
         }
@@ -338,10 +378,39 @@ pub mod render {
     pub type Stem<'render> = (
         &'render Melody<synthesis::Note>, 
         Soids, 
+        Expr,
         Feel, 
         KnobMods,
         Vec<crate::analysis::delay::DelayParams>
     );
+
+    fn select_expr(arf:&timbre::Arf) -> Expr {
+        let mut rng  = thread_rng();
+
+        use timbre::AmpLifespan::{self,*};
+        use timbre::Role::{self,*};
+        let plucky_lifespans:Vec<AmpLifespan> = vec![Pluck, Snap, Burst];
+        let sussy_lifespans:Vec<AmpLifespan> = vec![Spring, Bloom, Pad, Drone];
+
+        let lifespan = match arf.role {
+            Kick | Perc | Hats => plucky_lifespans.choose(&mut rng).unwrap(),
+            Lead | Chords | Bass => match arf.presence {
+                timbre::Presence::Legato => sussy_lifespans.choose(&mut rng).unwrap(),
+                timbre::Presence::Staccatto => plucky_lifespans.choose(&mut rng).unwrap(),
+                timbre::Presence::Tenuto => {
+                    if rng.gen_bool(0.33) {
+                        plucky_lifespans.choose(&mut rng).unwrap()
+                    } else {
+                        sussy_lifespans.choose(&mut rng).unwrap()
+                    }
+                },
+            }
+        };
+
+
+        let amp_contour: Vec<f32> = crate::phrasing::lifespan::sample_lifespan(crate::synth::SR, lifespan, 1, 1f32);
+        (amp_contour, vec![1f32], vec![0f32])
+    }
 
     use crate::{presets, AmpContour};
     pub struct Instrument;
@@ -357,6 +426,7 @@ pub mod render {
             (
                 melody,
                 soids,
+                (vec![1f32],vec![1f32],vec![0f32]),
                 Feel::unit(),
                 KnobMods::unit(),
                 delays
@@ -371,13 +441,7 @@ pub mod render {
                 Kick => presets::kick_hard::driad(arf), 
                 Perc => presets::snare_hard::driad(arf), 
                 Hats => presets::hats_hard::driad(arf), 
-                Bass => {
-                    Ely {
-                        soids: soids_square(MFf),
-                        modders: ModBox::unit(),
-                        knob_mods: KnobMods::unit()
-                    }
-                },
+                Bass => presets::bass::driad(arf), 
                 Chords => {
                     Ely {
                         soids: soids_triangle(MFf),
@@ -397,6 +461,7 @@ pub mod render {
             (
                 melody,
                 soids,
+                select_expr(&arf),
                 Feel::select(arf).with_modifiers(modders),
                 knob_mods,
                 delays

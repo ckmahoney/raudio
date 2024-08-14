@@ -154,3 +154,21 @@ fn gen_trailing(cps:f32, rng:&mut ThreadRng, complexity:f32) -> DelayParams {
     let mix:f32  = 0.5f32;
     DelayParams { mix, len_seconds, n_echoes, gain }
 }
+
+
+/// simple contour generator intended to be used in a bandpass frequency context.
+pub fn gen_bp_contour(n:usize, freq1:f32, freq2:f32, n_samples:usize) -> Vec<f32> {
+    let mut rng = rand::thread_rng();
+
+    let mut checkpoints: Vec<(f32, f32, f32)> = (0..n)
+        .map(|_| {
+            let p = rng.gen_range(0.0..=1.0);
+            let v = rng.gen_range(0.5..=1.0); // Randomized v in [0, 1]
+            let contour = 2f32 * rng.gen_range(-0.5..=0.5); // Randomized contour in [-1, 1]
+            (p, v, contour)
+        })
+        .collect();
+
+
+    crate::analysis::freq::render_checkpoints(&checkpoints, freq1, freq2, n_samples)
+}

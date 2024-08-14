@@ -299,11 +299,11 @@ fn demonstrate(selection:Option<usize>) {
         vec![]
     );
 
-    lead.3 = knob_mods;
+    lead.4 = knob_mods;
 
-    let stems:[Stem;1] = [
-        // Instrument::select(&melodies[0], &arfs[0], vec![delay::passthrough]),
-        // Instrument::select(&melodies[1], &arfs[1], vec![delay::passthrough]),
+    let stems:[Stem;3] = [
+        Instrument::select(&melodies[0], &arfs[0], vec![delay::passthrough]),
+        Instrument::select(&melodies[1], &arfs[1], vec![delay::passthrough]),
         lead,
     ];
     // println!("Instrument.feel is {:#?} and Instrument.knobmods is {:#?}",stems[0].2,stems[0].3);
@@ -315,7 +315,7 @@ fn demonstrate(selection:Option<usize>) {
 }
 
 #[cfg(test)]
-mod test {
+mod test { 
     use super::*;
     #[test]
     fn test() {

@@ -48,33 +48,28 @@ impl SineCache {
 #[cfg(test)]
 mod test_sine_cache {
     use super::*;
-    use once_cell::sync::Lazy;
     use crate::time::measure;
     use crate::files;
     use crate::render;
 
     static test_dir:&str = "dev-audio/benchmark";
 
-    static TEST_FREQS: Lazy<Vec<f32>> = Lazy::new(|| {
-        vec![
-            60f32,
-            245f32,
-            555f32,
-            1288f32,
-            4001f32,
-            9999f32
-        ]
-    });
+    static TEST_FREQS: [f32;6] = [
+        60f32,
+        245f32,
+        555f32,
+        1288f32,
+        4001f32,
+        9999f32
+    ];
 
-    static TEST_DURS: Lazy<Vec<usize>> = Lazy::new(|| {
-        vec![
-            SR/4,
-            SR,
-            SR*3,
-            SR*12,
-            SR*60,
-        ]
-    });
+    static TEST_DURS: [usize;5] = [
+        SR/4,
+        SR,
+        SR*3,
+        SR*12,
+        SR*60,
+    ];
 
     #[test]
     fn test_get_sine() {

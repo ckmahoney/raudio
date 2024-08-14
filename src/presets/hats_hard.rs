@@ -3,8 +3,8 @@ use super::*;
 
 
 // values in 25-50 look good. @art-choice could mod in this range
-fn amod_exit(x:f32, amod_const:f32) -> f32 {
-    let y:f32 = (amod_const * x - pi).tanh();
+fn amod_exit(x:f32, c:f32) -> f32 {
+    let y:f32 = (c * x - pi).tanh();
     0.5f32 * (1f32 - y)
 }
 
