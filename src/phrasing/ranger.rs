@@ -6,7 +6,7 @@
 /// Generally, knob values of 0 indicate a passthrough effect while knob values of 1 indicate maximal affected modulation.
 
 use crate::types::synthesis::Range;
-use crate::synth::{MFf, NFf, SR, SRf, pi, pi2,pi_2};
+use crate::synth::{MFf, NFf, SR, SRf, pi, pi2,pi_2,pi_4};
 static one:f32 = 1f32;
 static half:f32 = 0.5f32;
 
@@ -150,15 +150,15 @@ pub fn fmod_vibrato(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, p
     let applied_upper_bound = (highest-1f32) * knob.a;
 
     let t:f32 = pos_cycles/n_cycles;
-    let decay = 0.995f32 * (1f32-t).powf(f32::tan(pi_2*(1f32 - knob.b)));
-    let y = f32::sin(t * fund.sqrt());
+    let decay = (1f32-t).powf(f32::tan(pi_2*(1f32 - 0.995f32 * knob.b)));
+    let y = f32::sin(t * fund.log2());
     
-    decay * if y == 0f32 {
+    if y == 0f32 {
         1f32
     } else if y > 0f32 {
-        1f32 + y * applied_upper_bound
+        1f32 + decay * y * applied_upper_bound
     } else {
-        1f32 - y * applied_lower_bound
+        1f32 - decay * y * applied_lower_bound
     }
 }
 
@@ -174,8 +174,8 @@ pub fn fmod_vibrato(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, p
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
 /// ## Knob Params
-/// `a`: The amount of detune to apply. 0 is none, 1 is maximum amount. 
-/// `b`: unused.  
+/// `a`: The depth of detune to apply. 0 is none, 1 is maximum amount. 
+/// `b`: The intensity of detune to apply. 0 is more transparent, 1 is very visible.  
 /// `c`: unused. 
 /// 
 /// ## Observations
@@ -183,23 +183,11 @@ pub fn fmod_vibrato(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, p
 /// ## Desmos 
 /// 
 /// ## Returns
-pub fn fmod_chorus(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
-    let lowest = (4f32/9f32)*2f32;
-    let highest = (9f32/4f32)/2f32;
-    let applied_lower_bound = (1f32-lowest) * knob.a;
-    let applied_upper_bound = (highest-1f32) * knob.a;
-
+pub fn pmod_chorus(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
     let t:f32 = pos_cycles/n_cycles;
-
-    let y = f32::sin(t * mul.sqrt());
-    if y == 0f32 {
-        1f32
-    } else if y > 0f32 {
-        1f32 + y * applied_upper_bound
-    } else {
-        1f32 - y * applied_lower_bound
-    }
+    -f32::sin(t * knob.a * pi2 * mul)*pi2.powf(knob.b)
 }
+
 
 #[cfg(test)]
 mod test {
@@ -229,6 +217,33 @@ mod test {
             assert!(analysis::is_monotonically_decreasing(&signal), "fmod_sweepdown must produce only values that are constantly decreasing.");
         }
     }
+}
+
+
+/// A oneshot amplitude modulation adding a "huh" like breathing in for a word.
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier wrt the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: The decay rate of the amplitude contour. 0 indicates the biggest breath decay, and 1 offers the least noticable.  
+/// `b`: unused.   
+/// `c`: unused.  
+/// 
+/// ## Observations
+/// ## Desmos 
+/// 
+/// ## Returns
+pub fn amod_breath(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = pos_cycles/n_cycles;
+    let decay = (t).powf(f32::tan(pi_4*(1f32 - (0.8f32 + 0.2 * knob.a))));
+
+    decay
 }
 
 /// A oneshot amplitdue modulation for rapid decay.

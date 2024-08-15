@@ -287,24 +287,17 @@ fn demonstrate(selection:Option<usize>) {
 
 
     let root:f32 = 1.2;
-    let cps:f32 = 0.5;
+    let cps:f32 = 1.15;
     let labels:Vec<&str> = vec!["bass", "chords", "lead"];
     let melodies = make_melodies();
     let arfs = get_arfs();
     let mut lead = Instrument::select(&melodies[2], &arfs[2], vec![delay::passthrough]);
 
-    let knob_mods:KnobMods = KnobMods (
-        vec![(Knob { a:1f32, b:0f32, c:0f32}, ranger::amod_impulse)],
-        vec![(Knob { a:0.11f32, b:0.1f32, c:0f32}, ranger::fmod_sweepdown)],
-        vec![]
-    );
-
-    lead.4 = knob_mods;
 
     let stems:[Stem;3] = [
         Instrument::select(&melodies[0], &arfs[0], vec![delay::passthrough]),
         Instrument::select(&melodies[1], &arfs[1], vec![delay::passthrough]),
-        lead,
+        Instrument::select(&melodies[2], &arfs[2], vec![delay::passthrough]),
     ];
     // println!("Instrument.feel is {:#?} and Instrument.knobmods is {:#?}",stems[0].2,stems[0].3);
     let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];

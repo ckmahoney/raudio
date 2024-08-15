@@ -331,7 +331,7 @@ pub mod render {
             };
             use crate::inp::arg_xform::gen_bp_contour;
             // arbitrary number of samples for the filter contour
-            let resolution = 1000;
+            let resolution = 10000;
             let bp:Bp = match arf.visibility {
                 timbre::Visibility::Hidden => {
                     let highpass = gen_bp_contour(n_segments, 2f32.powf(bp_reg_low), 2f32.powf(bp_reg_low-1f32), resolution);
@@ -449,6 +449,7 @@ pub mod render {
             (
                 melody,
                 soids,
+                // (vec![1f32],vec![1f32],vec![0f32]),
                 select_expr(&arf),
                 Feel::select(arf).with_modifiers(modders),
                 knob_mods,

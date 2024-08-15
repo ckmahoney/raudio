@@ -68,9 +68,16 @@ pub fn driad(arf:&Arf) -> Ely {
     ].iter().map(trig::el_to_soid).collect();
 
     let knob_mods:KnobMods = KnobMods (
-        vec![(Knob { a:1f32, b:0f32, c:0f32}, ranger::amod_impulse)],
-        vec![(Knob { a:0.05f32, b:0.1f32, c:0f32}, ranger::fmod_vibrato)],
-        vec![]
+        vec![
+            // (Knob { a:1f32, b:0f32, c:0f32}, ranger::amod_impulse),
+            (Knob { a:0.9f32, b:0f32, c:0f32}, ranger::amod_breath)
+        ],
+        vec![
+            (Knob { a:0.025f32, b:0.5f32, c:0f32}, ranger::fmod_vibrato)
+        ],
+        vec![
+
+        ]
     );
 
     let merged_soids = trig::prepare_soids_input(all_soids);
