@@ -22,6 +22,10 @@ use rand;
 use rand::{Rng, thread_rng};
 use rand::rngs::ThreadRng;
 
+pub enum Renderable<'render> {
+    Instance(Stem<'render>),
+    Group(Vec<Stem<'render>>),
+}
 
 #[inline]
 /// Returns an amplitude identity or cancellation value
@@ -473,6 +477,63 @@ pub fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::Re
         }
     }
 }
+
+
+/// Given a list of renderables (either instances or groups) and how to represent them in space,
+/// Generate the signals and apply reverberation. Return the new signal.
+/// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
+pub fn combiner<'render>(
+    cps: f32, 
+    root: f32, 
+    renderables: &Vec<Renderable<'render>>, 
+    reverbs: &Vec<convolution::ReverbParams>, 
+    keep_stems: Option<&str>
+) -> SampleBuffer {
+    // Collect channels by processing each renderable
+    let mut channels: Vec<SampleBuffer> = renderables.iter().flat_map(|renderable| {
+        match renderable {
+            Renderable::Instance(stem) => {
+                // Process a single stem
+                vec![channel(cps, root, stem)]
+            },
+            Renderable::Group(stems) => {
+                // Process each stem in the group
+                stems.iter().map(|stem| channel(cps, root, stem)).collect::<Vec<_>>()
+            }
+        }
+    }).collect();
+    
+    // Optionally save stems if `keep_stems` is provided
+    if let Some(stem_dir) = keep_stems {
+        channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+            let filename = format!("{}/stem-{}.wav", stem_dir, stem_num);
+            render::engrave::samples(SR, &channel_samples, &filename);
+        });
+    }
+
+    // Pad and mix the collected channels into a final signal
+    match pad_and_mix_buffers(channels) {
+        Ok(signal) => {
+            println!("Completed rendering of signal. It has length {}", signal.len());
+            
+            // Apply reverbs if provided
+            if reverbs.is_empty() {
+                signal
+            } else {
+                println!("Preparing group reverb");
+                reverbs.iter().fold(signal, |sig, params| {
+                    let mut sig = convolution::of(&sig, &params);
+                    trim_zeros(&mut sig);
+                    sig
+                })
+            }
+        },
+        Err(msg) => {
+            panic!("Failed to mix and render audio: {}", msg)
+        }
+    }
+}
+
 
 
 #[cfg(test)]

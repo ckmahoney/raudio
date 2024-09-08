@@ -20,19 +20,22 @@ static unit_decay:f32 = 9.210340372;
 use rand;
 use rand::Rng;
 
+use crate::analysis::delay;
 use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2};
 use crate::phrasing::older_ranger::{Modders,OldRangerDeprecated,WOldRangerDeprecateds};
 use crate::phrasing::lifespan;
-use crate::phrasing::micro;     
+use crate::phrasing::micro;
 use crate::timbre::AmpLifespan;
 use crate::analysis::trig;
 
+use crate::types::render::{Feel, Melody};
 use crate::types::synthesis::{Freq, Note, Direction, Ely};
-use crate::types::timbre::{Arf, Role, Mode,  Visibility, Sound, Sound2, Energy, Presence, Phrasing};
+use crate::types::timbre::{Arf, Role, Mode, Visibility, Sound, Sound2, Energy, Presence, Phrasing};
 use crate::types::{Range, Radian};
 use crate::druid::{Element, Elementor, melodic, bell, noise};
 use crate::phrasing::contour::expr_none;
 use crate::phrasing::ranger::{self, Knob,KnobMods};
+use crate::types::render::Stem;
 
 pub type SynthGen = fn (arf:&Arf) -> Elementor;
 
