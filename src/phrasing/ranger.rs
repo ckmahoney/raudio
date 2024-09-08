@@ -304,7 +304,7 @@ pub fn amod_burp(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_
     let t:f32 = pos_cycles/n_cycles;
     let base_decay_rate:f32 = 2f32 + (8f32 * knob.a);
     let decay_mod_add:f32 = 2f32 * knob.b * mul/max_mul;
-    1f32 - t.powf(base_decay_rate + decay_mod_add)
+    (1f32 - t.powf(base_decay_rate + decay_mod_add)).powi(5i32)
 }
 
 /// A continuous amplitdue modulation for periodic falling linear contour.
