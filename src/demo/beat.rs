@@ -1,18 +1,14 @@
-use super::out_dir;
+use super::*;
 use std::iter::FromIterator;
 
 use crate::files;
 use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
-use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::types::render::{Stem, Melody, Feel, Instrument};
-use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
-use crate::{presets, render};
 use crate::time;
 use presets::{kick, kick_hard, snare, snare_hard, hats, hats_hard};
 
 use crate::phrasing::{ranger::KnobMods, lifespan};
 use crate::reverb;
-use crate::analysis::delay::{self, DelayParams};
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 
 static demo_name:&str = "beat";
@@ -21,39 +17,13 @@ fn make_synths(arfs:&[Arf;3]) -> [Elementor; 3] {
     [kick_hard::synth(&arfs[0]), snare_hard::synth(&arfs[1]), hats_hard::synth(&arfs[2])]
 }
 
-/// helper for making a test line of specific length with arbitrary pitch.
-fn make_line(durations:Vec<Duration>, registers:Vec<i8>, amps:Vec<Ampl>, muls:bool) -> Vec<Note> {
-    let len = durations.len();
-    if len != registers.len() || len != amps.len() {
-        panic!("Must provide the same number of components per arfutor. Got actual lengths for duration {} register {} amp {}", len, registers.len(), amps.len());
-    }
 
-    let mut line:Vec<Note> = Vec::with_capacity(len);
-    for (i, duration) in durations.iter().enumerate() {
-        let register = registers[i];
-        let amp = amps[i];
-        line.push(test_note(*duration, register, amp, muls))
-    }
-    line
-}
 
 /// helper for making a test monophonic melody of specific length with arbitrary pitch.
 fn make_melody(durations:Vec<Duration>, registers:Vec<i8>, amps:Vec<Ampl>, overs:bool) -> Melody<Note> {
     vec![
         make_line(durations, registers, amps, overs)
     ]
-}
-
-/// given a length, duration, ampltidue, and space selection, 
-/// create a note in the register.
-fn test_note(duration:Duration, register:i8, amp:f32, overs:bool) -> Note {
-    let monic:i8 = 1;
-    let rotation:i8 = 0;
-    
-    let q:i8 = if overs { 0 } else { 1 };
-    let monic = 1;
-    let monae:Monae = (rotation,q, monic);
-    (duration, (register, monae), amp)
 }
 
 /// Produces the (kick, perc, hats) tuple of melodies for a popluar percussive rhythm in range of 60-84BPM
@@ -276,10 +246,9 @@ fn render_arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> Vec<S
     channels
 }
 
-
-
 fn demonstrate(selection:Option<usize>) {
-    files::with_dir(out_dir);
+    let path:String = location(demo_name);
+    files::with_dir(&path);
     let cps:f32 = 1.15;
     let root:f32 = 1.2;
     let labels:Vec<&str> = vec!["kick", "perc", "hat"];
@@ -293,7 +262,7 @@ fn demonstrate(selection:Option<usize>) {
     ];
     let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
 
-    let keep_stems = Some(out_dir);
+    let keep_stems = Some(path.as_str());
     render::combine(cps, root, &stems.to_vec(), &group_reverbs, keep_stems);
 }
 

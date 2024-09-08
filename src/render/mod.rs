@@ -391,7 +391,6 @@ pub fn summer<'render>(
                 continue;
             }
             let pp = p + (inner_p * len_cycles);
-
             for (i, &m) in multipliers.iter().enumerate() {
                 let a0 = am * amplifiers[i];
                 if a0 > *gate_thresh {

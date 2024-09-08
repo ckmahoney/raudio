@@ -1,6 +1,7 @@
 /// Focal point of this module, the presets for your score 
 pub mod kick;
 pub mod kick_hard;
+pub mod kuwuku;
 pub mod snare;
 pub mod snare_hard;
 pub mod hats;

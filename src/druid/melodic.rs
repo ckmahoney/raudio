@@ -7,7 +7,6 @@ static C_SQUARE: f32 = 4f32 / pi;
 /// Constant for triangle wave amplitude calculation
 static C_TRIANGLE: f32 = 8f32 / (pi * pi);
 
-
 pub fn amps_sine(freq:f32) -> Vec<f32> {
     vec![1f32, 0.33f32, 0.125f32]    
 }
@@ -16,13 +15,16 @@ pub fn amps_sine(freq:f32) -> Vec<f32> {
 pub fn muls_max_k(freq: f32) -> Vec<f32> {
     let n = (NFf / freq) as usize;
     (1..=n).map(|x| x as f32).collect()
-}    
+}
 
-/// Generates multipliers for a Fourier series sine wave starting at `freq`
+/// Generates slightly denser multipliers for a sine wave
 pub fn muls_sine(freq: f32) -> Vec<f32> {
     let n = (NFf / freq) as usize;
     vec![1f32, 2f32, 3f32]
 }
+
+
+
 /// Generates multipliers for a Fourier series sawtooth wave starting at `freq`
 pub fn muls_sawtooth(freq: f32) -> Vec<f32> {
     let n = (NFf / freq) as usize;

@@ -74,8 +74,10 @@ pub fn driad(arf:&Arf) -> Ely {
     ].iter().map(trig::el_to_soid).collect();
 
     let knob_mods:KnobMods = KnobMods (
-        vec![(Knob { a:0.2f32, b:0f32, c:0f32}, ranger::amod_impulse)],
-        vec![(Knob { a:0.2f32, b:0.1f32, c:0f32}, ranger::fmod_sweepdown)],
+        // vec![(Knob { a:0.2f32, b:0f32, c:0f32}, ranger::amod_impulse)],
+        vec![],
+        vec![],
+        // vec![(Knob { a:0.2f32, b:0.1f32, c:0f32}, ranger::fmod_sweepdown)],
         vec![]
     );
 
