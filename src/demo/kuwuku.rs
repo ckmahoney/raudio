@@ -5,12 +5,13 @@ use crate::files;
 
 static demo_name:&str = "kuwuku";
 
-use crate::render;
+use crate::render::{self, Renderable};
 use crate::reverb;
 use crate::types::render::{Stem, Melody, Feel, Instrument};
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
-use presets::kuwuku::{vibe, sine, brush};
 use crate::analysis::volume::db_to_amp;
+
+use presets::kuwuku::{vibe, sine, brush, kick};
 
 fn sine_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
@@ -28,6 +29,39 @@ fn sine_melody() -> Melody<Note> {
         1f32, 0.66f32, 0.66f32, 1f32,
         0.66f32, 1f32, 0.66f32, 0.75f32
     ].iter().map(|x| x * db_to_amp(-6f32)).collect::<Vec<f32>>();
+
+    let tones:Vec<Tone> = vec![
+        (5, (0i8, 0i8, 1i8)),
+        (5, (0i8, 0i8, 5i8)),
+        (5, (0i8, 0i8, 3i8)),
+        (5, (1i8, 0i8, 1i8)),
+        (5, (1i8, 0i8, 5i8)),
+        (5, (1i8, 0i8, 3i8)),
+        (5, (-1i8, 0i8, 5i8)),
+        (5, (-1i8, 0i8, 1i8)),
+    ];
+
+    vec![
+        zip_line(tala, tones, amps)
+    ]
+}
+
+fn kick_melody() -> Melody<Note> {
+    let tala:Vec<Duration> = vec![
+        (1i32,1i32), 
+        (1i32,1i32), 
+        (2i32,1i32), 
+        (1i32,1i32), 
+        (1i32,1i32), 
+        (1i32,1i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+    ];
+
+    let amps:Vec<Ampl> = vec![
+        1f32, 0.66f32, 1f32, 
+        1f32, 0.5f32, 0.75f32, 1f32, 0.66f32
+    ].iter().map(|x| x * db_to_amp(-3f32)).collect::<Vec<f32>>();
 
     let tones:Vec<Tone> = vec![
         (5, (0i8, 0i8, 1i8)),
@@ -121,6 +155,18 @@ fn sine_arf() -> Arf {
 }
 
 
+fn kick_arf() -> Arf {
+    Arf {
+        mode: Mode::Enharmonic,
+        role: Role::Perc,
+        register: 5,
+        visibility: Visibility::Visible,
+        energy: Energy::Medium,
+        presence: Presence::Tenuto,
+    }
+}
+
+
 fn brush_arf() -> Arf {
     Arf {
         mode: Mode::Enharmonic,
@@ -173,12 +219,21 @@ fn demonstrate() {
         clippers: (0f32, 1f32)
     };
     let delays:Vec<DelayParams> = vec![delay::passthrough];
-    let stems:[Stem;3] = [
-        (&vibe_melody(), ely_vibe.soids, vibe::expr(&vibe_arf()), feel_vibe, ely_vibe. knob_mods, vec![delay::passthrough]),
-        (&sine_melody(), ely_sine.soids, expr, feel_sine, ely_sine.knob_mods, vec![delay::passthrough]),
-        (&brush_melody(), ely_brush.soids, brush::expr(&brush_arf()), feel_brush, ely_brush.knob_mods, vec![delay::passthrough]),
+
+    let stem_vibe =(&vibe_melody(), ely_vibe.soids, vibe::expr(&vibe_arf()), feel_vibe, ely_vibe.knob_mods, vec![delay::passthrough]);
+    let stem_sine = (&sine_melody(), ely_sine.soids, expr, feel_sine, ely_sine.knob_mods, vec![delay::passthrough]);
+    let stem_brush = (&brush_melody(), ely_brush.soids, brush::expr(&brush_arf()), feel_brush, ely_brush.knob_mods, vec![delay::passthrough]);
+    let kick_mel = kick_melody();
+    let group_kick = kick::grouping(&kick_mel, &kick_arf());
+
+    use Renderable::*;
+    let renderables:Vec<Renderable> = vec![
+        Instance(stem_vibe),
+        Instance(stem_sine),
+        Instance(stem_brush),
+        Group(group_kick)
     ];
- 
+
     // let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
     use crate::Distance;
     use crate::types::timbre::{Enclosure};
@@ -187,7 +242,7 @@ fn demonstrate() {
     let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
     let keep_stems = Some(path.as_str());
 
-    let mix = render::combine(cps, root, &stems.to_vec(), &group_reverbs, keep_stems);
+    let mix = render::combiner(cps, root, &renderables, &group_reverbs, keep_stems);
     let filename = format!("{}/{}.wav",location(demo_name),demo_name);
     render::engrave::samples(SR, &mix, &filename);
 }
