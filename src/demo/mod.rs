@@ -11,7 +11,7 @@ static out_dir:&str = "/media/naltroc/engraver 2/music-gen/demo";
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::delay::{self, DelayParams};
-use crate::synth::{MFf,NFf};
+use crate::synth::{MFf,NFf, SR};
 
 pub fn location(name:&str) -> String {
     format!("{}/{}", out_dir, name)
