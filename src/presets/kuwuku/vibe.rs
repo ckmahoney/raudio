@@ -43,7 +43,6 @@ pub fn driad(arf:&Arf) -> Ely {
         vec![],
     );
     let mut knob_mods:KnobMods = KnobMods::unit();
-    // knob_mods.0.push(amp_knob(arf.energy, arf.presence));
     knob_mods.0.push(amp_knob(Energy::High, Presence::Legato));
     knob_mods.0.push(amp_knob(Energy::Medium, Presence::Tenuto));
     Ely::new(soids, modders, knob_mods)

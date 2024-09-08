@@ -328,12 +328,41 @@ pub fn amod_pluck(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos
 /// ## Observations
 /// 
 /// ## Desmos 
-/// https://www.desmos.com/calculator/5xbxcs0jz1
+/// https://www.desmos.com/calculator/2bf9xonkci
 /// 
 /// ## Returns
 pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
     let t:f32 = pos_cycles/n_cycles;
     let osc_rate:f32 = 2f32.powf(-4f32 * knob.a);
-    let y:f32 = (osc_rate - t)/osc_rate;
+    let offset_b:f32 = osc_rate / 2f32;
+    let y:f32 = (osc_rate - t + offset_b)/osc_rate;
     (0.5f32 + (y - (y + 0.5).floor())).powi(2i32)
+}
+
+/// A oneshot amplitdue modulation for rapid decay.
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier wrt the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: Tremelo period. Value of 0 is 1 hits per note, and value of 1 is 2^4 hits per note.
+/// `b`: unused.   
+/// `c`: unused.  
+/// 
+/// ## Observations
+/// 
+/// ## Desmos 
+/// https://www.desmos.com/calculator/5xbxcs0jz1
+/// 
+/// ## Returns
+pub fn amod_oscillation_sine(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = pos_cycles/n_cycles;
+    let osc_rate:f32 = 2f32.powf(-4f32 * knob.a);
+    let osc_mod_mul:f32 = 2f32.powf(knob.a * 4f32);
+    1f32 - (pi * t * osc_mod_mul).sin().abs().powi(4i32)
 }

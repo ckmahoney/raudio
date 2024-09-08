@@ -80,7 +80,7 @@ fn sine_arf() -> Arf {
         role: Role::Bass,
         register: 5,
         visibility: Visibility::Visible,
-        energy: Energy::Low,
+        energy: Energy::Medium,
         presence: Presence::Legato,
     }
 }

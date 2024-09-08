@@ -16,3 +16,4 @@ pub fn octave(freq:f32) -> Soids {
     let offs:Vec<f32> = (0..l).into_iter().map(|ku| 0f32).collect();
     (amps, muls, offs) 
 }
+
