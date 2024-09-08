@@ -310,7 +310,7 @@ pub fn amod_pluck(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos
     1f32/(decay_rate*t).exp()
 }
 
-/// A oneshot amplitdue modulation for rapid decay.
+/// A continuous amplitdue modulation for periodic falling linear contour.
 ///
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
@@ -339,7 +339,7 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
     (0.5f32 + (y - (y + 0.5).floor())).powi(2i32)
 }
 
-/// A oneshot amplitdue modulation for rapid decay.
+/// A continuous amplitdue modulation for smooth sine envelopes.
 ///
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
@@ -357,7 +357,7 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
 /// ## Observations
 /// 
 /// ## Desmos 
-/// https://www.desmos.com/calculator/5xbxcs0jz1
+/// https://www.desmos.com/calculator/ag0vtteimu
 /// 
 /// ## Returns
 pub fn amod_oscillation_sine(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {

@@ -17,3 +17,44 @@ pub fn octave(freq:f32) -> Soids {
     (amps, muls, offs) 
 }
 
+use rand::Rng;
+pub enum NoiseType {
+    Violet,
+    Equal,
+    Pink
+}
+
+pub fn noise(freq:f32, noise_type:NoiseType) -> Soids {
+    let max_mul: f32 = NFf / freq; 
+    let mut rng = rand::thread_rng();
+
+    let n_stages = max_mul.log2().floor() as usize;
+    let mut muls = vec![];
+    let mut amps = vec![];
+    let mut offs = vec![];
+
+    let min_entries_dec:i32 = if n_stages > 8 {
+        2i32
+    } else if n_stages > 6 {
+        3i32
+    } else if n_stages > 3 {
+        4i32
+    } else { 5i32 };
+    let color = match noise_type {
+        NoiseType::Violet => 2i32,
+        NoiseType::Equal => 0i32,
+        NoiseType::Pink => -2i32
+    };
+    for i in 0..n_stages {
+        let n_entries = 2i32.pow((min_entries_dec + i as i32).max(0) as u32);
+        let amp = 1f32/(2f32.powi(i as i32)).powi(color);
+        for j in 0..n_entries {
+            let r1:f32 = rng.gen::<f32>();
+            let r2:f32 = rng.gen::<f32>();
+            muls.push(2f32.powf(i as f32 + r1));
+            amps.push(amp);
+            offs.push(pi2 * r2)
+        }
+    };
+    (amps, muls, offs)
+}
