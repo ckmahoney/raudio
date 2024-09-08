@@ -278,3 +278,62 @@ pub fn amod_impulse(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, p
     let contrib2 = one - (decay_rate*t-pi).tanh();
     half * contrib1 * contrib2
 }
+
+/// A oneshot amplitdue modulation for rapid decay.
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier wrt the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: Base decay rate. Value of 0 is the shortest possible base decay, and 1 is the longest.
+/// `b`: Upper harmonic decay sensitivity. Value of 0 means all harmonics have same decay. Value of 1 means later harmonics decay much more rapidly than early harmonics. 
+/// `b`: unused.   
+/// `c`: unused.  
+/// 
+/// ## Observations
+/// 
+/// ## Desmos 
+/// https://www.desmos.com/calculator/jw8vzd2ie1
+/// 
+/// ## Returns
+pub fn amod_pluck(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let max_mul: f32 = NFf / (mul * fund); 
+    let t:f32 = pos_cycles/n_cycles;
+    let base_decay_rate:f32 = 5f32 + 20f32 * (1f32 - knob.a);
+    let decay_mod_add:f32 = 120f32 * (knob.b).powi(2i32) * (mul/max_mul);
+    let decay_rate:f32 = base_decay_rate + decay_mod_add;
+    1f32/(decay_rate*t).exp()
+}
+
+/// A oneshot amplitdue modulation for rapid decay.
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier wrt the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: Tremelo period. Value of 0 is 1 hits per note, and value of 1 is 2^4 hits per note.
+/// `b`: unused.   
+/// `c`: unused.  
+/// 
+/// ## Observations
+/// 
+/// ## Desmos 
+/// https://www.desmos.com/calculator/5xbxcs0jz1
+/// 
+/// ## Returns
+pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = pos_cycles/n_cycles;
+    let osc_rate:f32 = 2f32.powf(-4f32 * knob.a);
+    let y:f32 = (osc_rate - t)/osc_rate;
+    (0.5f32 + (y - (y + 0.5).floor())).powi(2i32)
+}

@@ -14,7 +14,7 @@ use crate::phrasing::contour::{Expr, Position, sample, apply_contour};
 use crate::phrasing::ranger::{Knob, Ranger, KnobbedRanger, KnobMods};
 use crate::render;
 use crate::reverb::convolution;
-use crate::time;
+use crate::time::{self, samples_per_cycle};
 use crate::types::timbre::{AmpContour, Arf, AmpLifespan};
 use crate::types::synthesis::{GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Soids, Dressor};
 use crate::types::render::{Melody,Span, Stem, Feel};
@@ -307,9 +307,9 @@ pub fn summit<'render>(
                 if gain *  v.abs() > *clip_thresh {
                     sig[j+offset_j] += gain *  v.signum() * (*clip_thresh);
                 } else if gain * v.abs() >= *gate_thresh {
-                    sig[j+offset_j] += v;
+                    sig[j+offset_j] += gain * v;
                 } else {
-                    // don't mix this [too quiet] sample!
+                    // don't mix this too-quiet sample!
                 }
             }
         }
@@ -364,6 +364,7 @@ pub fn summer<'render>(
     };
 
     let resampled_aenv = slice_signal(&expr.0, 0f32, 1f32, sig_samples);
+    
     let resampled_fenv = slice_signal(&expr.1, 0f32, 1f32, sig_samples);
     let resampled_penv = slice_signal(&expr.2, 0f32, 1f32, sig_samples);
     
@@ -393,30 +394,32 @@ pub fn summer<'render>(
             let pp = p + (inner_p * len_cycles);
             for (i, &m) in multipliers.iter().enumerate() {
                 let a0 = am * amplifiers[i];
-                if a0 > *gate_thresh {
-                    let a1:f32 = knobsAmp.iter().fold(a0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
-                    let amp = vel * modsAmp.iter().fold(a1, |acc, ma| ma.apply(pos_cycles, acc)); 
-                    if amp < *gate_thresh {
-                        continue
-                    }
-                    let f0:f32 = fm * m * fundamental; 
-                    let f1:f32 = knobsFreq.iter().fold(f0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
-                    
-                    let frequency = modsFreq.iter().fold(f1, |acc, mf| mf.apply(pos_cycles, acc));
-
-                    if frequency > NFf || frequency < MFf  {
-                        continue
-                    }
-                    if 0f32 == filter(j as f32/sig_samples as f32, frequency, (&bp_sample_highpass,&bp_sample_lowpass)) {
-                        continue
-                    }
-                    
-                    let p0 = pm + frequency * pi2 * pos_cycles;
-                    let p1:f32 = knobsPhase.iter().fold(p0, |acc, (knob,func)| acc+func(knob, cps, fundamental, m, n_cycles, pos_cycles));
-                    let phase = modsPhase.iter().fold(p1, |acc, mp| mp.apply(pos_cycles, acc)); 
-                    
-                    v += amp * phase.sin();
+                if a0 < *gate_thresh {
+                    continue
                 }
+                let a1:f32 = knobsAmp.iter().fold(a0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                let amp = vel * modsAmp.iter().fold(a1, |acc, ma| ma.apply(pos_cycles, acc)); 
+                if amp < *gate_thresh {
+                    continue
+                }
+                
+                let f0:f32 = fm * m * fundamental; 
+                let f1:f32 = knobsFreq.iter().fold(f0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                
+                let frequency = modsFreq.iter().fold(f1, |acc, mf| mf.apply(pos_cycles, acc));
+
+                if frequency > NFf || frequency < MFf  {
+                    continue
+                }
+                if 0f32 == filter(j as f32/sig_samples as f32, frequency, (&bp_sample_highpass,&bp_sample_lowpass)) {
+                    continue
+                }
+                
+                let p0 = pm + frequency * pi2 * pos_cycles;
+                let p1:f32 = knobsPhase.iter().fold(p0, |acc, (knob,func)| acc+func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                let phase = modsPhase.iter().fold(p1, |acc, mp| mp.apply(pos_cycles, acc)); 
+                
+                v += amp * phase.sin();
             };
 
             for replica_n in 0..=(delay_params.n_echoes.max(1)) {
@@ -429,9 +432,9 @@ pub fn summer<'render>(
                 if gain * v.abs() > *clip_thresh {
                     sig[j+offset_j] += gain *  v.signum() * (*clip_thresh);
                 } else if gain * v.abs() >= *gate_thresh {
-                    sig[j+offset_j] += v;
+                    sig[j+offset_j] += gain * v;
                 } else {
-                    // don't mix this [too quiet] sample!
+                    // don't mix this too-quiet sample!
                 }
             }
         }

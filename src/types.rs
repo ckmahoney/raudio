@@ -184,6 +184,13 @@ pub mod synthesis {
     }
 
     impl Ely {
+        pub fn new(soids:Soids, modders:ModifiersHolder, knob_mods:KnobMods) -> Self {
+            Ely {
+                soids,
+                modders,
+                knob_mods
+            }
+        }
         pub fn from_soids(amps:Vec<f32>, muls:Vec<f32>, phis:Vec<f32>) -> Self {
             Ely {
                 soids: (amps, muls, phis),
