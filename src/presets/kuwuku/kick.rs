@@ -3,12 +3,14 @@ use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 
+/// Softens the overall amplitude
 pub fn expr_noise(arf:&Arf) -> Expr {
-    (vec![1f32], vec![1f32], vec![0f32])
+    (vec![0.33f32], vec![1f32], vec![0f32])
 }
 
+/// Provides slight pitch bend 
 pub fn expr_sub(arf:&Arf) -> Expr {
-    (vec![1f32], vec![1f32], vec![0f32])
+    (vec![1f32], vec![3.2f32, 2.1f32, 1.0f32], vec![0f32])
 }
 
 fn amp_knob_subsine(energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
@@ -21,9 +23,9 @@ fn amp_knob_subsine(energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f
         return (Knob { a: osc_rate, b: 0.0, c: 0.0 }, ranger::amod_oscillation_tri);
     }
     let sustain = match presence {
-        Presence::Staccatto => 0.33f32,
-        Presence::Legato => 0.66f32,
-        Presence::Tenuto => 1f32
+        Presence::Staccatto => 0.0f32,
+        Presence::Legato => 0.33f32,
+        Presence::Tenuto => 0.66f32
     };
     let monic_stretch = match energy {
         Energy::Low => 0.33f32,
@@ -37,12 +39,12 @@ fn amp_knob_subsine(energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f
 fn amp_knob_noise(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let sustain = match presence {
         Presence::Staccatto => 0f32,
-        Presence::Legato => 0.05f32,
-        Presence::Tenuto => 0.1f32
+        Presence::Legato => 0.01f32,
+        Presence::Tenuto => 0.03f32
     };
     let decay_rate = match energy {
-        Energy::Low => 0.66f32,
-        Energy::Medium => 0.75f32,
+        Energy::Low => 0.8f32,
+        Energy::Medium => 0.95f32,
         Energy::High => 1f32,
     };
     (Knob { a: sustain, b: decay_rate, c: 0.0}, ranger::amod_pluck)
