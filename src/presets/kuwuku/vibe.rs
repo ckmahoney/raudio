@@ -17,16 +17,19 @@ fn amp_knob(energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32,
         };
         return (Knob { a: osc_rate, b: 0.0, c: 0.0 }, ranger::amod_oscillation_tri);
     }
+
     let sustain = match presence {
         Presence::Staccatto => 0f32,
         Presence::Legato => 0.66f32,
         Presence::Tenuto => 1f32
     };
+
     let decay_rate = match energy {
         Energy::Low => 0.2f32,
         Energy::Medium => 0.5f32,
         Energy::High => 0.9f32,
     };
+    
     (Knob { a: sustain, b: decay_rate, c: 0.0}, ranger::amod_pluck)
 }
 
@@ -46,4 +49,16 @@ pub fn driad(arf:&Arf) -> Ely {
     knob_mods.0.push(amp_knob(Energy::High, Presence::Legato));
     knob_mods.0.push(amp_knob(Energy::Medium, Presence::Tenuto));
     Ely::new(soids, modders, knob_mods)
+}
+
+pub fn stem<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+    let ely = driad(arf);
+    let feel:Feel = Feel {
+        bp: (vec![MFf], vec![NFf]),
+        modifiers: ely.modders,
+        clippers: (0f32, 1f32)
+    };
+
+    let stem = (melody, ely.soids, expr(arf), feel, ely.knob_mods, vec![delay::passthrough]);
+    Renderable::Instance(stem)
 }

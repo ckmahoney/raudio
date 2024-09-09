@@ -1,6 +1,7 @@
 use super::*;
 use crate::types::synthesis::{ModifiersHolder,Soids};
 
+const zero:f32=0f32;
 const one:f32=1f32;
 
 /// Generates sinusoids representing a stack of octaves (even harmonics) from the fundamental.
@@ -14,6 +15,29 @@ pub fn octave(freq:f32) -> Soids {
         one/((i as f32 + one).powi(3i32))
     ).collect();
     let offs:Vec<f32> = (0..l).into_iter().map(|ku| 0f32).collect();
+    (amps, muls, offs) 
+}
+
+
+/// Generates sinusoids representing undertone placement using a "sawtooth" pattern.
+/// Intended to be tall but focused on the low end.
+pub fn under(freq:f32) -> Soids {
+    let n = (freq / MFf / 2f32).floor() as usize;
+
+    let mut muls:Vec<f32> = vec![];
+    let mut amps:Vec<f32> = vec![];
+    let mut offs:Vec<f32> = vec![];
+
+    for i in (1..n).step_by(2) { 
+        muls.push(one/(i as f32));
+        amps.push(one/(i as f32).powi(3i32));
+        if (i + 1)/2 % 2 == 0 {
+            offs.push(zero)
+        } else {
+            offs.push(pi)
+        }
+    }
+
     (amps, muls, offs) 
 }
 

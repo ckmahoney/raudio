@@ -280,6 +280,7 @@ pub fn amod_pluck(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos
     1f32/(decay_rate*t).exp()
 }
 
+
 /// A oneshot amplitdue modulation for slow decay.
 ///
 /// ## Arguments

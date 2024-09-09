@@ -28,14 +28,14 @@ use crate::phrasing::micro;
 use crate::timbre::AmpLifespan;
 use crate::analysis::trig;
 
-use crate::types::render::{Feel, Melody};
+use crate::types::render::{Feel, Melody, Stem};
 use crate::types::synthesis::{Freq, Note, Direction, Ely};
 use crate::types::timbre::{Arf, Role, Mode, Visibility, Sound, Sound2, Energy, Presence, Phrasing};
 use crate::types::{Range, Radian};
 use crate::druid::{Element, Elementor, melodic, bell, noise};
 use crate::phrasing::contour::expr_none;
 use crate::phrasing::ranger::{self, Knob,KnobMods};
-use crate::types::render::Stem;
+use crate::render::Renderable;
 
 pub type SynthGen = fn (arf:&Arf) -> Elementor;
 
