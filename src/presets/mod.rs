@@ -1,31 +1,17 @@
 pub mod basic;
+pub mod hard;
 pub mod kuwuku;
-
-pub mod smooth {
-    use bass_smoother;
-    pub mod chords_smoother;
-    pub mod lead_smoother;
-}
+pub mod smooth;
 
 
-/// Focal point of this module, the presets for your score 
-pub mod kick;
-pub mod kick_hard;
-pub mod snare;
-pub mod snare_hard;
-pub mod hats;
-pub mod hats_hard;
-pub mod bass;
-pub mod chords;
-pub mod lead;
-
-
-/// Shared imports for all presets in this mod
+/// Shared values for all presets in this mod
 static contour_resolution:usize = 1200;
 static unit_decay:f32 = 9.210340372; 
+
 use rand;
 use rand::Rng;
 
+/// Shared imports for all presets in this mod
 use crate::analysis::delay;
 use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2};
 use crate::phrasing::older_ranger::{Modders,OldRangerDeprecated,WOldRangerDeprecateds};
@@ -43,7 +29,10 @@ use crate::phrasing::contour::expr_none;
 use crate::phrasing::ranger::{self, Knob,KnobMods};
 use crate::render::Renderable;
 
-pub type SynthGen = fn (arf:&Arf) -> Elementor;
+
+/// DEPRECATED the methods below have been replaced by the ranger module, 
+/// which offers a better interface for dynamic dispatch (using Knob).
+
 
 /// Microtansient methods probaly should go in micro
 pub fn microtransient_chiff(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
@@ -88,16 +77,6 @@ pub fn microtransient_pop(fund:f32, vis:&Visibility, energy:&Energy, presence:&P
     }
 }
 
-pub fn select(arf:&Arf) -> SynthGen {
-    match arf.role {
-        Role::Kick => kick_hard::synth,
-        Role::Perc => snare_hard::synth,
-        Role::Hats => hats_hard::synth,
-        Role::Bass => bass_smoother::synth,
-        Role::Chords => chords_smoother::synth,
-        Role::Lead => lead_smoother::synth,
-    }
-}
 
 
 /// Four octave freq sweep, responsive to monic and duration. 

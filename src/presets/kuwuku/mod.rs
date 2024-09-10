@@ -1,3 +1,4 @@
+use super::*;
 pub mod brush;
 pub mod chords;
 pub mod kick;
