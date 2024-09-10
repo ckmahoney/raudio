@@ -86,24 +86,14 @@ impl Instrument {
         use crate::presets::hard::*;
         use crate::presets::basic::*;
 
-        let Ely {soids, modders, knob_mods} = match arf.role {
-            Kick => kick_hard::driad(arf), 
-            Perc => snare_hard::driad(arf), 
-            Hats => hats_hard::driad(arf), 
-            Bass => bass::driad(arf), 
-            Chords => chords::driad(arf), 
-            Lead => lead::driad(arf), 
-        };
-
-        Renderable::Instance((
-            melody,
-            soids,
-            // (vec![1f32],vec![1f32],vec![0f32]),
-            select_expr(&arf),
-            Feel::select(arf).with_modifiers(modders),
-            knob_mods,
-            delays
-        ))
+        match arf.role {
+            Kick => kuwuku::kick::renderable(melody, arf),
+            Perc => kuwuku::kick::renderable(melody, arf),
+            Hats => kuwuku::kick::renderable(melody, arf),
+            Lead => kuwuku::lead::renderable(melody, arf),
+            Bass => kuwuku::bass::renderable(melody, arf),
+            Chords => kuwuku::chords::renderable(melody, arf),
+        }
     }
 }
 

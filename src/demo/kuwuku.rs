@@ -14,7 +14,7 @@ use crate::analysis::volume::db_to_amp;
 
 use presets::kuwuku::{lead, bass, perc, chords, kick, hats};
 
-fn sine_melody() -> Melody<Note> {
+fn bass_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
         (1i32, 1i32), 
         (3i32, 4i32),
@@ -171,7 +171,7 @@ fn hats_melody() -> Melody<Note> {
 }
 
 
-fn brush_melody() -> Melody<Note> {
+fn perc_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
         (1i32,1i32), 
         (1i32,1i32), 
@@ -235,7 +235,7 @@ fn vibe_melody() -> Melody<Note> {
     ]
 }
 
-fn sine_arf() -> Arf {
+fn bass_arf() -> Arf {
     Arf {
         mode: Mode::Melodic,
         role: Role::Bass,
@@ -271,7 +271,7 @@ fn kick_arf() -> Arf {
 }
 
 
-fn brush_arf() -> Arf {
+fn perc_arf() -> Arf {
     Arf {
         mode: Mode::Enharmonic,
         role: Role::Perc,
@@ -303,54 +303,36 @@ fn demonstrate() {
     let cps:f32 = 1.15;
     let root:f32 = 1.2;
     let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
-    let ely_chords = lead::driad(&vibe_arf());
-    let ely_brush = perc::driad(&brush_arf());
-    let ely_sine = bass::driad(&sine_arf());
-    let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
 
-    let feel_brush:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: ely_brush.modders,
-        clippers: (0f32, 1f32)
-    };
-
-    let feel_sine:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: ely_sine.modders,
-        clippers: (0f32, 1f32)
-    };
-
-    let feel_chords:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: ely_chords.modders,
-        clippers: (0f32, 1f32)
-    };
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
-    let vibe_melody = vibe_melody();
+
+    let lead_melody = vibe_melody();
     let hats_melody = hats_melody();
     let chords_melody = chords_melody();
-    let stem_vibe = lead::stem(&vibe_melody, &vibe_arf());
+    let bass_melody = bass_melody();
+    let perc_melody = perc_melody();
+    let kick_mel = kick_melody();
+
+    let stem_lead = lead::renderable(&lead_melody, &vibe_arf());
     let stem_hats = hats::renderable(&hats_melody, &vibe_arf());
     let stem_chords =chords::renderable(&chords_melody, &chords_arf());
-    let stem_sine = (&sine_melody(), ely_sine.soids, expr, feel_sine, ely_sine.knob_mods, vec![delay::passthrough]);
-    let stem_brush = (&brush_melody(), ely_brush.soids, perc::expr(&brush_arf()), feel_brush, ely_brush.knob_mods, vec![delay::passthrough]);
-    let kick_mel = kick_melody();
-    let group_kick = kick::grouping(&kick_mel, &kick_arf());
+    let stem_bass = bass::renderable(&bass_melody, &bass_arf());
+    let stem_perc = perc::renderable(&perc_melody, &perc_arf());
+    let render_kick = kick::renderable(&kick_mel, &kick_arf());
 
-    use Renderable::*;
+    use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
-        stem_vibe,
+        stem_lead,
         stem_hats,
         stem_chords,
-        Instance(stem_sine),
-        Instance(stem_brush),
-        Group(group_kick)
+        stem_bass,
+        stem_perc,
+        render_kick
     ];
 
-    // let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
     use crate::Distance;
-    use crate::types::timbre::{Enclosure};
+    use crate::types::timbre::Enclosure;
 
     let complexity:f32 = rng.gen::<f32>();
     let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);

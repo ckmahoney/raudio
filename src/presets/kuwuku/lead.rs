@@ -51,7 +51,8 @@ pub fn driad(arf:&Arf) -> Ely {
     Ely::new(soids, modders, knob_mods)
 }
 
-pub fn stem<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+
     let ely = driad(arf);
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),

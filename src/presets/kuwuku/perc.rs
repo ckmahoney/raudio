@@ -23,7 +23,7 @@ pub fn expr(arf:&Arf) -> Expr {
 }
 
 /// Selects a color of noise at -4 height
-pub fn driad(arf:&Arf) -> Ely {
+fn driad(arf:&Arf) -> Ely {
     let noise_type = match arf.energy {
         Energy::Low => druidic_soids::NoiseType::Violet,
         Energy::Medium => druidic_soids::NoiseType::Equal,
@@ -39,4 +39,17 @@ pub fn driad(arf:&Arf) -> Ely {
     let mut knob_mods:KnobMods = KnobMods::unit();
     knob_mods.0.push(amp_knob(arf.visibility, Energy::High, Presence::Legato));
     Ely::new(soids, modders, knob_mods)
+}
+
+pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+    let ely = driad(arf);
+    let feel:Feel = Feel {
+        bp: (vec![MFf], vec![NFf]),
+        modifiers: ely.modders,
+        clippers: (0f32, 1f32)
+    };
+
+
+    let stem = (melody, ely.soids, expr(arf), feel, ely.knob_mods, vec![delay::passthrough]);
+    Renderable::Instance(stem)
 }

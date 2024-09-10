@@ -55,7 +55,7 @@ fn amp_knob_noise(visibility:Visibility, energy:Energy, presence:Presence) -> (K
 /// Components include:
 ///  - a transient noise element
 ///  - a sustained subsine
-pub fn grouping<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Vec<Stem<'render>> {
+pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
     
     //# noise component
     
@@ -101,8 +101,8 @@ pub fn grouping<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Vec<Stem<'re
 
     let stem_subsine = (melody, soids_subsine, expr_sub(arf), feel_subsine, knob_mods_subsine, vec![delay::passthrough]);
 
-    vec![
+    Renderable::Group(vec![
         stem_noise,
         stem_subsine
-    ]
+    ])
 }
