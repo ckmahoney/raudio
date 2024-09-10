@@ -12,7 +12,7 @@ use crate::presets::Instrument;
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::volume::db_to_amp;
 
-use presets::kuwuku::{vibe, sine, brush, chords, kick, hats};
+use presets::kuwuku::{lead, bass, perc, chords, kick, hats};
 
 fn sine_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
@@ -303,9 +303,9 @@ fn demonstrate() {
     let cps:f32 = 1.15;
     let root:f32 = 1.2;
     let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
-    let ely_chords = vibe::driad(&vibe_arf());
-    let ely_brush = brush::driad(&brush_arf());
-    let ely_sine = sine::driad(&sine_arf());
+    let ely_chords = lead::driad(&vibe_arf());
+    let ely_brush = perc::driad(&brush_arf());
+    let ely_sine = bass::driad(&sine_arf());
     let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
 
     let feel_brush:Feel = Feel {
@@ -330,11 +330,11 @@ fn demonstrate() {
     let vibe_melody = vibe_melody();
     let hats_melody = hats_melody();
     let chords_melody = chords_melody();
-    let stem_vibe = vibe::stem(&vibe_melody, &vibe_arf());
+    let stem_vibe = lead::stem(&vibe_melody, &vibe_arf());
     let stem_hats = hats::renderable(&hats_melody, &vibe_arf());
     let stem_chords =chords::renderable(&chords_melody, &chords_arf());
     let stem_sine = (&sine_melody(), ely_sine.soids, expr, feel_sine, ely_sine.knob_mods, vec![delay::passthrough]);
-    let stem_brush = (&brush_melody(), ely_brush.soids, brush::expr(&brush_arf()), feel_brush, ely_brush.knob_mods, vec![delay::passthrough]);
+    let stem_brush = (&brush_melody(), ely_brush.soids, perc::expr(&brush_arf()), feel_brush, ely_brush.knob_mods, vec![delay::passthrough]);
     let kick_mel = kick_melody();
     let group_kick = kick::grouping(&kick_mel, &kick_arf());
 

@@ -1,7 +1,7 @@
 use super::*;
-pub mod brush;
+pub mod perc;
 pub mod chords;
 pub mod kick;
 pub mod hats;
-pub mod sine;
-pub mod vibe;
+pub mod bass;
+pub mod lead;
