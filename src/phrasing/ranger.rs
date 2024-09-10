@@ -1,3 +1,4 @@
+use crate::analysis::volume;
 /// # Rangers
 /// 
 /// These methods offer per-multipler modulation at gentime on a per-sample basis.
@@ -166,6 +167,40 @@ pub fn fmod_vibrato(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, p
 }
 
 
+/// A continuous frequency mod that adds a vintage tape pitch bend effect.
+/// 
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier wrt the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// `a`: The amount of detune to apply. 0 is none, 1 is maximum amount. 
+/// `b`: unused.   
+/// `c`: unused.   
+/// 
+/// ## Observations
+/// 
+/// ## Desmos 
+/// for decay rate: https://www.desmos.com/calculator/ze5vckie3q
+/// 
+/// ## Returns
+pub fn fmod_warble(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let max_distance_lowest = 1f32 - (31f32/32f32);
+    let max_distance_highest = (34f32/32f32) - 1f32;
+    let applied_distance_lowest = 1f32 - (knob.a * max_distance_lowest);
+    let applied_distance_highest = 1f32 + (knob.a * max_distance_highest);
+    let range = applied_distance_highest - applied_distance_lowest;
+
+    let t:f32 = cps * pos_cycles/n_cycles;
+    let y = (1f32 + f32::sin(pi2 * t)) / 2f32; // value in [0, 1]
+    let val = applied_distance_lowest + y * range;
+    val
+}
+
+
 
 /// A continuous frequency mod that adds detuning to the harmonic.
 /// 
@@ -218,6 +253,74 @@ pub fn amod_breath(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
 
     decay
 }
+
+
+
+/// A oneshot amplitude contouring for microtransients. 
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier wrt the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: The total length of the amplitude contour. 0 is the shortest microtransient (12ms) while 1 is the longest (60ms). 
+/// `b`: The decay mode of the amplitude contour. 0 is rapid decay, 0.5 is linear, 1 is slow decay.    
+/// `c`: Tempo response. 0 for cps invariant durations. 1 for durations that scale with time. Rounds down.   
+pub fn amod_microtransient(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    const min_ms:f32 = 12f32;
+    const max_ms:f32 = 60f32;  // Adjusted to 60ms as per your earlier comment
+
+    let playback_scaling:f32 = if knob.c.floor() == 0.0 { 1.0 } else { 1.0 / cps };
+    let length_ms = (min_ms + (max_ms - min_ms) * knob.a) * playback_scaling;
+    let length_seconds = length_ms / 1000f32;
+    let seconds_per_sample = 1.0f32 / SRf;
+
+    let n_samples = (length_seconds * SRf).floor() as usize;
+    let t:f32 = pos_cycles / n_cycles;
+    let curr_sample = (t * n_cycles * SRf / cps).floor() as usize;
+    let curr_sample = curr_sample.min(n_samples);
+
+    if curr_sample >= n_samples {
+        return 0.0;
+    }
+
+    let p:f32 = curr_sample as f32 / n_samples as f32;
+    let y = one - (curr_sample as f32 /n_samples as f32);
+    volume::db_to_amp(-120f32 + 120f32*y)
+}
+
+#[test]
+fn test_amod_microtransient_monotonic_decreasing() {
+    const EPSILON: f32 = 1e-6;
+    let knob = Knob { a: 0.0, b: 0.5, c: 0.0 };
+    let cps: f32 = 1.3;  
+    let fund: f32 = 440.0; 
+    let mul: f32 = 1.0;
+
+    let n_cycles: f32 = 1.0;
+    let mut last_value = 1.0; 
+
+    for sample in 0..SR {
+        let pos_cycles = sample as f32 / SRf;
+        let result = amod_microtransient(&knob, cps, fund, mul, n_cycles, pos_cycles);
+        assert!(result <= last_value, "Value at sample {} was not monotonically decreasing. Prev sample {} Curr sample {} ", sample, last_value, result);
+        last_value = result;
+    }
+
+    assert!(last_value <= EPSILON, "Final value was not close to zero: {}", last_value);
+}
+
+
+    // use a negative parabola whose peak is at (0.5, 1)
+    // so it is linear at the center of [0, 1]
+    // and gradually falls to either side with contour
+    // f(x) = 1-1*2*(x-0.5)(x-0.5) 
+    //   0.25 ^ 2 = 0.0625
+    //   0.25 ^ 0.5 = 0.5
 
 /// A oneshot amplitdue modulation for rapid decay.
 ///

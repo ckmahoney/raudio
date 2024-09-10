@@ -26,7 +26,7 @@ use crate::phrasing::older_ranger::{Modders,OldRangerDeprecated,WOldRangerDeprec
 use crate::phrasing::lifespan;
 use crate::phrasing::micro;
 use crate::timbre::AmpLifespan;
-use crate::analysis::trig;
+use crate::analysis::{trig,volume::db_to_amp};
 
 use crate::types::render::{Feel, Melody, Stem};
 use crate::types::synthesis::{Freq, Note, Direction, Ely};

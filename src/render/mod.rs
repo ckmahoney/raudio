@@ -460,11 +460,9 @@ pub fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::Re
     }
     match pad_and_mix_buffers(channels) {
         Ok(signal) => {
-            println!("Completed rendering of signal. It has length {}", signal.len());
             if reverbs.len() == 0 {
                 signal
             } else {
-                println!("Preparing group reverb");
                 reverbs.iter().fold(signal, |sig, params| {
                     let mut sig =convolution::of(&sig, &params);
                     trim_zeros(&mut sig);
@@ -514,13 +512,10 @@ pub fn combiner<'render>(
     // Pad and mix the collected channels into a final signal
     match pad_and_mix_buffers(channels) {
         Ok(signal) => {
-            println!("Completed rendering of signal. It has length {}", signal.len());
-            
             // Apply reverbs if provided
             if reverbs.is_empty() {
                 signal
             } else {
-                println!("Preparing group reverb");
                 reverbs.iter().fold(signal, |sig, params| {
                     let mut sig = convolution::of(&sig, &params);
                     trim_zeros(&mut sig);

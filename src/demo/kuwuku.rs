@@ -11,7 +11,7 @@ use crate::types::render::{Stem, Melody, Feel, Instrument};
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::volume::db_to_amp;
 
-use presets::kuwuku::{vibe, sine, brush, kick, hats};
+use presets::kuwuku::{vibe, sine, brush, chords, kick, hats};
 
 fn sine_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
@@ -49,14 +49,14 @@ fn sine_melody() -> Melody<Note> {
 fn chords_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
         (2i32, 1i32), 
-        (3i32, 1i32),
+        (2i32, 1i32),
         (2i32, 1i32), 
-        (1i32, 1i32), 
+        (2i32, 1i32), 
     ];
 
     let amps:Vec<Ampl> = vec![
         1f32, 0.66f32, 0.66f32, 1f32,
-    ].iter().map(|x| x * db_to_amp(-6f32)).collect::<Vec<f32>>();
+    ].iter().map(|x| x * db_to_amp(-30f32)).collect::<Vec<f32>>();
 
     let line_1:Vec<Tone> = vec![
         (8, (0i8, 0i8, 1i8)),
@@ -307,8 +307,6 @@ fn demonstrate() {
     let ely_sine = sine::driad(&sine_arf());
     let expr:Expr = (vec![1f32], vec![1f32], vec![0f32]);
 
-    
-
     let feel_brush:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: ely_brush.modders,
@@ -319,8 +317,8 @@ fn demonstrate() {
         bp: (vec![MFf], vec![NFf]),
         modifiers: ely_sine.modders,
         clippers: (0f32, 1f32)
-    
     };
+
     let feel_chords:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: ely_chords.modders,
@@ -330,10 +328,10 @@ fn demonstrate() {
     let delays:Vec<DelayParams> = vec![delay::passthrough];
     let vibe_melody = vibe_melody();
     let hats_melody = hats_melody();
-
+    let chords_melody = chords_melody();
     let stem_vibe = vibe::stem(&vibe_melody, &vibe_arf());
     let stem_hats = hats::renderable(&hats_melody, &vibe_arf());
-    let stem_chords =(&chords_melody(), ely_chords.soids, vibe::expr(&vibe_arf()), feel_chords, ely_chords.knob_mods, vec![delay::passthrough]);
+    let stem_chords =chords::renderable(&chords_melody, &chords_arf());
     let stem_sine = (&sine_melody(), ely_sine.soids, expr, feel_sine, ely_sine.knob_mods, vec![delay::passthrough]);
     let stem_brush = (&brush_melody(), ely_brush.soids, brush::expr(&brush_arf()), feel_brush, ely_brush.knob_mods, vec![delay::passthrough]);
     let kick_mel = kick_melody();
@@ -341,12 +339,12 @@ fn demonstrate() {
 
     use Renderable::*;
     let renderables:Vec<Renderable> = vec![
-        // stem_vibe,
+        stem_vibe,
         stem_hats,
-        // Instance(stem_sine),
-        // Instance(stem_brush),
-        // Instance(stem_chords),
-        // Group(group_kick)
+        stem_chords,
+        Instance(stem_sine),
+        Instance(stem_brush),
+        Group(group_kick)
     ];
 
     // let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];

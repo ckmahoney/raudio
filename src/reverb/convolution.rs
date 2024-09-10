@@ -59,7 +59,6 @@ fn gen_impulse(amp:f32, rate:f32, dur:f32) -> SampleBuffer {
 /// onto a given signal. Here it genereates an impulse response to produce a reverberation effect.
 pub fn of(sig: &SampleBuffer, params: &ReverbParams) -> SampleBuffer {
     let impulse_response = gen_impulse(params.amp, params.rate, params.dur);
-    println!("Impulse response len {}", impulse_response.len());
     let n = sig.len() + impulse_response.len();
     
     let mut planner = FftPlanner::new();
