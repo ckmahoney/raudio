@@ -88,8 +88,8 @@ impl Instrument {
 
         match arf.role {
             Kick => kuwuku::kick::renderable(melody, arf),
-            Perc => kuwuku::kick::renderable(melody, arf),
-            Hats => kuwuku::kick::renderable(melody, arf),
+            Perc => kuwuku::perc::renderable(melody, arf),
+            Hats => kuwuku::hats::renderable(melody, arf),
             Lead => kuwuku::lead::renderable(melody, arf),
             Bass => kuwuku::bass::renderable(melody, arf),
             Chords => kuwuku::chords::renderable(melody, arf),
