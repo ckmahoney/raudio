@@ -16,7 +16,7 @@ use crate::render;
 use crate::reverb::convolution;
 use crate::time::{self, samples_per_cycle};
 use crate::types::timbre::{AmpContour, Arf, AmpLifespan};
-use crate::types::synthesis::{GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Soids, Dressor};
+use crate::types::synthesis::{GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Soids};
 use crate::types::render::{Melody,Span, Stem, Feel};
 use rand;
 use rand::{Rng, thread_rng};

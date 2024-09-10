@@ -19,9 +19,9 @@ pub fn octave(freq:f32) -> Soids {
 }
 
 
-/// Generates sinusoids representing undertone placement using a "sawtooth" pattern.
+/// Generates sinusoids representing undertone placement using a "square" pattern.
 /// Intended to be tall but focused on the low end.
-pub fn under(freq:f32) -> Soids {
+pub fn under_square(freq:f32) -> Soids {
     let n = (freq / MFf / 2f32).floor() as usize;
 
     let mut muls:Vec<f32> = vec![];

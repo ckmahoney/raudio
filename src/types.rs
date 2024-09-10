@@ -129,26 +129,8 @@ pub mod synthesis {
         Warp(PhaseModParams)
     }
 
-    #[derive(Debug)]
-    pub struct Dressing {
-        pub len: usize,
-        pub multipliers: Vec<f32>,
-        pub amplitudes: Vec<f32>,
-        pub offsets: Vec<f32>,
-    }
-    pub type Dressor = fn (f32) -> Dressing;
 
 
-    pub struct Armoir;
-    impl Armoir {
-        pub fn select_melodic(energy:timbre::Energy) -> Dressor {
-            match energy {
-                timbre::Energy::Low => melodic::dress_triangle as fn(f32) -> Dressing,
-                timbre::Energy::Medium => melodic::dress_square as fn(f32) -> Dressing,
-                timbre::Energy::High => melodic::dress_sawtooth as fn(f32) -> Dressing 
-            }
-        }
-    }
 
 
     /// Collection of optional additive modulations for a signal.
@@ -221,7 +203,6 @@ pub mod render {
     use super::synthesis::{self, *};
     use super::timbre;
     use crate::analysis::delay::DelayParams;
-    use crate::analysis::trig;
     use crate::druid::melodic::{soids_triangle, soids_square, soids_sawtooth};
     use crate::phrasing::contour::{Expr, Expr2};
     use crate::phrasing::ranger::KnobMods;
@@ -391,79 +372,10 @@ pub mod render {
         Vec<crate::analysis::delay::DelayParams>
     );
 
-    fn select_expr(arf:&timbre::Arf) -> Expr {
-        let mut rng  = thread_rng();
-
-        use timbre::AmpLifespan::{self,*};
-        use timbre::Role::{self,*};
-        let plucky_lifespans:Vec<AmpLifespan> = vec![Pluck, Snap, Burst];
-        let sussy_lifespans:Vec<AmpLifespan> = vec![Spring, Bloom, Pad, Drone];
-
-        let lifespan = match arf.role {
-            Kick | Perc | Hats => plucky_lifespans.choose(&mut rng).unwrap(),
-            Lead | Chords | Bass => match arf.presence {
-                timbre::Presence::Legato => sussy_lifespans.choose(&mut rng).unwrap(),
-                timbre::Presence::Staccatto => plucky_lifespans.choose(&mut rng).unwrap(),
-                timbre::Presence::Tenuto => {
-                    if rng.gen_bool(0.33) {
-                        plucky_lifespans.choose(&mut rng).unwrap()
-                    } else {
-                        sussy_lifespans.choose(&mut rng).unwrap()
-                    }
-                },
-            }
-        };
-
-
-        let amp_contour: Vec<f32> = crate::phrasing::lifespan::sample_lifespan(crate::synth::SR, lifespan, 1, 1f32);
-        (amp_contour, vec![1f32], vec![0f32])
-    }
+    
 
     use crate::{presets, AmpContour};
-    pub struct Instrument;
-    impl Instrument {
-        pub fn unit<'render>(melody:&'render Melody<Note>, energy:timbre::Energy, delays:Vec<DelayParams>) -> Stem<'render> {
-            let dressor = Armoir::select_melodic(energy);
-            let dressing:Dressing = dressor(crate::synth::MFf);
-
-            // overly verbose code to demonstrate the pattern 
-            let dressing_as_vecs = vec![(dressing.amplitudes, dressing.multipliers, dressing.offsets)];
-            let tmp = trig::prepare_soids_input(dressing_as_vecs);
-            let soids = trig::process_soids(tmp);
-            (
-                melody,
-                soids,
-                (vec![1f32],vec![1f32],vec![0f32]),
-                Feel::unit(),
-                KnobMods::unit(),
-                delays
-            )
-        }
-
-        pub fn select<'render>(melody:&'render Melody<Note>, arf:&timbre::Arf, delays:Vec<DelayParams>) -> Stem<'render> {
-            use timbre::Role::*;
-            use crate::synth::MFf;
-            use crate::phrasing::ranger::KnobMods;
-            let Ely {soids, modders, knob_mods} = match arf.role {
-                Kick => presets::kick_hard::driad(arf), 
-                Perc => presets::snare_hard::driad(arf), 
-                Hats => presets::hats_hard::driad(arf), 
-                Bass => presets::bass::driad(arf), 
-                Chords => presets::chords::driad(arf), 
-                Lead => presets::lead::driad(arf), 
-            };
-
-            (
-                melody,
-                soids,
-                // (vec![1f32],vec![1f32],vec![0f32]),
-                select_expr(&arf),
-                Feel::select(arf).with_modifiers(modders),
-                knob_mods,
-                delays
-            )
-        }
-    }
+    
 }
 
 pub mod timbre {

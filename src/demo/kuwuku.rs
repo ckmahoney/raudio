@@ -7,7 +7,8 @@ static demo_name:&str = "kuwuku";
 
 use crate::render::{self, Renderable};
 use crate::reverb;
-use crate::types::render::{Stem, Melody, Feel, Instrument};
+use crate::types::render::{Stem, Melody, Feel};
+use crate::presets::Instrument;
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::volume::db_to_amp;
 

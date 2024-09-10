@@ -62,16 +62,6 @@ fn render_playbook(out_dir: &str, playbook_path: &str, asset_name: &str) {
     }
 }
 
-// pub fn part_to_stem<'render>(
-//     rng:&mut ThreadRng, 
-//     cps:f32, 
-//     pos: &types::timbre::ClientPositioning, 
-//     arf:&Arf, 
-//     melody: &'render Melody<Note>,
-//     delays: &'render types::timbre::DelayLine
-// ) -> types::render::Stem<'render> {
-//     types::render::Instrument::unit(melody, arf.energy, delays)
-// }
 
 pub fn complexity(v:&Visibility, e:&Energy, p:&Presence) -> f32 {
     let cv:f32 = match *v {
@@ -96,6 +86,7 @@ pub fn complexity(v:&Visibility, e:&Energy, p:&Presence) -> f32 {
     (cv + ce + cp) / 3f32
 }
 
+
 pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stems:bool) -> String  {
     let mixdown_name = format!("{}/{}.wav", out_dir, asset_name);
     files::with_dir(&mixdown_name);
@@ -105,7 +96,7 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
 
     for (client_positioning, arf, melody) in &score.parts {
         let delays = inp::arg_xform::gen_delays(&mut rng, score.conf.cps, &client_positioning.echo, complexity(&arf.visibility, &arf.energy, &arf.presence));
-        let stem = types::render::Instrument::select(melody, arf, delays);
+        let stem = presets::Instrument::select(melody, arf, delays);
         stems.push(stem)
     }
     let verb_complexity:f32 = rng.gen::<f32>()/10f32;

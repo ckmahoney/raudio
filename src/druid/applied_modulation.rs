@@ -1,7 +1,8 @@
 use crate::synth::pi2;
 use super::compute::ModulationMode;
-pub use crate::types::synthesis::{Modifiers, ModifiersHolder, Dressing, ModulationEffect, AmplitudeModParams, FrequencyModParams, PhaseModParams};
+pub use crate::types::synthesis::{Modifiers, ModifiersHolder,ModulationEffect, AmplitudeModParams, FrequencyModParams, PhaseModParams};
 use rand::Rng;
+use crate::presets::Dressing;
 use rand::rngs::ThreadRng;
 
 /// Macro to create a simple preset.

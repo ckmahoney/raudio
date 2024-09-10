@@ -54,7 +54,6 @@ fn gen_impulse(amp:f32, rate:f32, dur:f32) -> SampleBuffer {
     ).collect()
 }
 
-
 /// Applies convolution with a noise buffer
 /// onto a given signal. Here it genereates an impulse response to produce a reverberation effect.
 pub fn of(sig: &SampleBuffer, params: &ReverbParams) -> SampleBuffer {

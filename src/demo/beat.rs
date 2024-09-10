@@ -3,9 +3,11 @@ use std::iter::FromIterator;
 
 use crate::files;
 use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
-use crate::types::render::{Stem, Melody, Feel, Instrument};
+use crate::types::render::{Stem, Melody, Feel};
+use crate::presets::Instrument;
 use crate::time;
-use presets::{kick, kick_hard, snare, snare_hard, hats, hats_hard};
+use presets::basic::*;
+use presets::hard::*;
 
 use crate::phrasing::{ranger::KnobMods, lifespan};
 use crate::reverb;

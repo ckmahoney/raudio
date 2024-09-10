@@ -1,5 +1,6 @@
 use super::*;
-use crate::types::synthesis::{Dressing, Soids};
+use crate::types::synthesis::{Soids};
+use crate::presets::Dressing;
 
 /// Constant for square wave amplitude calculation
 static C_SQUARE: f32 = 4f32 / pi;

@@ -4,13 +4,16 @@ use std::iter::FromIterator;
 use crate::files;
 use crate::synth::{MF, NF, SR, SampleBuffer, pi, pi2};
 use crate::types::synthesis::{Frex, GlideLen,Ampl, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
-use crate::types::render::{Stem, Instrument, Melody};
+use crate::types::render::{Stem, Melody};
+use crate::presets::Instrument;
 use crate::reverb;
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
-use presets::{bass, bass_smoother, chords, chords_smoother, lead,lead_smoother};
 use crate::analysis::delay::{self, DelayParams};
+
+use presets::basic::*;
+use presets::smooth::*;
 
 use crate::phrasing::{lifespan, ranger::{self, Knob, KnobMods}};
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};

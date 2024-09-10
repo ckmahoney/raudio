@@ -8,7 +8,8 @@
 use crate::synth::{SR, SRf, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
 use crate::analysis::delay;
 use crate::analysis::xform_freq;
-use crate::druid::applied_modulation::{Dressing, ModulationEffect, Modifiers, ModifiersHolder, gen_vibrato, gen_tremelo, update_mods};
+use crate::druid::applied_modulation::{ModulationEffect, Modifiers, ModifiersHolder, gen_vibrato, gen_tremelo, update_mods};
+use crate::presets::Dressing;
 use crate::druid::compute::ModulationMode;
 use crate::time;
 use crate::types::synthesis::{Frex, GlideLen, Bp,Range, Direction, Duration, FilterPoint, Radian, Freq, Monae, Mote, Note, Tone};

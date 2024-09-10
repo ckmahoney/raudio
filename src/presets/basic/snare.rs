@@ -1,7 +1,6 @@
 /// A synth snare from three components
 use super::*;
 
-
 fn noise_pluck(fund:f32, vis:&Visibility, energy:&Energy, presence:&Presence) -> Element {
     let muls = noise::multipliers(fund, &Energy::Low);
     let mut rng = rand::thread_rng();

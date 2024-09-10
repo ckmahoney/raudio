@@ -10,7 +10,7 @@ use crate::types::render::{Melody};
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::{presets, render};
 use crate::time;
-use presets::{bass, bass_smoother, chords, chords_smoother, lead,lead_smoother};
+use presets::{basic::*, smooth::*};
 
 use crate::phrasing::lifespan;
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};

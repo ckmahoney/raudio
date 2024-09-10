@@ -51,7 +51,7 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
 
     //# tonal component
 
-    let soids_tonal = druidic_soids::under(2f32.powi(10i32));
+    let soids_tonal = druidic_soids::under_square(2f32.powi(10i32));
     let modifiers_tonal:ModifiersHolder = (vec![], vec![], vec![], vec![]);
     let feel_tonal:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
