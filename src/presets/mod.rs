@@ -1,17 +1,23 @@
+pub mod basic;
+pub mod kuwuku;
+
+pub mod smooth {
+    use bass_smoother;
+    pub mod chords_smoother;
+    pub mod lead_smoother;
+}
+
+
 /// Focal point of this module, the presets for your score 
 pub mod kick;
 pub mod kick_hard;
-pub mod kuwuku;
 pub mod snare;
 pub mod snare_hard;
 pub mod hats;
 pub mod hats_hard;
 pub mod bass;
-pub mod bass_smoother;
 pub mod chords;
-pub mod chords_smoother;
 pub mod lead;
-pub mod lead_smoother;
 
 
 /// Shared imports for all presets in this mod
