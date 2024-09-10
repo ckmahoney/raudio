@@ -1,4 +1,4 @@
-use super::out_dir;
+use super::*;
 use std::iter::FromIterator;
 
 use crate::files;
@@ -297,7 +297,7 @@ fn demonstrate(selection:Option<usize>) {
     let mut lead = Instrument::select(&melodies[2], &arfs[2], vec![delay::passthrough]);
 
 
-    let stems:[Stem;3] = [
+    let stems:[Renderable;3] = [
         Instrument::select(&melodies[0], &arfs[0], vec![delay::passthrough]),
         Instrument::select(&melodies[1], &arfs[1], vec![delay::passthrough]),
         Instrument::select(&melodies[2], &arfs[2], vec![delay::passthrough]),
@@ -307,7 +307,7 @@ fn demonstrate(selection:Option<usize>) {
     
 
     let keep_stems = Some(path.as_str());
-    render::combine(cps, root, &stems.to_vec(), &group_reverbs, keep_stems);
+    render::combiner(cps, root, &stems.to_vec(), &group_reverbs, keep_stems);
 }
 
 #[cfg(test)]

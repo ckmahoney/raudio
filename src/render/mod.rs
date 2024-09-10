@@ -22,6 +22,7 @@ use rand;
 use rand::{Rng, thread_rng};
 use rand::rngs::ThreadRng;
 
+#[derive(Clone,Debug)]
 pub enum Renderable<'render> {
     Instance(Stem<'render>),
     Group(Vec<Stem<'render>>),
@@ -444,36 +445,6 @@ pub fn summer<'render>(
         }
     }
     sig
-}
-
-/// Given a list of stems and how to represent them in space, 
-/// Generate the signals and apply reverberation. Return the new signal.
-/// Accepts an optional parameter keep_stems. When provided, it is the directory for placing the stems.
-pub fn combine(cps:f32, root:f32, stems:&Vec<Stem>, reverbs:&Vec<convolution::ReverbParams>, keep_stems:Option<&str>) -> SampleBuffer {
-    let mut channels:Vec<SampleBuffer> = stems.iter().map(|stem| channel(cps, root, &stem)).collect();
-    if keep_stems.is_some() {
-        let stem_dir:&str = keep_stems.unwrap();
-        channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
-            let filename:String = format!("{}/stem-{}.wav", stem_dir, stem_num);
-            render::engrave::samples(SR, &channel_samples, &filename);
-        });
-    }
-    match pad_and_mix_buffers(channels) {
-        Ok(signal) => {
-            if reverbs.len() == 0 {
-                signal
-            } else {
-                reverbs.iter().fold(signal, |sig, params| {
-                    let mut sig =convolution::of(&sig, &params);
-                    trim_zeros(&mut sig);
-                    sig
-                })
-            }
-        },
-        Err(msg) => {
-            panic!("Failed to mix and render audio: {}", msg)
-        }
-    }
 }
 
 

@@ -16,6 +16,7 @@ use crate::types::synthesis::*;
 use crate::types::timbre;
 use crate::types::timbre::*;
 use crate::types::render::*;
+use crate::render::Renderable;
 
 mod analysis;
 pub use analysis::monic_theory;
@@ -92,7 +93,7 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
     files::with_dir(&mixdown_name);
     let mut pre_mix_buffs:Vec<synth::SampleBuffer> = Vec::new();
     let mut rng:ThreadRng = rand::thread_rng();
-    let mut stems:Vec<Stem> = Vec::with_capacity(score.parts.len());
+    let mut stems:Vec<Renderable> = Vec::with_capacity(score.parts.len());
 
     for (client_positioning, arf, melody) in &score.parts {
         let delays = inp::arg_xform::gen_delays(&mut rng, score.conf.cps, &client_positioning.echo, complexity(&arf.visibility, &arf.energy, &arf.presence));
@@ -109,7 +110,7 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
     );
     let keeps = if keep_stems { Some(out_dir) } else { None };
     let keeps = None;
-    let signal = render::combine(score.conf.cps, score.conf.root, &stems, &group_reverbs, keeps);
+    let signal = render::combiner(score.conf.cps, score.conf.root, &stems, &group_reverbs, keeps);
     render::engrave::samples(crate::synth::SR, &signal, &mixdown_name);
     mixdown_name
 }

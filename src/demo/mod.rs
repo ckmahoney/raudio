@@ -12,6 +12,7 @@ use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::delay::{self, DelayParams};
 use crate::synth::{MFf,NFf, SR};
+use crate::render::Renderable;
 
 pub fn location(name:&str) -> String {
     format!("{}/{}", out_dir, name)

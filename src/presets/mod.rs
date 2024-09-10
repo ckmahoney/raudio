@@ -79,7 +79,7 @@ impl Instrument {
         )
     }
 
-    pub fn select<'render>(melody:&'render Melody<Note>, arf:&Arf, delays:Vec<DelayParams>) -> Stem<'render> {
+    pub fn select<'render>(melody:&'render Melody<Note>, arf:&Arf, delays:Vec<DelayParams>) -> Renderable<'render> {
         use Role::*;
         use crate::synth::MFf;
         use crate::phrasing::ranger::KnobMods;
@@ -95,7 +95,7 @@ impl Instrument {
             Lead => lead::driad(arf), 
         };
 
-        (
+        Renderable::Instance((
             melody,
             soids,
             // (vec![1f32],vec![1f32],vec![0f32]),
@@ -103,7 +103,7 @@ impl Instrument {
             Feel::select(arf).with_modifiers(modders),
             knob_mods,
             delays
-        )
+        ))
     }
 }
 

@@ -12,6 +12,7 @@ use presets::hard::*;
 use crate::phrasing::{ranger::KnobMods, lifespan};
 use crate::reverb;
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
+use crate::render::Renderable;
 
 static demo_name:&str = "beat";
 
@@ -162,7 +163,6 @@ fn gen_arfs(spec:&Coverage) -> Vec<(String, Arf)> {
     arfs
 }
 
-
 fn get_arfs() -> [Arf;3] {
     let kick:Arf = Arf {
         mode: Mode::Melodic,
@@ -257,7 +257,7 @@ fn demonstrate(selection:Option<usize>) {
     let melodies = make_melodies();
     let arfs = get_arfs();
 
-    let stems:[Stem;3] = [
+    let stems:[Renderable;3] = [
         Instrument::select(&melodies[0], &arfs[0], vec![delay::passthrough]),
         Instrument::select(&melodies[1], &arfs[1], vec![delay::passthrough]),
         Instrument::select(&melodies[2], &arfs[2], vec![delay::passthrough]),
@@ -265,7 +265,7 @@ fn demonstrate(selection:Option<usize>) {
     let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
 
     let keep_stems = Some(path.as_str());
-    render::combine(cps, root, &stems.to_vec(), &group_reverbs, keep_stems);
+    render::combiner(cps, root, &stems.to_vec(), &group_reverbs, keep_stems);
 }
 
 #[cfg(test)]
