@@ -218,7 +218,7 @@ fn lead_melody() -> Melody<Note> {
     let amps:Vec<Ampl> = vec![
         1f32, 0.5f32, 0.66f32,
         0.5f32, 1f32, 0.5f32, 0.75f32
-    ];
+    ].iter().map(|x| x * db_to_amp(-20f32)).collect();
 
     let tones:Vec<Tone> = vec![
         (7, (0i8, 0i8, 5i8)),

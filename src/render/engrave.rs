@@ -13,3 +13,4 @@ pub fn samples(sample_rate:usize, samples: &Vec<f32>, filename: &str) {
     }
     writer.finalize().unwrap();
 }
+
