@@ -1,4 +1,6 @@
-use crate::analysis::volume;
+use std::os::unix::thread;
+
+use crate::analysis::volume::db_to_amp;
 /// # Rangers
 /// 
 /// These methods offer per-multipler modulation at gentime on a per-sample basis.
@@ -41,7 +43,7 @@ impl KnobMods {
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -56,7 +58,7 @@ pub fn amod_noop(knob:&Knob, cps:f32, fund:f32, mul:f32, n_cycles:f32, pos_cycle
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -71,7 +73,7 @@ pub fn fmod_noop(knob:&Knob, cps:f32, fund:f32, mul:f32, n_cycles:f32, pos_cycle
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -87,7 +89,7 @@ pub fn pmod_noop(knob:&Knob, cps:f32, fund:f32, mul:f32, n_cycles:f32, pos_cycle
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -132,7 +134,7 @@ pub fn fmod_sweepdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32,
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -172,14 +174,14 @@ pub fn fmod_vibrato(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, p
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
 /// ## Knob Params
 /// `a`: The amount of detune to apply. 0 is none, 1 is maximum amount. 
-/// `b`: unused.   
-/// `c`: unused.   
+/// `b`: unused.  
+/// `c`: unused.  
 /// 
 /// ## Observations
 /// 
@@ -207,25 +209,52 @@ pub fn fmod_warble(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
 /// ## Knob Params
-/// `a`: The depth of detune to apply. 0 is none, 1 is maximum amount. 
-/// `b`: The intensity of detune to apply. 0 is more transparent, 1 is very visible.  
-/// `c`: unused. 
+/// `a`: The depth of detune to apply. 0 is none, 1 is maximum amount.  
+/// `b`: The intensity of detune to apply. 0 is more transparent, 1 is very visible.   
+/// `c`: Modulation factor.
+///
 /// 
 /// ## Observations
+/// This is a subtle and highly effective modulation. So transparent while very colorful.
 /// 
 /// ## Desmos 
 /// 
 /// ## Returns
 pub fn pmod_chorus(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
     let t:f32 = pos_cycles/n_cycles;
-    -f32::sin(t * knob.a * pi2 * mul)*pi2.powf(knob.b)
+    (f32::sin(t * knob.a * pi2 * mul)*pi.powf(knob.b)).powf(1f32 + 0f32 * knob.c * 2f32)
 }
 
+pub fn pmod_weird(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = pos_cycles/n_cycles;
+    knob.a * t.powf(8f32 - 7f32 * knob.b) * pi * (t * mul.sqrt()).sin() * fund * mul
+}
+
+/// A constant peak at some point up to 4 octaves above the fundamental.
+/// 
+/// Works by damping all other frequencies.
+/// Offers a damping intensity scalor.
+/// 
+/// ## Knob params 
+/// `a`: frequency selector   
+/// `b`: resonant factor  
+/// `c`: damping intensity  
+pub fn amod_peak(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let max_mul: f32 = NFf / (mul * fund); 
+    let max_freq:f32 = max_mul.max(4f32);
+    let target_freq:f32 = fund * 2f32.powf(knob.a * max_freq);
+    let df = (target_freq - fund*mul).abs();
+    if df < 10f32 {
+        1f32
+    } else { 
+        db_to_amp(knob.b * -60f32)
+    }
+}
 
 
 /// A oneshot amplitude modulation adding a "huh" like breathing in for a word.
@@ -233,7 +262,7 @@ pub fn pmod_chorus(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -261,7 +290,7 @@ pub fn amod_breath(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -290,7 +319,7 @@ pub fn amod_microtransient(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles:
 
     let p:f32 = curr_sample as f32 / n_samples as f32;
     let y = one - (curr_sample as f32 /n_samples as f32);
-    volume::db_to_amp(-120f32 + 120f32*y)
+    db_to_amp(-120f32 + 120f32*y)
 }
 
 #[test]
@@ -327,7 +356,7 @@ fn test_amod_microtransient_monotonic_decreasing() {
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -360,7 +389,7 @@ pub fn amod_impulse(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, p
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -389,7 +418,7 @@ pub fn amod_pluck(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -416,7 +445,7 @@ pub fn amod_burp(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
@@ -443,7 +472,7 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
 /// `fund` The reference fundamental frequency  
-/// `mul` The current multiplier wrt the fundamental  
+/// `mul` The current multiplier with respect to the fundamental  
 /// `n_cycles` Total duration of this event in cycles  
 /// `pos_cycles` The current position in the event (in cycles)  
 /// 
