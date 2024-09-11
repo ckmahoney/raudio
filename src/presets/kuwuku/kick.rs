@@ -5,7 +5,7 @@ use crate::druid::{self, soids as druidic_soids};
 
 /// Softens the overall amplitude
 pub fn expr_noise(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-60f32) * 0.33f32], vec![1f32], vec![0f32])
+    (vec![db_to_amp(-70f32) * 0.33f32], vec![1f32], vec![0f32])
 }
 
 /// Provides slight pitch bend 
@@ -64,7 +64,7 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
         Energy::Medium => druidic_soids::NoiseType::Equal,
         Energy::High => druidic_soids::NoiseType::Pink,
     };
-    let soids_noise = druidic_soids::noise(16f32, noise_type);
+    let soids_noise = druidic_soids::noise(128f32, noise_type);
     let modifiers_noise:ModifiersHolder = (
         vec![],
         vec![],
