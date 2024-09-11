@@ -21,7 +21,7 @@ use crate::AmpLifespan;
 use crate::analysis::{trig,volume::db_to_amp};
 
 use crate::types::render::{Feel, Melody, Stem};
-use crate::types::synthesis::{Freq, Note, Direction, Ely};
+use crate::types::synthesis::{Freq, Note, Direction, Ely, PhaseModParams, ModulationEffect};
 use crate::types::timbre::{Arf, Role, Mode, Visibility, Sound, Sound2, Energy, Presence, Phrasing};
 use crate::types::{Range, Radian};
 use crate::druid::{Element, Elementor, melodic, bell, noise};

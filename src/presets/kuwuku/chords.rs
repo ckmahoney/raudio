@@ -15,21 +15,41 @@ fn amp_knob_noise() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
 
 }
 
-fn amp_knob_noise2() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+fn amp_knob_tonal() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let sustain = 0.5f32;
 
     (Knob { a: sustain, b: 0.0f32, c: 0.0}, ranger::amod_breath)
 }
 
-fn amp_knob_tonal() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    let decay_rate = 0.1f32;
-    (Knob { a: decay_rate, b: 0.0, c: 0.0}, ranger::amod_impulse)
+
+fn freq_knob_tonal(v:Visibility, e:Energy, p:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mut rng = thread_rng();
+    let modulation_amount = match e {
+        Energy::Low => 0.005f32 + 0.003 * rng.gen::<f32>(),
+        Energy::Medium => 0.008f32 + 0.012f32 * rng.gen::<f32>(),
+        Energy::High => 0.1f32 + 0.2f32 * rng.gen::<f32>()
+    };
+    (Knob { a: modulation_amount, b: 0f32, c: 0.0}, ranger::fmod_warble)
 }
 
-fn freq_knob_tonal() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    let modulation_amoutnt = 0.2f32;
-    let decay_rate = 1f32;
-    (Knob { a: modulation_amoutnt, b: decay_rate, c: 0.0}, ranger::fmod_warble)
+fn pmod_knob_tonal(v:Visibility, e:Energy, p:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mut rng = thread_rng();
+
+    let modulation_depth:f32 = match v {
+        Visibility::Hidden => 0.33f32,
+        Visibility::Background => 0.5,
+        Visibility::Foreground => 0.75,
+        Visibility::Visible => 1f32,
+    };
+
+    let chorus_visibility:f32 = match v {
+        Visibility::Hidden => 0f32,
+        Visibility::Background => 0.1f32 + 0.5f32 * rng.gen::<f32>(),
+        Visibility::Foreground => 0.6f32 + 0.2f32 * rng.gen::<f32>(),
+        Visibility::Visible => 0.8f32 + 0.1f32 * rng.gen::<f32>(),
+    };
+
+    (Knob { a: modulation_depth, b: chorus_visibility, c: 0.0}, ranger::pmod_chorus)
 }
 
 pub fn expr_noise(arf:&Arf) -> Expr {
@@ -46,9 +66,8 @@ pub fn expr_tonal(arf:&Arf) -> Expr {
 ///  - an impulse of staccato undertone voicing
 ///  - a pluck of pink noise 
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
-    //# noise component
+
     //# microtransient that indicates the note has started
-    
     let soids_noise = druidic_soids::noise(1024f32, druidic_soids::NoiseType::Pink);
     let modifiers_noise:ModifiersHolder = (vec![], vec![], vec![], vec![]);
     let feel_noise:Feel = Feel {
@@ -59,6 +78,7 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     
     let mut knob_mods_noise:KnobMods = KnobMods::unit();
     knob_mods_noise.0.push(amp_knob_noise());
+
     // knob_mods_noise.0.push(amp_knob_noise2());
     let stem_noise = (melody, soids_noise, expr_noise(arf), feel_noise, knob_mods_noise, vec![delay::passthrough]);
 
@@ -73,7 +93,9 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     };
 
     let mut knob_mods_tonal:KnobMods = KnobMods::unit();
-    knob_mods_tonal.1.push(freq_knob_tonal());
+    knob_mods_tonal.0.push(amp_knob_tonal());
+    // knob_mods_tonal.1.push(freq_knob_tonal(arf.visibility, arf.energy, arf.presence));
+    knob_mods_tonal.2.push(pmod_knob_tonal(arf.visibility, arf.energy, arf.presence));
     let stem_tonal = (melody, soids_tonal, expr_tonal(arf), feel_tonal, knob_mods_tonal, vec![delay::passthrough]);
 
     Renderable::Group(vec![
