@@ -96,6 +96,8 @@ pub mod synthesis {
     pub type Frex = (GlideLen, Option<Freq>, Freq, Option<Freq>, GlideLen);
 
     /// Parameters for amplitude modulation effects.
+    /// Is passed as direct amplitude mutation of audio signal's constituent sine component. 
+    /// This is the final modulator in the chain of Expr, KnobMod, and Modders.
     #[derive(Debug, Clone, Copy)]
     pub struct AmplitudeModParams {
         pub freq: f32,
@@ -104,6 +106,8 @@ pub mod synthesis {
     }
 
     /// Parameters for frequency modulation effects.
+    /// Is passed as direct frequency mutation of audio signal's constituent sine component. 
+    /// This is the final modulator in the chain of Expr, KnobMod, and Modders.
     #[derive(Debug, Clone, Copy)]
     pub struct FrequencyModParams {
         pub rate: f32, 
@@ -111,6 +115,8 @@ pub mod synthesis {
     }
 
     /// Parameters for phase modulation effects.
+    /// Is passed as direct phase mutation of audio signal's constituent sine component. 
+    /// This is the final modulator in the chain of Expr, KnobMod, and Modders.
     #[derive(Debug, Clone, Copy)]
     pub struct PhaseModParams {
         pub rate: f32, 
@@ -118,7 +124,7 @@ pub mod synthesis {
         pub offset: f32,
     }
 
-    /// Different modulation effects that can be applied to an audio signal.
+    /// Convient name aliasing for common audio processing effects
     #[derive(Debug, Clone, Copy)]
     pub enum ModulationEffect {
         Tremelo(AmplitudeModParams),

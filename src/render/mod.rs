@@ -574,16 +574,16 @@ mod test {
         ];
         let mel = happy_birthday::lead_melody();
         let expr = (vec![1f32],vec![1f32],vec![0f32]);
-        let stems:Vec<Stem> = vec![
-            (&mel, melodic::soids_square(MFf), expr.clone(), feeling_lead(), KnobMods::unit(),  delays_lead),
-            (&mel, melodic::soids_sawtooth(MFf), expr, feeling_chords(), KnobMods::unit(),  delays_chords)
+        let stems:Vec<Renderable> = vec![
+            Renderable::Instance((&mel, melodic::soids_square(MFf), expr.clone(), feeling_lead(), KnobMods::unit(),  delays_lead)),
+            Renderable::Instance((&mel, melodic::soids_sawtooth(MFf), expr, feeling_chords(), KnobMods::unit(),  delays_chords))
         ];
 
         let reverbs:Vec<convolution::ReverbParams> = vec![
             ReverbParams { mix: 0.005, amp: 0.2, dur: 3f32, rate: 0.1 }
         ];
 
-        let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &reverbs, None);
+        let result = combiner(happy_birthday::cps, happy_birthday::root, &stems, &reverbs, None);
         write_test_asset(&result, "combine");
     }
     use crate::types::timbre::{ SpaceEffects, Positioning, Distance, Echo, Enclosure};
@@ -619,12 +619,12 @@ mod test {
             let se_lead:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let se_chords:SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
             let mel = happy_birthday::lead_melody();
-            let stems:Vec<Stem> = vec![
-                (&mel, melodic::soids_square(MFf), expr, feeling_lead(),KnobMods::unit(), se_lead.delays),
+            let stems:Vec<Renderable> = vec![
+                Renderable::Instance((&mel, melodic::soids_square(MFf), expr, feeling_lead(),KnobMods::unit(), se_lead.delays)),
                 // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
             ];
 
-            let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs, None);
+            let result = combiner(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs, None);
             write_test_asset(&result, &format!("combine_with_space_{}", i));
         }
     }
@@ -646,12 +646,12 @@ mod test {
         ];
         let expr = (vec![1f32],vec![1f32],vec![0f32]);
         let soids:Soids = trig::process_soids(trig::prepare_soids_input(soidss));
-        let stems:Vec<Stem> = vec![
-            (&mel, soids, expr, feeling_lead(),KnobMods::unit(), se_lead.delays),
+        let stems:Vec<Renderable> = vec![
+            Renderable::Instance((&mel, soids, expr, feeling_lead(),KnobMods::unit(), se_lead.delays)),
             // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
         ];
 
-        let result = combine(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs, None);
+        let result = combiner(happy_birthday::cps, happy_birthday::root, &stems, &se_lead.reverbs, None);
         write_test_asset(&result, &format!("combine_with_merged_soids"));
     }
 

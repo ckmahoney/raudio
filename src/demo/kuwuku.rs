@@ -252,7 +252,7 @@ fn chords_arf() -> Arf {
         mode: Mode::Melodic,
         role: Role::Chords,
         register: 8,
-        visibility: Visibility::Background,
+        visibility: Visibility::Visible,
         energy: Energy::Medium,
         presence: Presence::Tenuto,
     }
@@ -323,12 +323,12 @@ fn demonstrate() {
 
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
-        stem_lead,
-        stem_hats,
-        stem_chords,
-        stem_bass,
+        // stem_lead,
+        // stem_hats,
+        // stem_chords,
+        // stem_bass,
         stem_perc,
-        render_kick
+        // render_kick
     ];
 
     use crate::Distance;
