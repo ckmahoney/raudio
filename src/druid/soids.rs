@@ -75,7 +75,7 @@ pub fn noise(freq:f32, noise_type:NoiseType) -> Soids {
         for j in 0..n_entries {
             let r1:f32 = rng.gen::<f32>();
             let r2:f32 = rng.gen::<f32>();
-            muls.push(2f32.powf(i as f32 + r1));
+            muls.push(2f32.powf(i as f32 + r1 - 1f32));
             amps.push(amp);
             offs.push(pi2 * r2)
         }
