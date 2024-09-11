@@ -44,7 +44,7 @@ fn amp_reso_gen(modders:&mut KnobMods, visibility:Visibility, energy:Energy, pre
 
 pub fn expr(arf:&Arf) -> Expr {
     (vec![1f32, 0.15, 0.9, 0.05, 0.9, 0.5f32, 0.5f32, 0.33f32, 0.1f32, 0f32], vec![1f32], vec![0f32]);
-    (vec![1f32], vec![1f32], vec![0f32])
+    (vec![db_to_amp(-30f32)], vec![1f32], vec![0f32])
 }
 
 /// Selects a color of noise at -4 height

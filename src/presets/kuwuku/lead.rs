@@ -1,3 +1,5 @@
+use std::os::unix::thread;
+
 use super::super::*;
 use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
@@ -7,6 +9,25 @@ pub fn expr(arf:&Arf) -> Expr {
     (vec![1f32, 0.15, 0.9, 0.05, 0.9, 0.5f32, 0.5f32, 0.33f32, 0.1f32, 0f32], vec![1f32], vec![0f32]);
     (vec![1f32], vec![1f32], vec![0f32])
 }
+
+fn amp_knob_experiement(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mut rng = thread_rng();
+
+    let detune_rate = match energy {
+        Energy::Low => rng.gen::<f32>()/6f32,
+        Energy::Medium => rng.gen::<f32>()/3f32,
+        Energy::High => rng.gen::<f32>(),
+    };
+    let detune_mix = match visibility {
+        Visibility::Visible => 0.33 + 0.47 * rng.gen::<f32>(),
+        Visibility::Foreground => 0.2 + 0.13 * rng.gen::<f32>(),
+        Visibility::Background => 0.1 * 0.1 * rng.gen::<f32>(),
+        Visibility::Hidden => 0.05f32 * rng.gen::<f32>(),
+    };
+
+    return (Knob { a: detune_rate, b: detune_mix, c: 0.0 }, ranger::amod_detune);
+}
+
 
 fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let mut rng = thread_rng();
@@ -60,8 +81,9 @@ pub fn driad(arf:&Arf) -> Ely {
         vec![],
     );
     let mut knob_mods:KnobMods = KnobMods::unit();
-    knob_mods.0.push(amp_knob(arf.visibility, Energy::Low, Presence::Legato));
+    // knob_mods.0.push(amp_knob(arf.visibility, Energy::Low, Presence::Legato));
     knob_mods.0.push(amp_knob(arf.visibility, arf.energy, arf.presence));
+    knob_mods.0.push(amp_knob_experiement(arf.visibility, arf.energy, arf.presence));
     Ely::new(soids, modders, knob_mods)
 }
 

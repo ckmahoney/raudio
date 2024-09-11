@@ -492,6 +492,15 @@ pub fn amod_oscillation_sine(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycle
     1f32 - knob.b * (pi2 * pos_cycles * osc_mod_mul).sin().abs().powi(4i32)
 }
 
+///
+/// `a`: Detune amount. 0 is none; 0.5 is just noticable/vintage; 1 is noticable.
+/// `b`: Detune mix. 0 is none; 1 is completely mixed.
+pub fn amod_detune(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = pos_cycles/n_cycles;
+    let osc_mod_mul:f32 = 2f32.powf(knob.a * 4f32);
+    one - knob.b * (t * mul.powf(2f32 * knob.a) *  pi).sin().abs()
+}
+
 
 
 #[cfg(test)]
