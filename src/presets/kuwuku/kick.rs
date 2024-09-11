@@ -5,12 +5,12 @@ use crate::druid::{self, soids as druidic_soids};
 
 /// Softens the overall amplitude
 pub fn expr_noise(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-30f32) * 0.33f32], vec![1f32], vec![0f32])
+    (vec![db_to_amp(-60f32) * 0.33f32], vec![1f32], vec![0f32])
 }
 
 /// Provides slight pitch bend 
 pub fn expr_sub(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-30f32)], vec![3.2f32, 2.1f32, 1.0f32], vec![0f32])
+    (vec![db_to_amp(-60f32)], vec![3.2f32, 2.1f32, 1.0f32], vec![0f32])
 }
 
 fn amp_knob_subsine(energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {

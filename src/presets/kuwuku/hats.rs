@@ -21,11 +21,11 @@ fn amp_knob_tonal() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
 }
 
 pub fn expr_noise(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-30f32)], vec![1f32], vec![0f32])
+    (vec![db_to_amp(-45f32)], vec![1f32], vec![0f32])
 }
 
 pub fn expr_tonal(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-30f32)], vec![1f32], vec![0f32])
+    (vec![db_to_amp(-45f32)], vec![1f32], vec![0f32])
 }
 
 
