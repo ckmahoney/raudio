@@ -464,7 +464,7 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
     let osc_rate:f32 = 2f32.powf(-4f32 * knob.a);
     let offset_b:f32 = osc_rate / 2f32;
     let y:f32 = (osc_rate - t + offset_b)/osc_rate;
-    (0.5f32 + (y - (y + 0.5).floor())).powi(2i32)
+    one - knob.b * (0.5f32 + (y - (y + 0.5).floor())).powi(2i32)
 }
 
 /// A continuous amplitdue modulation for smooth sine envelopes.
@@ -479,7 +479,7 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
 /// ## Knob Params
 /// 
 /// `a`: Tremelo period. Value of 0 is 1 hits per note, and value of 1 is 2^4 hits per note.  
-/// `b`: unused.   
+/// `b`: Tremelo intensity. Value of 0.01 is barely perceptable, least dynamic range. Value of 1 is maximum dynamic range.   
 /// `c`: unused.  
 /// 
 /// ## Desmos 
@@ -488,9 +488,8 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
 /// ## Returns
 pub fn amod_oscillation_sine(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
     let t:f32 = pos_cycles/n_cycles;
-    let osc_rate:f32 = 2f32.powf(-4f32 * knob.a);
     let osc_mod_mul:f32 = 2f32.powf(knob.a * 4f32);
-    1f32 - (pi * t * osc_mod_mul).sin().abs().powi(4i32)
+    1f32 - knob.b * (pi2 * pos_cycles * osc_mod_mul).sin().abs().powi(4i32)
 }
 
 

@@ -17,7 +17,7 @@ use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2};
 use crate::phrasing::older_ranger::{Modders,OldRangerDeprecated,WOldRangerDeprecateds};
 use crate::phrasing::lifespan;
 use crate::phrasing::micro;
-use crate::AmpLifespan;
+use crate::{render, AmpLifespan};
 use crate::analysis::{trig,volume::db_to_amp};
 
 use crate::types::render::{Feel, Melody, Stem};
@@ -86,13 +86,25 @@ impl Instrument {
         use crate::presets::hard::*;
         use crate::presets::basic::*;
 
-        match arf.role {
+        let renderable = match arf.role {
             Kick => kuwuku::kick::renderable(melody, arf),
             Perc => kuwuku::perc::renderable(melody, arf),
             Hats => kuwuku::hats::renderable(melody, arf),
             Lead => kuwuku::lead::renderable(melody, arf),
             Bass => kuwuku::bass::renderable(melody, arf),
             Chords => kuwuku::chords::renderable(melody, arf),
+        };
+        match renderable {
+            Renderable::Instance(mut stem) => {
+                stem.5 = delays;
+                Renderable::Instance(stem)
+            },
+            Renderable::Group(mut stems) => {
+                for stem in &mut stems {
+                    stem.5 = delays.clone()
+                };
+                Renderable::Group(stems)
+            }
         }
     }
 }

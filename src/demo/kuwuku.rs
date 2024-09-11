@@ -204,7 +204,7 @@ fn perc_melody() -> Melody<Note> {
     ]
 }
 
-fn vibe_melody() -> Melody<Note> {
+fn lead_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
         (1i32,1i32), 
         (3i32,2i32), 
@@ -241,7 +241,7 @@ fn bass_arf() -> Arf {
         role: Role::Bass,
         register: 5,
         visibility: Visibility::Visible,
-        energy: Energy::Medium,
+        energy: Energy::High,
         presence: Presence::Legato,
     }
 }
@@ -282,11 +282,22 @@ fn perc_arf() -> Arf {
     }
 }
 
-fn vibe_arf() -> Arf {
+fn lead_arf() -> Arf {
     Arf {
         mode: Mode::Melodic,
         role: Role::Lead,
         register: 8,
+        visibility: Visibility::Foreground,
+        energy: Energy::High,
+        presence: Presence::Legato,
+    }
+}
+
+fn hats_arf() -> Arf {
+    Arf {
+        mode: Mode::Enharmonic,
+        role: Role::Hats,
+        register: 12,
         visibility: Visibility::Foreground,
         energy: Energy::Medium,
         presence: Presence::Legato,
@@ -307,15 +318,15 @@ fn demonstrate() {
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
 
-    let lead_melody = vibe_melody();
+    let lead_melody = lead_melody();
     let hats_melody = hats_melody();
     let chords_melody = chords_melody();
     let bass_melody = bass_melody();
     let perc_melody = perc_melody();
     let kick_mel = kick_melody();
 
-    let stem_lead = lead::renderable(&lead_melody, &vibe_arf());
-    let stem_hats = hats::renderable(&hats_melody, &vibe_arf());
+    let stem_lead = lead::renderable(&lead_melody, &lead_arf());
+    let stem_hats = hats::renderable(&hats_melody, &hats_arf());
     let stem_chords =chords::renderable(&chords_melody, &chords_arf());
     let stem_bass = bass::renderable(&bass_melody, &bass_arf());
     let stem_perc = perc::renderable(&perc_melody, &perc_arf());
@@ -323,12 +334,12 @@ fn demonstrate() {
 
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
-        // stem_lead,
-        // stem_hats,
-        // stem_chords,
-        // stem_bass,
+        render_kick,
         stem_perc,
-        // render_kick
+        stem_hats,
+        stem_bass,
+        stem_chords,
+        stem_lead,
     ];
 
     use crate::Distance;
