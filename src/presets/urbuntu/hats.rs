@@ -5,11 +5,11 @@ use crate::druid::{self, soids as druidic_soids};
 
 
 pub fn expr_noise(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-45f32)], vec![1f32], vec![0f32])
+    (vec![db_to_amp(-55f32)], vec![1f32], vec![0f32])
 }
 
 pub fn expr_tonal(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-45f32)], vec![1f32], vec![0f32])
+    (vec![db_to_amp(-55f32)], vec![1f32], vec![0f32])
 }
 
 
@@ -17,16 +17,28 @@ pub fn expr_tonal(arf:&Arf) -> Expr {
 // from the given VEP parameters
 
 /// Selects a short lived impulse for the pink noise component of a closed hi hat
-fn amp_knob_noise() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+fn amp_knob_noise(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let sustain = 0.1f32;
-    let decay_rate = 0.1f32;
+    let mut rng = thread_rng();
+    let decay_rate = match energy {
+        Energy::Low => 0.8 + 0.2f32 * rng.gen::<f32>(),
+        Energy::Medium => 0.3 + 0.4f32 * rng.gen::<f32>(),
+        Energy::High => 0.05 + 0.2f32 * rng.gen::<f32>(),
+    };
+    let env_length = match presence {
+        Presence::Tenuto => 0.66f32 + 0.2f32 * rng.gen::<f32>(),
+        Presence::Legato => 0.2f32 + 0.3f32 * rng.gen::<f32>(),
+        Presence::Staccatto => 0.2f32 * rng.gen::<f32>(),
+    };
+    
 
-    (Knob { a: sustain, b: decay_rate, c: 0.0}, ranger::amod_pluck)
+    (Knob { a: env_length, b: decay_rate, c: 0.0}, ranger::amod_pluck)
 }
 
 /// Selects a short lived impulse for the pink noise component of a closed hi hat
 fn amp_knob_tonal() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    let decay_rate = 0.1f32;
+    let mut rng = thread_rng();
+    let decay_rate = 0.2f32 * rng.gen::<f32>();
     (Knob { a: decay_rate, b: 0.0, c: 0.0}, ranger::amod_impulse)
 }
 
@@ -48,7 +60,7 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     };
     
     let mut knob_mods_noise:KnobMods = KnobMods::unit();
-    knob_mods_noise.0.push(amp_knob_noise());
+    knob_mods_noise.0.push(amp_knob_noise(arf.visibility, arf.energy, arf.presence));
     let stem_noise = (melody, soids_noise, expr_noise(arf), feel_noise, knob_mods_noise, vec![delay::passthrough]);
 
     //# tonal component
