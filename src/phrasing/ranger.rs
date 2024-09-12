@@ -322,6 +322,72 @@ pub fn amod_microtransient(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles:
     db_to_amp(-120f32 + 120f32*y)
 }
 
+
+/// A oneshot amplitude contouring adding a linear rise in amplitude (decibel scaled)
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: The total length of the amplitude contour. 0 is off (passthrough) and 1 is half the duration of the noteevent. 
+/// `b`: The dynamic range of the contour. 0 is no change (passthrough), 1 is full decibel scale (-90 to 0).    
+/// `c`: Multipler delay. 0 is no delay, 0.5 scales time by pow2, 1 scales time by pow4  
+pub fn amod_fadein(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    // Prevent division by zero if pos_cycles is 0
+    if pos_cycles == 0.0 {
+        return 0.0;
+    }
+
+    let env_length = n_cycles * knob.a;
+    let t = pos_cycles / env_length;
+
+    // If the position exceeds the envelope length, return full amplitude
+    if t >= 1.0 {
+        return 1.0;
+    }
+
+    // Use multiplier to scale the time response
+    let s_t = t * mul.powf(1f32/3f32);
+
+    // Dynamic range in decibels
+    let dynamic_range_db = -60.0 * knob.b; // Full fade-in is -60dB to 0dB
+
+    // Delay scale based on time and knob.c
+    let delay_scale = s_t.powf(1.0 + 3.0 * knob.c); 
+
+    // Calculate amplitude in decibels and convert to linear
+    let amplitude_db = dynamic_range_db * delay_scale;
+    1f32 - db_to_amp(amplitude_db)
+}
+
+#[test]
+fn test_amod_fadein_monotonic_increasing() {
+    const EPSILON: f32 = 1e-6;
+    let knob = Knob { a: 1.0, b: 0.5, c: 0.5 };
+    let cps: f32 = 1.3;  
+    let fund: f32 = 440.0; 
+    let mul: f32 = 1.0;
+
+    let n_cycles: f32 = 1.0;
+    let mut last_value = 0.0; // Start with minimum amplitude
+
+    for sample in 0..SR {
+        let pos_cycles = sample as f32 / SRf;
+        let result = amod_fadein(&knob, cps, fund, mul, n_cycles, pos_cycles);
+        assert!(result >= last_value, "Value at sample {} was not monotonically increasing. Prev sample {} Curr sample {} ", sample, last_value, result);
+        last_value = result;
+    }
+
+    assert!((1.0 - last_value).abs() <= EPSILON, "Final value was not close to 1: {}", last_value);
+}
+
+
+
 #[test]
 fn test_amod_microtransient_monotonic_decreasing() {
     const EPSILON: f32 = 1e-6;

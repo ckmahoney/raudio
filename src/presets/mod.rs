@@ -2,6 +2,7 @@ pub mod basic;
 pub mod hard;
 pub mod kuwuku;
 pub mod smooth;
+pub mod urbuntu;
 
 
 /// Shared values for all presets in this mod
@@ -85,15 +86,27 @@ impl Instrument {
         use crate::phrasing::ranger::KnobMods;
         use crate::presets::hard::*;
         use crate::presets::basic::*;
-
-        let renderable = match arf.role {
-            Kick => kuwuku::kick::renderable(melody, arf),
-            Perc => kuwuku::perc::renderable(melody, arf),
-            Hats => kuwuku::hats::renderable(melody, arf),
-            Lead => kuwuku::lead::renderable(melody, arf),
-            Bass => kuwuku::bass::renderable(melody, arf),
-            Chords => kuwuku::chords::renderable(melody, arf),
+        
+        let renderable = if false {
+            match arf.role {
+                Kick => kuwuku::kick::renderable(melody, arf),
+                Perc => kuwuku::perc::renderable(melody, arf),
+                Hats => kuwuku::hats::renderable(melody, arf),
+                Lead => urbuntu::lead::renderable(melody, arf),
+                Bass => kuwuku::bass::renderable(melody, arf),
+                Chords => kuwuku::chords::renderable(melody, arf),
+            }
+        } else {
+            match arf.role {
+                Kick => urbuntu::kick::renderable(melody, arf),
+                Perc => urbuntu::perc::renderable(melody, arf),
+                Hats => urbuntu::hats::renderable(melody, arf),
+                Lead => urbuntu::lead::renderable(melody, arf),
+                Bass => urbuntu::bass::renderable(melody, arf),
+                Chords => urbuntu::chords::renderable(melody, arf),
+            }
         };
+
         match renderable {
             Renderable::Instance(mut stem) => {
                 stem.5 = delays;

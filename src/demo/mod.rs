@@ -2,6 +2,7 @@ mod beat;
 mod effects;
 mod kuwuku;
 mod trio;
+mod urbuntu;
 mod vagrant;
 use crate::{presets, render};
 

@@ -18,10 +18,28 @@ pub fn octave(freq:f32) -> Soids {
     (amps, muls, offs) 
 }
 
+/// Generates sinusoids representing undertone placement using an "octave" pattern.
+pub fn under_octave(freq: f32) -> Soids {
+    let n = (freq / MFf / 2f32) as usize;
+    
+    // Start with the first undertone (1) and then add reciprocals of even harmonics
+    let mut muls: Vec<f32> = vec![1.0];
+    muls.append(&mut (2..n).step_by(2).map(|ku| 1.0 / (ku as f32)).collect::<Vec<f32>>());
+    
+    let l = muls.len();
+    
+    // Generate amplitudes with cubic decay similar to the octave function
+    let amps: Vec<f32> = (0..l).map(|i| 1.0 / ((i as f32 + 1.0).powi(3))).collect();
+    
+    // No phase offset
+    let offs: Vec<f32> = vec![0.0; l];
+    
+    (amps, muls, offs)
+}
 
 /// Generates sinusoids representing undertone placement using a "square" pattern.
 /// Intended to be tall but focused on the low end.
-pub fn under_square(freq:f32) -> Soids {
+pub fn under_experiement(freq:f32) -> Soids {
     let n = (freq / MFf / 2f32).floor() as usize;
 
     let mut muls:Vec<f32> = vec![];
@@ -39,6 +57,95 @@ pub fn under_square(freq:f32) -> Soids {
     }
 
     (amps, muls, offs) 
+}
+
+pub fn under_square(freq: f32) -> Soids {
+    let n = (freq / MFf / 2f32).floor() as usize;
+
+    let mut muls: Vec<f32> = vec![];
+    let mut amps: Vec<f32> = vec![];
+    let mut offs: Vec<f32> = vec![];
+
+    for i in (1..=n).step_by(2) { 
+        muls.push(1.0 / (i as f32));  // Undertone frequency placement
+        amps.push(4.0 / (std::f32::consts::PI * i as f32));  // Square wave amplitude scaling
+        if (i + 1) / 2 % 2 == 0 {
+            offs.push(0.0);  // Even indexed odd harmonics have no phase offset
+        } else {
+            offs.push(std::f32::consts::PI);  // Odd indexed odd harmonics have a PI phase offset
+        }
+    }
+
+    (amps, muls, offs)
+}
+
+pub fn under_sawtooth(freq: f32) -> Soids {
+    let n = (freq / MFf / 2f32).floor() as usize;
+
+    let mut muls: Vec<f32> = vec![];
+    let mut amps: Vec<f32> = vec![];
+    let mut offs: Vec<f32> = vec![];
+
+    for i in 1..=n {
+        muls.push(1.0 / (i as f32));  // Undertone frequency placement
+        amps.push(2.0 / (std::f32::consts::PI * i as f32));  // Sawtooth amplitude scaling
+        offs.push(0.0);  // No phase shift for sawtooth wave
+    }
+
+    (amps, muls, offs)
+}
+
+/// Generates sinusoids representing undertone placement using a "triangle" pattern.
+pub fn under_triangle(freq: f32) -> Soids {
+    let n = (freq / MFf / 2f32).floor() as usize;
+
+    let mut muls: Vec<f32> = vec![];
+    let mut amps: Vec<f32> = vec![];
+    let mut offs: Vec<f32> = vec![];
+
+    for i in (1..=n).step_by(2) {
+        muls.push(1.0 / (i as f32));  // Undertone frequency placement (odd harmonics)
+        let sign = if (i - 1) / 2 % 2 == 0 { 1.0 } else { -1.0 };  // Alternating sign
+        amps.push(sign * 8.0 / (std::f32::consts::PI * std::f32::consts::PI * (i as f32).powi(2)));  // Triangle amplitude scaling
+        offs.push(0.0);  // No phase shift for triangle wave
+    }
+
+    (amps, muls, offs)
+}
+
+
+pub fn overs_square(freq: f32) -> Soids {
+    let n = (NFf / freq) as usize;
+
+    let harmonics: Vec<usize> = (1..=n).filter(|&i| i % 2 != 0).collect();
+    let multipliers: Vec<f32> = harmonics.iter().map(|&i| i as f32).collect();
+    let amplitudes: Vec<f32> = harmonics.iter().map(|&i| 4f32 / (pi * i as f32)).collect();
+    let offsets: Vec<f32> = vec![0f32; multipliers.len()];
+
+    (amplitudes, multipliers, offsets)
+}
+
+pub fn overs_triangle(freq:f32) -> Soids {
+    let n = (NFf / freq) as usize;
+    let multipliers:Vec<f32> =  (1..=n).filter(|i| i % 2 != 0).map(|i| i as f32).collect();
+    
+    let amplitudes:Vec<f32> = (1..=n).filter(|i| i % 2 != 0).map(|i| {
+        let sign = if (i - 1) / 2 % 2 == 0 { 1f32 } else { -1f32 };
+        sign * 8f32 / (pi * pi * (i as f32).powi(2))
+    }).collect();
+
+    let offsets:Vec<f32> = vec![0f32; multipliers.len()];
+    (amplitudes, multipliers, offsets)
+}
+
+pub fn overs_sawtooth(freq:f32) -> Soids {
+    let n = (NFf / freq) as usize;
+
+    let multipliers:Vec<f32> = (1..=n).map(|x| x as f32).collect();
+    let amplitudes:Vec<f32> = (1..=n).map(|i| 2f32 / (pi * i as f32)).collect();
+    let offsets:Vec<f32> = vec![0f32; multipliers.len()];
+
+    (amplitudes, multipliers, offsets)
 }
 
 use rand::Rng;
