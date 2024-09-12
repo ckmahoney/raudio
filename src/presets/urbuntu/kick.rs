@@ -13,7 +13,7 @@ pub fn expr_sub(arf:&Arf) -> Expr {
     let mut rng = thread_rng();
     let pitch_mod = match arf.energy {
         Energy::Low => rng.gen::<f32>(),
-        Energy::Medium => 1 + rng.gen::<f32>(),
+        Energy::Medium => 1f32 + rng.gen::<f32>(),
         Energy::High => 2.33 + rng.gen::<f32>(),
     };
     (vec![db_to_amp(-40f32)], vec![pitch_mod, pitch_mod*0.8f32, pitch_mod/2f32, 1.0f32], vec![0f32])
