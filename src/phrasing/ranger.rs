@@ -13,6 +13,9 @@ use crate::synth::{MFf, NFf, SR, SRf, pi, pi2,pi_2,pi_4};
 static one:f32 = 1f32;
 static half:f32 = 0.5f32;
 
+const MIN_DB:f32=-30f32;
+const MAX_DB:f32=0f32;
+
 #[derive(Copy,Clone,Debug)]
 /// A set of three dials for managing the parameters of these predefined methods.
 /// All values of a, b, or c are standard range [0, 1]
@@ -556,6 +559,94 @@ pub fn amod_oscillation_sine(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycle
     let t:f32 = pos_cycles/n_cycles;
     let osc_mod_mul:f32 = 2f32.powf(knob.a * 4f32);
     1f32 - knob.b * (pi2 * pos_cycles * osc_mod_mul).sin().abs().powi(4i32)
+}
+
+/// A continuous amplitdue taking as long as possible to reach the peak.
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`:   
+/// `b`:   
+/// `c`: unused.  
+/// 
+/// 
+/// ## Returns
+pub fn amod_slowest(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+
+    let t:f32 = if knob.a == 0f32 {
+        pos_cycles/n_cycles
+    } else {
+        (n_cycles - pos_cycles)/n_cycles
+    };
+    let cycle:f32 = (knob.a * 2f32) - 1f32;
+    let curr_db:f32 = -(MAX_DB-MIN_DB) * t;
+    db_to_amp(curr_db)
+}
+
+/// ## Returns
+pub fn amod_lfo_sine(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+
+    let t:f32 = pos_cycles/n_cycles;
+    let m = (fund*mul).log2();
+
+    let s = 16f32;
+    let y = (cps*t*pi2*m*m/(s*3f32)).cos().powi(2i32) * (cps*t*pi2*m.powf(0.5f32)/s).sin().powi(2i32);
+    let v = y * 0.5 + 0.5;
+    y / (m)
+}
+
+
+/// A continuous amplitude contour that rises and falls.
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: Intensity of contour. 0 is the smoothest/most natural contour. 1 has extreme amplitude peaking and steeper gradients.  
+/// `b`: Direction of modulation.   
+///   - `0` for a plucky/finite effect: starts at full amplitude and falls to 0.   
+///   - `1` for a pad/infinite effect: starts at 0 (silence) and rises to max amplitude. Rounds to ceil/floor.  
+/// `c`: Oscillation rate. 0 is slowest contour, 1 is up to twice the oscillation rate.  
+/// 
+/// ## Desmos 
+/// https://www.desmos.com/calculator/fev4uqu12x
+/// 
+/// ## Returns
+pub fn amod_wavelet_morphing(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let c:f32 = (one+mul).log2();
+    let t:f32 = c*pos_cycles/n_cycles;
+    let tx:f32 = c*t;
+    // need to slow down time 
+
+    let mod_c = (knob.c * 2f32).max(0.005f32);
+    let sig = (pi2*tx*mod_c).cos().powi(2i32);
+    let y = (-5f32*tx).exp() * sig;
+    let y = (-1f32*tx).exp() * sig;
+
+    let intensity = 12f32.powf(knob.a);
+    let v = y.powf(one/(c*intensity))/(fund*mul).log2().powi(2i32);
+
+    if knob.b.round() == 1f32 { 
+        let d_amp = MIN_DB * (one-v);
+        db_to_amp(d_amp);
+        one-v
+    } else {
+        let d_amp = MIN_DB * v;
+        db_to_amp(d_amp);
+        v
+    }
 }
 
 ///

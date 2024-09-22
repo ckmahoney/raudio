@@ -27,15 +27,15 @@ fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> Option<(
         Visibility::Background => 0.1 * 0.1 * rng.gen::<f32>(),
         Visibility::Hidden => 0.05f32 * rng.gen::<f32>(),
     };
-    return Some((Knob { a: osc_rate, b: intensity, c: 0.0 }, ranger::amod_oscillation_sine))
+    return Some((Knob { a: osc_rate, b: intensity, c: 0.0 }, ranger::amod_slowest))
 
 }
 
 pub fn driad(arf:&Arf) -> Ely {
     let soids:Soids = match arf.energy {
-        Energy::Low => druidic_soids::octave(16f32),
-        Energy::Medium => druidic_soids::octave(8f32),
-        Energy::High => druidic_soids::octave(4f32),
+        Energy::Low => druidic_soids::octave(2f32.powi(8i32)),
+        Energy::Medium => druidic_soids::octave(2f32.powi(7i32)),
+        Energy::High => druidic_soids::octave(2f32.powi(6i32)),
     };
     let modders:ModifiersHolder = (
         vec![],

@@ -19,21 +19,7 @@ pub fn expr_tonal(arf:&Arf) -> Expr {
 ///  - an impulse of staccato undertone voicing
 ///  - a pluck of pink noise 
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
-    
-    //# noise component
-    
-    let soids_noise = druidic_soids::noise(1024f32, druidic_soids::NoiseType::Pink);
-    let modifiers_noise:ModifiersHolder = (vec![], vec![], vec![], vec![]);
-    let feel_noise:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: modifiers_noise,
-        clippers: (0f32, 1f32)
-    };
-    
-    let mut knob_mods_noise:KnobMods = KnobMods::unit();
-    knob_mods_noise.0.push(amp_knob_noise());
-    let stem_noise = (melody, soids_noise, expr_noise(arf), feel_noise, knob_mods_noise, vec![delay::passthrough]);
-
+   
     //# tonal component
 
     let soids_tonal = druidic_soids::under_square(2f32.powi(10i32));
@@ -49,6 +35,6 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     let stem_tonal = (melody, soids_tonal, expr_tonal(arf), feel_tonal, knob_mods_tonal, vec![delay::passthrough]);
 
     Renderable::Group(vec![
-        stem_noise,
+        stem_tonal,
     ])
 }

@@ -1,5 +1,6 @@
 pub mod basic;
 pub mod hard;
+pub mod ambien;
 pub mod kuwuku;
 pub mod smooth;
 pub mod urbuntu;
@@ -87,14 +88,23 @@ impl Instrument {
         use crate::presets::hard::*;
         use crate::presets::basic::*;
         
-        let renderable = if false {
+        let renderable = if true {
+            // match arf.role {
+            //     Kick => kuwuku::kick::renderable(melody, arf),
+            //     Perc => kuwuku::perc::renderable(melody, arf),
+            //     Hats => kuwuku::hats::renderable(melody, arf),
+            //     Lead => urbuntu::lead::renderable(melody, arf),
+            //     Bass => kuwuku::bass::renderable(melody, arf),
+            //     Chords => kuwuku::chords::renderable(melody, arf),
+            // };
+
             match arf.role {
-                Kick => kuwuku::kick::renderable(melody, arf),
-                Perc => kuwuku::perc::renderable(melody, arf),
-                Hats => kuwuku::hats::renderable(melody, arf),
+                Kick => ambien::kick::renderable(melody, arf),
+                Perc => ambien::perc::renderable(melody, arf),
+                Hats => ambien::hats::renderable(melody, arf),
                 Lead => urbuntu::lead::renderable(melody, arf),
-                Bass => kuwuku::bass::renderable(melody, arf),
-                Chords => kuwuku::chords::renderable(melody, arf),
+                Bass => ambien::bass::renderable(melody, arf),
+                Chords => ambien::chords::renderable(melody, arf),
             }
         } else {
             match arf.role {

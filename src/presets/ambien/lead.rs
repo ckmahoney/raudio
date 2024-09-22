@@ -6,8 +6,7 @@ use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 
 pub fn expr(arf:&Arf) -> Expr {
-    (vec![1f32, 0.15, 0.9, 0.05, 0.9, 0.5f32, 0.5f32, 0.33f32, 0.1f32, 0f32], vec![1f32], vec![0f32]);
-    (vec![1f32], vec![1f32], vec![0f32])
+    (vec![0f32], vec![1f32], vec![0f32])
 }
 
 fn amp_knob_experiement(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
