@@ -12,9 +12,46 @@ pub fn octave(freq:f32) -> Soids {
     muls.append(&mut (2..n).step_by(2).map(|ku| ku as f32).collect::<Vec<f32>>());
     let l =muls.len();
     let amps:Vec<f32> = (0..muls.len()).into_iter().enumerate().map(|(i,ku)| 
-        one/((i as f32 + one).powi(3i32))
+        one/((i as f32 + one).powi(1i32))
     ).collect();
     let offs:Vec<f32> = (0..l).into_iter().map(|ku| 0f32).collect();
+    (amps, muls, offs) 
+}
+
+// all integer components with inverse cubic amp decay
+pub fn integer_overs(freq:f32) -> Soids {
+    let n = (NFf / freq) as usize;
+    let mut muls:Vec<f32> = vec![1f32];
+    muls.append(&mut (1..n).map(|ku| ku as f32).collect::<Vec<f32>>());
+    let l =muls.len();
+    let amps:Vec<f32> = (0..muls.len()).into_iter().enumerate().map(|(i,ku)| 
+        one/((i as f32 + one).powi(3i32))
+    ).collect();
+    let offs:Vec<f32> = vec![0f32; l];
+    (amps, muls, offs) 
+}
+
+// all integer components with inverse cubic amp decay
+pub fn integer_unders(freq:f32) -> Soids {
+    let n = (freq / MFf / 2f32) as usize;
+    let mut muls:Vec<f32> = vec![1f32];
+    muls.append(&mut (1..n).map(|ku| 1f32/ku as f32).collect::<Vec<f32>>());
+    let l =muls.len();
+    let amps:Vec<f32> = (0..muls.len()).into_iter().enumerate().map(|(i,ku)| 
+        one/((i as f32 + one).powi(3i32))
+    ).collect();
+    let offs:Vec<f32> = vec![0f32; l];
+    (amps, muls, offs) 
+}
+
+// all integer componetns with constant amp
+pub fn unit(freq:f32) -> Soids {
+    let n = (NFf / freq) as usize;
+    let mut muls:Vec<f32> = vec![1f32];
+    muls.append(&mut (1..n).map(|ku| ku as f32).collect::<Vec<f32>>());
+    let l =muls.len();
+    let amps:Vec<f32> = vec![1f32; l];
+    let offs:Vec<f32> = vec![0f32; l];
     (amps, muls, offs) 
 }
 
@@ -67,12 +104,12 @@ pub fn under_square(freq: f32) -> Soids {
     let mut offs: Vec<f32> = vec![];
 
     for i in (1..=n).step_by(2) { 
-        muls.push(1.0 / (i as f32));  // Undertone frequency placement
-        amps.push(4.0 / (std::f32::consts::PI * i as f32));  // Square wave amplitude scaling
+        muls.push(1.0 / (i as f32));
+        amps.push(4.0 / (pi * i as f32));  
         if (i + 1) / 2 % 2 == 0 {
-            offs.push(0.0);  // Even indexed odd harmonics have no phase offset
+            offs.push(0.0);  
         } else {
-            offs.push(std::f32::consts::PI);  // Odd indexed odd harmonics have a PI phase offset
+            offs.push(pi);  
         }
     }
 

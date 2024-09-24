@@ -649,6 +649,102 @@ pub fn amod_wavelet_morphing(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycle
     }
 }
 
+/// a static amod that animates by linear fall 
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// 
+/// 
+pub fn amod_stick(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = pos_cycles/n_cycles;
+    let osc_rate = mul.log2()/4f32;
+    let osc_rate = if mul > 1f32 { one / osc_rate } else { osc_rate };
+    let y = osc_rate * (1f32-t) % 1f32;
+    y
+}
+
+pub fn amod_glideupdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = (12f32 * pos_cycles/n_cycles) % 1f32;
+    let max_mul: f32 = (NFf/4f32) / fund; 
+    let q_factor:f32 = 0.1f32;
+    
+    let lower_t = t - q_factor;
+    let upper_t = t + q_factor; 
+    
+    let lower_bound_mul = if (t - lower_t) < 0.5f32 {
+        2f32 * lower_t * max_mul 
+    }  else {
+        2f32 * (1f32-lower_t) * max_mul
+    };
+
+    let upper_bound_mul = if upper_t < 0.5f32 {
+        2f32 * upper_t * max_mul
+    }  else {
+        2f32 * (1f32-upper_t) * max_mul
+    };
+    
+    // println!("t {} mul {} lower_t {} upper_t {} lower_bound_mul {} upper_bound_mul {} ", t, mul, lower_t, upper_t, lower_bound_mul,upper_bound_mul);
+    // if t > 0.008f32 {
+    //     panic!("Kill it ")
+    // }
+
+    if lower_bound_mul < mul && mul < upper_bound_mul {
+        1f32
+    } else {
+        0f32
+    }
+}
+ 
+pub fn amod_cutupdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = (3f32 * pos_cycles/n_cycles) % 1f32;
+    let max_mul: f32 = (NFf * 0.75) / fund; 
+    let q_factor:f32 = 1f32;
+
+    let cur_mul:f32 = if t < 0.5f32 {
+        2f32 * t * max_mul 
+    }  else {
+        2f32 * (1f32-t) * max_mul
+    };
+
+
+    if cur_mul == mul {
+        one
+    } else if (cur_mul - q_factor) < mul {
+        let y = (mul - q_factor) / (cur_mul - q_factor);
+        y.powi(2i32)
+    } else if (cur_mul + q_factor) > mul {
+        let y = (mul - q_factor) / (cur_mul - q_factor);
+        y.powi(2i32)
+    } else {
+        0f32
+    }
+}
+
+
+
+/// alternates between even and odd harmonioc
+pub fn amod_seesaw(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let rate:f32 = 1f32;
+    let t:f32 = (rate * pos_cycles/n_cycles) % 1f32;
+    let mod_rate:f32 = (4f32*pi2*t).cos().powi(2i32) * 32f32;
+
+    if mul.floor() % 2f32 == 0f32 {
+        let amp_evens = (mod_rate * pi * t * half).cos();
+        amp_evens.powi(2i32)
+    } else {
+        let amp_odds = (mod_rate * pi * t * half).sin();
+        amp_odds.powi(2i32)
+    }
+}
+
+
+
+
 ///
 /// `a`: Detune amount. 0 is none; 0.5 is just noticable/vintage; 1 is noticable.
 /// `b`: Detune mix. 0 is none; 1 is completely mixed.
@@ -658,6 +754,41 @@ pub fn amod_detune(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
     one - knob.b * (t * mul.powf(2f32 * knob.a) *  pi).sin().abs()
 }
 
+pub fn fmod_geo(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let d = if mul < 1f32 {
+        (1f32/mul).log2()
+    } else {
+        mul.log2()
+    };
+    let t:f32 = pos_cycles/n_cycles;
+
+    (1.5f32).powf(t*d);
+    d
+}
+
+pub fn amod_collage(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let d = if mul < 1f32 {
+        (1f32/mul).log2()
+    } else {
+        mul.log2()
+    };
+    let t:f32 = pos_cycles/n_cycles;
+    let b = d.floor();
+    let mod_rate:f32 = if b % 5f32 == 0f32 {
+        one/3f32
+    } else if b % 4f32 == 0f32 {
+        one / 2.5f32
+    } else if b % 3f32 == 0f32 {
+        one / 2f32 
+    } else if b % 2f32 == 0f32 {
+        one / 1.5f32
+    } else {
+        1.5f32
+    };
+
+
+    (pi2 * t * mod_rate).cos().powi(2i32)
+}
 
 
 #[cfg(test)]

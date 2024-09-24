@@ -362,5 +362,5 @@ fn test_demonstrate() {
 
 #[test]
 fn test_render_playbook() {
-    crate::render_playbook("/media/naltroc/engraver 2/music-gen/demo/ambien/test_ambien_playbook", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
+    crate::render_playbook("/media/naltroc/engraver 2/music-gen/demo/ambien-extra-square/test_ambien_playbook", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
 }
