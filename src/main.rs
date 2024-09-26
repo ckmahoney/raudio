@@ -96,15 +96,15 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
     let mut stems:Vec<Renderable> = Vec::with_capacity(score.parts.len());
     let mut i = 0;
     for (client_positioning, arf, melody) in &score.parts { 
-        if i > 0 {
-            continue;
-        }
-        if let Role::Bass = arf.role {
+        // if i > 0 {
+        //     continue;
+        // }
+        // if let Role::Bass = arf.role {
             let delays = inp::arg_xform::gen_delays(&mut rng, score.conf.cps, &client_positioning.echo, complexity(&arf.visibility, &arf.energy, &arf.presence));
             let stem = presets::Instrument::select(melody, arf, delays);
             i = i+1;
             stems.push(stem)
-        }
+        // }
     }
     let verb_complexity:f32 = rng.gen::<f32>()/10f32;
     let group_reverbs:Vec<reverb::convolution::ReverbParams> = inp::arg_xform::gen_reverbs(
@@ -115,7 +115,7 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
         verb_complexity
     );
     let keeps = if keep_stems { Some(out_dir) } else { None };
-    // let keeps = None;
+    let keeps = None;
     let signal = render::combiner(score.conf.cps, score.conf.root, &stems, &group_reverbs, keeps);
     render::engrave::samples(crate::synth::SR, &signal, &mixdown_name);
     mixdown_name

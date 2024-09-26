@@ -509,7 +509,7 @@ pub fn amod_burp(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_
     (1f32 - t.powf(base_decay_rate + decay_mod_add)).powi(5i32)
 }
 
-/// A continuous amplitdue modulation for periodic falling linear contour.
+/// A continuous amplitude modulation for periodic falling linear contour.
 ///
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
@@ -533,7 +533,35 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
     let osc_rate:f32 = 2f32.powf(-4f32 * knob.a);
     let offset_b:f32 = osc_rate / 2f32;
     let y:f32 = (osc_rate - t + offset_b)/osc_rate;
-    one - knob.b * (0.5f32 + (y - (y + 0.5).floor())).powi(2i32)
+    (0.5f32 + (y - (y + 0.5).floor())).powi(2i32)
+}
+
+/// A continuous amplitude modulation responding to multiplier.
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: Tremelo period. Value of 0 is 1 hits per note, and value of 1 is 2^4 hits per note.  
+/// `b`: time scale response to multiplier. 0 is passthrough, 1 has more periods as frequency increases.   
+/// `c`: osc rate dilation. 0.5 is passthrough, 0 is 1 is maximum dilation 
+/// 
+/// ## Desmos 
+/// https://www.desmos.com/calculator/2bf9xonkci
+/// 
+/// ## Returns
+pub fn amod_oscillation_sin_mul(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let t:f32 = (mul* knob.b).sin().powi(2i32) * (pos_cycles/n_cycles) % 1f32;
+    let t:f32 = (pos_cycles/n_cycles) % 1f32;
+    let osc_rate:f32 = 2f32.powf(-3f32 + 6f32 * knob.a) * (t*pi2).powf(2f32 * knob.b - one).cos().powi(2i32);
+    
+    let y:f32 = (pi2 * osc_rate).sin();
+    y.powi(2i32)
 }
 
 /// A continuous amplitdue modulation for smooth sine envelopes.
@@ -727,17 +755,20 @@ pub fn amod_cutupdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32,
 
 
 
-/// alternates between even and odd harmonioc
+/// alternates between even and odd harmonics
+/// a: mod time scale factor
+/// b: mod time depth
+/// c: delay depth
 pub fn amod_seesaw(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
     let rate:f32 = 1f32;
     let t:f32 = (rate * pos_cycles/n_cycles) % 1f32;
-    let mod_rate:f32 = (4f32*pi2*t).cos().powi(2i32) * 32f32;
-
+    let mod_rate:f32 = ((knob.b*3f32)*pi2*t.powf(knob.a*2f32-one)).cos().powi(2i32);
+    let mod_phase_delay:f32 = (knob.c * mul.log2() * pi2 * t).sin() * pi2;
     if mul.floor() % 2f32 == 0f32 {
-        let amp_evens = (mod_rate * pi * t * half).cos();
+        let amp_evens = (mod_rate * pi * t * half + mod_phase_delay).cos();
         amp_evens.powi(2i32)
     } else {
-        let amp_odds = (mod_rate * pi * t * half).sin();
+        let amp_odds = (mod_rate * pi * t * half + mod_phase_delay).sin();
         amp_odds.powi(2i32)
     }
 }
@@ -766,6 +797,9 @@ pub fn fmod_geo(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_c
     d
 }
 
+/// knob.a: mix of time modulation 
+/// knob.b: depth of time modulation
+/// knob.c: unused
 pub fn amod_collage(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
     let d = if mul < 1f32 {
         (1f32/mul).log2()
@@ -774,20 +808,24 @@ pub fn amod_collage(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, p
     };
     let t:f32 = pos_cycles/n_cycles;
     let b = d.floor();
+
     let mod_rate:f32 = if b % 5f32 == 0f32 {
-        one/3f32
+        one/ 3f32.powf(1f32 + knob.b)
     } else if b % 4f32 == 0f32 {
-        one / 2.5f32
+        one / 2.5f32.powf(1f32 + knob.b)
     } else if b % 3f32 == 0f32 {
-        one / 2f32 
+        one / 2f32 .powf(1f32 + knob.b)
     } else if b % 2f32 == 0f32 {
-        one / 1.5f32
+        one / 1.5f32.powf(1f32 + knob.b)
     } else {
-        1.5f32
+        1.5f32.powf(1f32 - knob.b)
     };
 
+    let mod_mod:f32 = (knob.a * pi2 * t * 128f32).sin().powi(2i32);
 
-    (pi2 * t * mod_rate).cos().powi(2i32)
+
+
+    (pi2 * t * mod_rate * mod_mod).cos().powi(2i32)
 }
 
 

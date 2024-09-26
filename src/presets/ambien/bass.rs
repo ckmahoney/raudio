@@ -1,10 +1,12 @@
+use super::*;
 use super::super::*;
 use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::ranger::{KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 
 fn expr() -> Expr {
-    (vec![0.125f32], vec![1f32], vec![0f32])
+    let ampenv = amp_expr(1f32);
+    (ampenv, vec![1f32], vec![0f32])
 }
 
 fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> Option<(Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32)> {
@@ -42,9 +44,11 @@ pub fn driad(arf:&Arf) -> Ely {
         druidic_soids::octave(reference * 60f32),
     ];
     let mut soids:Soids = (vec![], vec![], vec![]);
+    let amp_offset:f32 = 1f32 / mixers.len() as f32;
     for (amps, muls, offsets) in mixers {
         for i in 0..amps.len() {
-            soids.0.push(amps[i]);
+
+            soids.0.push(amps[i] * amp_offset);
             soids.1.push(muls[i]);
             soids.2.push(offsets[i])
         }
@@ -63,14 +67,25 @@ pub fn driad(arf:&Arf) -> Ely {
     Ely::new(soids, modders, knob_mods)
 }
 
-pub fn amp_knob_collage() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    (Knob { a: 0f32, b: 0f32, c: 0.0 }, ranger::amod_collage)
+pub fn amp_knob_collage(arf:&Arf) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mod_rate:f32 = match arf.energy {
+        Energy::Low => 0f32,
+        Energy::Medium => 0.5f32,
+        Energy::High => 1f32,
+    };
+
+    let mod_intensity:f32 = match arf.energy {
+        Energy::Low => 0f32,
+        Energy::Medium => 0.5f32,
+        Energy::High => 1f32,
+    };
+    (Knob { a: mod_rate, b: mod_intensity, c: 0.0 }, ranger::amod_collage)
 }
 
 
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
     let mut ely = driad(arf);
-    let ely_sine = driad(arf);
+    let ely_sine = driad(arf); 
 
     let feel_sine:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
@@ -84,7 +99,7 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
         clippers: (0f32, 1f32)
     };
 
-    ely.knob_mods.0.push(amp_knob_collage());
+    ely.knob_mods.0.push(amp_knob_collage(arf));
 
     let stem:Stem = (melody, ely.soids, expr(), feel, ely.knob_mods, vec![delay::passthrough]);
     Renderable::Instance(stem)
