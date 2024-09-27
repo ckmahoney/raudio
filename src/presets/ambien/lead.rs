@@ -119,8 +119,6 @@ fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, f
 
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
     let soids:Soids = generate_rich_texture(arf);
-    println!("Made soids");
-    println!("{:#?}",soids);     
     let mut knob_mods:KnobMods = KnobMods::unit();
     knob_mods.0.push(amp_knob(arf.visibility, arf.energy, arf.presence));
 

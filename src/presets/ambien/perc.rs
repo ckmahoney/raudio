@@ -3,6 +3,13 @@ use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 
+
+pub fn expr(arf:&Arf) -> Expr {
+    (vec![1f32, 0.15, 0.9, 0.05, 0.9, 0.5f32, 0.5f32, 0.33f32, 0.1f32, 0f32], vec![1f32], vec![0f32]);
+    (vec![db_to_amp(-40f32)], vec![1f32], vec![0f32])
+}
+
+
 fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let sustain = match presence {
         Presence::Staccatto => 0f32,
@@ -40,10 +47,6 @@ fn amp_reso_gen(modders:&mut KnobMods, visibility:Visibility, energy:Energy, pre
         };
         modders.0.push((Knob { a: a, b: b, c: 0.0}, ranger::amod_peak))
     }
-}
-
-pub fn expr(arf:&Arf) -> Expr {
-    (vec![0f32], vec![1f32], vec![0f32])
 }
 
 /// Selects a color of noise at -4 height
