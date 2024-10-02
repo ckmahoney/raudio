@@ -54,13 +54,15 @@ pub fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Echo, complexity:f32) -> Ve
     match *echo {
         Echo::None => vec![passthrough],
         Echo::Slapback => vec![
-            gen_slapback(cps, rng, complexity)
+            gen_slapback(cps, rng, complexity),
+            gen_slapback(cps, rng, complexity),
         ],
         Echo::Trailing => vec![
-            gen_trailing(cps, rng, complexity)
+            gen_trailing(cps, rng, complexity),
+            gen_trailing(cps, rng, complexity),
         ],
         Echo::Bouncy => {
-            let n_copies = (complexity * 10f32).max(2f32) as usize;
+            let n_copies = 2 + (complexity * 10f32).max(2f32) as usize;
             let mix:f32 = 1f32/n_copies as f32;
             (0..n_copies).map(|i| if i % 2 == 0 { 
                 let mut dp = gen_trailing(cps, rng, complexity);
@@ -77,7 +79,6 @@ pub fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Echo, complexity:f32) -> Ve
 
 /// Create a saturation layer and room layer
 pub fn gen_reverbs(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&Enclosure, complexity:f32) -> Vec<ReverbParams> {
-    let distance= Distance::Near;
     let gain = match distance {
         Distance::Far => rng.gen::<f32>().powf(0.25f32),
         Distance::Adjacent => rng.gen::<f32>(),
