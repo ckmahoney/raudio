@@ -44,7 +44,12 @@ pub fn integer_unders(freq:f32) -> Soids {
     (amps, muls, offs) 
 }
 
-// all integer componetns with constant amp
+/// The most basic set of soids: a plain sinusoid
+pub fn id() -> Soids {
+    return (vec![1f32], vec![1f32], vec![0f32])
+}
+
+// all integer components with constant amp
 pub fn unit(freq:f32) -> Soids {
     let n = (NFf / freq) as usize;
     let mut muls:Vec<f32> = vec![1f32];
@@ -183,6 +188,7 @@ pub fn overs_sawtooth(freq:f32) -> Soids {
     let offsets:Vec<f32> = vec![0f32; multipliers.len()];
 
     (amplitudes, multipliers, offsets)
+
 }
 
 use rand::Rng;
@@ -191,6 +197,7 @@ pub enum NoiseType {
     Equal,
     Pink
 }
+
 
 pub fn noise(freq:f32, noise_type:NoiseType) -> Soids {
     let max_mul: f32 = NFf / freq; 

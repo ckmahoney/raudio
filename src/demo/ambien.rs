@@ -3,7 +3,7 @@ use crate::analysis::delay;
 use crate::complexity;
 use crate::files;
 
-static demo_name:&str = "urbuntu";
+static demo_name:&str = "ambien";
 
 use crate::render::{self, Renderable};
 use crate::reverb;
@@ -12,7 +12,7 @@ use crate::presets::Instrument;
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::volume::db_to_amp;
 
-use presets::urbuntu::{lead, bass, perc, chords, kick, hats};
+use presets::ambien::{lead, bass, perc, chords, kick, hats};
 
 fn bass_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
@@ -312,9 +312,8 @@ fn demonstrate() {
     let mut rng = rand::thread_rng();
 
     let cps:f32 = 1.15;
-    let root:f32 = 1.2;
+    let root:f32 = 1.9;
     let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
-
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
 
@@ -330,16 +329,16 @@ fn demonstrate() {
     let stem_chords =chords::renderable(&chords_melody, &chords_arf());
     let stem_bass = bass::renderable(&bass_melody, &bass_arf());
     let stem_perc = perc::renderable(&perc_melody, &perc_arf());
-    let render_kick = kick::renderable(&kick_mel, &kick_arf());
+    let stem_kick = kick::renderable(&kick_mel, &kick_arf());
 
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
-        // render_kick,
-        // stem_perc,
-        // stem_hats,
+        stem_kick,
+        stem_perc,
+        stem_hats,
         // stem_bass,
-        stem_chords,
-        stem_lead,
+        // stem_chords,
+        // stem_lead,
     ];
 
     use crate::Distance;

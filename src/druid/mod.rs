@@ -18,6 +18,7 @@ pub mod compute;
 pub mod melodic;
 pub mod noise;
 pub mod soids;
+pub mod soid_fx;
 
 use crate::phrasing::older_ranger::{Weight, Modders};
 use crate::phrasing::contour::{Expr, expr_none};
