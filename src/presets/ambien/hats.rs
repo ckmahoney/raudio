@@ -1,7 +1,7 @@
 use super::super::*;
 use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
-use crate::druid::{self, soids as druidic_soids};
+use crate::druid::{self, soids as druidic_soids, soid_fx, noise::NoiseColor};
 
 
 pub fn expr_noise(arf:&Arf) -> Expr {
@@ -48,7 +48,7 @@ fn amp_knob_tonal() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
 ///  - a pluck of pink noise 
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
 
-    let soids_tonal = druidic_soids::id();
+    let soids_tonal = druidic_soids::under_sawtooth(2f32.powi(11i32));
     let modifiers_tonal:ModifiersHolder = (vec![], vec![], vec![], vec![]);
     let feel_tonal:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
@@ -56,8 +56,15 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
         clippers: (0f32, 1f32)
     };
 
+    let soids = soid_fx::concat(&vec![
+        soid_fx::ratio::constant(&soids_tonal, 0.666f32, 1f32),
+        soid_fx::noise::rank(0, NoiseColor::Equal, 1f32),
+        soid_fx::noise::rank(1, NoiseColor::Equal, 1f32),
+    ]);
+
+
     let mut knob_mods_tonal:KnobMods = KnobMods::unit();
-    let stem_tonal = (melody, soids_tonal, expr_tonal(arf), feel_tonal, knob_mods_tonal, vec![delay::passthrough]);
+    let stem_tonal = (melody, soids, expr_tonal(arf), feel_tonal, knob_mods_tonal, vec![delay::passthrough]);
 
     Renderable::Group(vec![
         stem_tonal

@@ -1,5 +1,6 @@
 mod ambien;
 mod beat;
+mod chill_beat;
 mod effects;
 mod kuwuku;
 mod trio;

@@ -29,7 +29,7 @@ use crate::types::timbre::{Mode, Arf, Energy,Presence, Visibility};
 use crate::types::render::{Span};
 use crate::render::blend::{blender};
 use crate::render::realize::{mix_buffers};
-use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2, SR};
+use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2, SR, MIN_REGISTER, MAX_REGISTER};
 use crate::monic_theory::tone_to_freq;
 use crate::render::ninja;
 

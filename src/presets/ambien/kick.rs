@@ -9,7 +9,7 @@ pub fn expr_id(arf:&Arf) -> Expr {
 }
 
 fn knob_amp() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    (Knob { a: 1f32, b: 1f32, c: 0f32 }, ranger::amod_pluck)
+    (Knob { a: 0.11f32, b: 1f32, c: 0f32 }, ranger::amod_pluck)
 }
 
 /// Defines the constituent stems to create a complex kick drum
@@ -33,21 +33,22 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     };
     
     let mut knob_mods:KnobMods = KnobMods::unit();
-    knob_mods.0.push(knob_amp());
+    // knob_mods.0.push(knob_amp());
     // let soids = soid_fx::amod::reece(&soids_id, 12);
     
 
-    let soids = soid_fx::map(&soids_id, 5, vec![
-        (soid_fx::fmod::triangle, 0.33f32),
-        (soid_fx::fmod::sawtooth, 0.33f32),
+    let soids = soid_fx::map(&soids_id, 3, vec![
         (soid_fx::fmod::square, 0.33f32),
     ]);
 
     let soids = soid_fx::map(&soids, 3, vec![
-        (soid_fx::fmod::triangle, 0.33f32),
-        (soid_fx::fmod::sawtooth, 0.33f32),
-        (soid_fx::fmod::square, 0.33f32),
+        (soid_fx::fmod::triangle, 0.11f32),
     ]);
+
+    let soids = soid_fx::map(&soids, 3, vec![
+        (soid_fx::fmod::sawtooth, 0.05f32),
+    ]);
+    let soids = soid_fx::detune::reece(&druidic_soids::id(), 12, 0.5f32);
     let stem_id = (melody, soids, expr_id(arf), feel_id, knob_mods, vec![delay::passthrough]);
 
     Renderable::Group(vec![
