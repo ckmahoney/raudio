@@ -353,8 +353,76 @@ fn demonstrate() {
     render::engrave::samples(SR, &mix, &filename);
 }
 
+
+
+fn samp() -> SampleBuffer {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let cps:f32 = 1.15;
+    let root:f32 = 1.9;
+
+    let delays:Vec<DelayParams> = vec![delay::passthrough];
+
+    let lead_melody = lead_melody();
+    let hats_melody = hats_melody();
+    let chords_melody = chords_melody();
+    let bass_melody = bass_melody();
+    let perc_melody = perc_melody();
+    let kick_mel = kick_melody();
+
+    let stem_lead = lead::renderable(&lead_melody, &lead_arf());
+    let stem_hats = hats::renderable(&hats_melody, &hats_arf());
+    let stem_chords =chords::renderable(&chords_melody, &chords_arf());
+    let stem_bass = bass::renderable(&bass_melody, &bass_arf());
+    let stem_perc = perc::renderable(&perc_melody, &perc_arf());
+    let stem_kick = kick::renderable(&kick_mel, &kick_arf());
+
+    use Renderable::{Instance,Group};
+    let renderables:Vec<Renderable> = vec![
+        stem_kick,
+        stem_perc,
+        stem_hats,
+        // stem_bass,
+        // stem_chords,
+        // stem_lead,
+    ];
+
+    use crate::Distance;
+    use crate::types::timbre::Enclosure;
+
+    let complexity:f32 = rng.gen::<f32>();
+    let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
+
+    render::combiner(cps, root, &renderables, &group_reverbs, None)
+}
+
 #[test]
 fn test_demonstrate() {
+    demonstrate()
+}
+
+#[test]
+fn test_hypnosis() {
+    let path:String = location(demo_name);
+    files::with_dir(&path);
+
+    let mut track:SampleBuffer = vec![];
+    let mut ring:SampleBuffer = vec![];
+
+    let n_versions = 8;
+    let n_loops = 4;
+
+    for i in 0..n_versions {
+        ring = samp();
+        for j in 0..n_loops {
+            track.extend(&ring)
+        }
+    }
+
+    let filename = format!("{}/hypnoloop_{}.wav",location(demo_name), demo_name);
+    render::engrave::samples(SR, &track, &filename);
+
     demonstrate()
 }
 

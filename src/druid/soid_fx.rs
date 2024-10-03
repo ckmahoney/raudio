@@ -56,6 +56,20 @@ pub mod noise {
     use crate::druid::noise::NoiseColor;
     use super::*;
 
+    pub fn reso() -> Soids {
+        let mut rng = thread_rng();
+        let focal:f32 = 7f32 + 5f32 * rng.gen::<f32>();
+        let mut soids:Soids = (vec![1f32], vec![focal], vec![0f32]);
+
+        concat(&vec![
+            soids.clone(),
+            ratio::constant(&soids.clone(), 2f32, 0.33f32),
+            ratio::constant(&soids.clone(), 0.66f32, 0.11f32),
+            ratio::constant(&soids.clone(), 0.2f32, 0.1f32),
+            ratio::constant(&soids.clone(), 3f32, 0.001f32),
+        ])
+    }
+
     pub fn rank(register:usize, color:NoiseColor, gain:f32) -> Soids {
         let n = 13 * (register+1);
         let mut rng = thread_rng();

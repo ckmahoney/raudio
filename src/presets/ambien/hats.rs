@@ -48,7 +48,6 @@ fn amp_knob_tonal() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
 ///  - a pluck of pink noise 
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
 
-    let soids_tonal = druidic_soids::under_sawtooth(2f32.powi(11i32));
     let modifiers_tonal:ModifiersHolder = (vec![], vec![], vec![], vec![]);
     let feel_tonal:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
@@ -56,15 +55,19 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
         clippers: (0f32, 1f32)
     };
 
+    let soids_base = druidic_soids::under_sawtooth(2f32.powi(11i32));
+    let soids_base = druidic_soids::id();
     let soids = soid_fx::concat(&vec![
-        soid_fx::ratio::constant(&soids_tonal, 0.666f32, 1f32),
+        soid_fx::ratio::constant(&soids_base, 0.666f32, 1f32),
         soid_fx::noise::rank(0, NoiseColor::Equal, 1f32),
         soid_fx::noise::rank(1, NoiseColor::Equal, 1f32),
     ]);
 
 
-    let mut knob_mods_tonal:KnobMods = KnobMods::unit();
-    let stem_tonal = (melody, soids, expr_tonal(arf), feel_tonal, knob_mods_tonal, vec![delay::passthrough]);
+    let mut knob_mods:KnobMods = KnobMods::unit();
+    let mut rng = thread_rng();
+    knob_mods.0.push((Knob {a: rng.gen::<f32>(), b: rng.gen::<f32>()/5f32, c:0f32 }, ranger::amod_pluck));
+    let stem_tonal = (melody, soids, expr_tonal(arf), feel_tonal, knob_mods, vec![delay::passthrough]);
 
     Renderable::Group(vec![
         stem_tonal

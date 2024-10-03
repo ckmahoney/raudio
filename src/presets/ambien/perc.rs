@@ -35,14 +35,27 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     let mut knob_mods:KnobMods = KnobMods::unit();
     // knob_mods.0.push(knob_amp());
 
-    let soids = soid_fx::detune::reece(&druidic_soids::id(), 12, 0.25f32);
-    let soids = soid_fx::map(&soids, 3, vec![
-        (soid_fx::fmod::triangle, 0.11f32),
-    ]);
-
+    let soids = soid_fx::noise::rank(0, NoiseColor::Equal, 0.33f32);
     let soids = soid_fx::map(&soids, 3, vec![
         (soid_fx::fmod::sawtooth, 0.05f32),
     ]);
+
+    let soids = soid_fx::concat(&vec![
+        soids,
+        soid_fx::noise::rank(1, NoiseColor::Equal, 0.33f32),
+        soid_fx::noise::rank(2, NoiseColor::Equal, 0.11f32),
+        soid_fx::noise::reso()
+    ]);
+    let mut rng = thread_rng();
+    knob_mods.0.push((
+        Knob {
+            // a: rng.gen::<f32>(), 
+            a: 0.25f32, 
+            b: rng.gen::<f32>()/5f32, 
+            c: 0f32 
+        }, 
+        ranger::amod_pluck
+    ));
     let stem_id = (melody, soids, expr_id(arf), feel_id, knob_mods, vec![delay::passthrough]);
 
     Renderable::Group(vec![
