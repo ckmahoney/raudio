@@ -10,8 +10,12 @@ mod vagrant;
 use crate::{presets, render};
 
 use crate::phrasing::contour::Expr;
-// static out_dir:&str = "audio/demo";
-static out_dir:&str = "/media/naltroc/engraver 2/music-gen/demo";
+
+// for general testing put it in this project dir
+static out_dir:&str = "audio/demo";
+// for local testing use my mounted drive with more space
+// static out_dir:&str = "/media/naltroc/engraver 2/music-gen/demo";
+
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::delay::{self, DelayParams};
