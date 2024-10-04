@@ -6,7 +6,22 @@ fn knob_amp() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
 
 /// Featured component 
 pub fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
-    let soids = druidic_soids::id();
+    let mut rng = thread_rng();
+    let peak1:f32 = 1f32 + rng.gen::<f32>();
+    let peak2:f32 = 2f32 + rng.gen::<f32>();
+    let peak3:f32 = (peak1.sqrt() + peak2.sqrt()).powi(2i32);
+
+    let mut compound_ratios:Vec<(f32, f32)> = vec![
+        (peak1, 0.6f32),
+        (peak2, 0.9f32),
+        (peak3, 0.3f32),
+    ];
+
+    let soids:Soids = compound_ratios.iter().fold(druidic_soids::id(), |soids, (k, gain)| soid_fx::ratio::constant(&soids, *k, *gain));
+    let soids:Soids = soid_fx::fmod::sawtooth(&soids, 5);
+    let soids:Soids = soid_fx::fmod::square(&soids,3);
+    // let soids:Soids = soid_fx::fmod::square(&soids,3);
+    
     let expr = (vec![visibility_gain(Visibility::Visible)], vec![1f32], vec![0f32]);
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
@@ -22,8 +37,24 @@ pub fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'re
     let mut knob_mods:KnobMods = KnobMods::unit();
     knob_mods.0.push((
         Knob {
-            a: 0.3f32,
-            b: 0.3f32,
+            a: 0.05f32,
+            b: 1f32,
+            c:0f32
+        },
+        ranger::amod_pluck
+    ));
+    knob_mods.0.push((
+        Knob {
+            a: 0.5f32,
+            b: 1f32,
+            c:0f32
+        },
+        ranger::amod_pluck
+    ));
+    knob_mods.0.push((
+        Knob {
+            a: 0.15f32,
+            b: 1f32,
             c:0f32
         },
         ranger::amod_pluck
@@ -34,9 +65,9 @@ pub fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'re
 /// Supporting feature
 pub fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids = soid_fx::concat(&vec![
+        soid_fx::noise::rank(1, NoiseColor::Pink, 1f32/5f32),
         soid_fx::noise::rank(3, NoiseColor::Pink, 1f32/3f32),
-        soid_fx::noise::rank(4, NoiseColor::Pink, 1f32/3f32),
-        soid_fx::noise::rank(5, NoiseColor::Pink, 1f32/3f32),
+        soid_fx::noise::rank(5, NoiseColor::Pink, 1f32/9f32),
     ]);
     let expr = (vec![visibility_gain(Visibility::Background)], vec![1f32], vec![0f32]);
     let feel:Feel = Feel {
@@ -53,8 +84,8 @@ pub fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<
     let mut knob_mods:KnobMods = KnobMods::unit();
     knob_mods.0.push((
         Knob {
-            a: 0f32,
-            b: 1f32,
+            a: 0.4f32,
+            b: 0f32,
             c:0f32
         },
         ranger::amod_pluck
@@ -71,7 +102,7 @@ pub fn stem_background() {
 /// Background component
 pub fn stem_hidden<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids = druidic_soids::octave(500f32);
-    let expr = (vec![visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
+    let expr = (vec![2f32 * visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: (
@@ -82,9 +113,7 @@ pub fn stem_hidden<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'ren
         ),
         clippers: (0f32, 1f32)
     };
-    for v in [Visibility::Hidden, Visibility::Background, Visibility::Visible, Visibility::Foreground] {
-        println!("vis {:?} val {}", v, visibility_gain(v))
-    }
+    
     let mut knob_mods:KnobMods = KnobMods::unit();
     // knob_mods.0.push((
     //     Knob {
