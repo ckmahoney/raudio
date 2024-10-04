@@ -12,9 +12,10 @@ fn knob_amp() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     (Knob { a: 0.11f32, b: 1f32, c: 0f32 }, ranger::amod_pluck)
 }
 
-fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
+/// noise component
+fn stem_hidden<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids = druidic_soids::id();
-    let expr = (vec![visibility_gain(Visibility::Background)], vec![1f32], vec![0f32]);
+    let expr = (vec![visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
 
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
@@ -41,18 +42,26 @@ fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render
     (melody, soids, expr, feel, knob_mods, vec![delay::passthrough])
 }
 
+/// sine component
 fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
-    let soids_id = druidic_soids::id();
-    let modifiers_id:ModifiersHolder = (
-        vec![],
-        vec![],
-        vec![],
-        vec![],
-    );
-
+    let soids = soid_fx::ratio::constant(&soid_fx::ratio::constant(&druidic_soids::id(), 6f32, 0.22f32), 7f32, 0.1f32);
+    let soids = soid_fx::ratio::constant(&soids, 2f32, 0.7f32);
+    let soids = soid_fx::ratio::constant(&soids, 3f32, 0.4f32);
+    let soids = soid_fx::ratio::constant(&soids, 2f32, 0.7f32);
+    let soids = soid_fx::ratio::constant(&soids, 3f32, 0.4f32);
+    let soids = soid_fx::ratio::constant(&soids, 1f32/5f32, 0.6f32);
+    let soids = soid_fx::ratio::constant(&soids, 1f32/2f32, 0.6f32);
+    let soids = soid_fx::ratio::constant(&soids, 1f32/3f32, 0.5f32);
+    let soids = soid_fx::ratio::constant(&soids, 7f32/11f32, 0.3f32);
+    
     let feel_id:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
-        modifiers: modifiers_id,
+        modifiers: (
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ),
         clippers: (0f32, 1f32)
     };
     
@@ -66,7 +75,7 @@ fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'ren
         ranger::amod_pluck
     ));
     let expr = (vec![visibility_gain(Visibility::Foreground)], vec![1f32], vec![0f32]);
-    let soids = soid_fx::detune::reece(&druidic_soids::id(), 12, 0.5f32);
+    // let soids = soid_fx::detune::reece(&druidic_soids::id(), 12, 0.5f32);
     (melody, soids, expr, feel_id, knob_mods, vec![delay::passthrough])
 }
 
@@ -75,7 +84,7 @@ fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'ren
 ///  - a transient id element
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
     Renderable::Group(vec![
-        stem_visible(arf, melody),
+        stem_hidden(arf, melody),
         stem_foreground(arf, melody),
     ])
 }
