@@ -3,15 +3,6 @@ use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids, soid_fx};
 
-/// Softens the overall amplitude
-pub fn expr_id(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-10f32)], vec![1f32], vec![0f32])
-}
-
-fn knob_amp() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    (Knob { a: 0.11f32, b: 1f32, c: 0f32 }, ranger::amod_pluck)
-}
-
 /// noise component
 fn stem_hidden<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids = druidic_soids::id();
@@ -44,17 +35,26 @@ fn stem_hidden<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render>
 
 /// sine component
 fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
-    let soids = soid_fx::ratio::constant(&soid_fx::ratio::constant(&druidic_soids::id(), 6f32, 0.22f32), 7f32, 0.1f32);
-    let soids = soid_fx::ratio::constant(&soids, 2f32, 0.7f32);
-    let soids = soid_fx::ratio::constant(&soids, 3f32, 0.4f32);
-    let soids = soid_fx::ratio::constant(&soids, 2f32, 0.7f32);
-    let soids = soid_fx::ratio::constant(&soids, 3f32, 0.4f32);
-    let soids = soid_fx::ratio::constant(&soids, 1f32/5f32, 0.6f32);
-    let soids = soid_fx::ratio::constant(&soids, 1f32/2f32, 0.6f32);
-    let soids = soid_fx::ratio::constant(&soids, 1f32/3f32, 0.5f32);
-    let soids = soid_fx::ratio::constant(&soids, 7f32/11f32, 0.3f32);
-    
-    let feel_id:Feel = Feel {
+    let mut rng = thread_rng();
+    let peak1:f32 = 6f32;
+    let peak2:f32 = 7f32;
+    let peak3:f32 = (peak1.sqrt() + peak2.sqrt()).powi(2i32);
+
+    let mut compound_ratios:Vec<(f32, f32)> = vec![
+        (peak1, 0.22f32),
+        (peak2, 0.1f32),
+        (2f32, 0.7f32),
+        (3f32, 0.4f32),
+        (2f32, 0.5f32),
+        (3f32, 0.4f32),
+        (0.2f32, 0.6f32),
+        (0.5f32, 0.6f32),
+        (0.33f32, 0.5f32),
+        (0.75f32, 0.3f32),
+    ];
+
+    let soids:Soids = compound_ratios.iter().fold(druidic_soids::id(), |soids, (k, gain)| soid_fx::ratio::constant(&soids, *k, *gain));
+    let feelsoid_fx:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: (
             vec![],
@@ -68,20 +68,25 @@ fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'ren
     let mut knob_mods:KnobMods = KnobMods::unit();
     knob_mods.0.push((
         Knob {
-            a: 1f32,
+            a: 0.8f32,
             b: 0.1f32,
             c:0f32
         },
         ranger::amod_pluck
     ));
+    knob_mods.0.push((
+        Knob {
+            a: 0.5f32,
+            b: 0.3f32,
+            c:0f32
+        },
+        ranger::amod_pluck
+    ));
     let expr = (vec![visibility_gain(Visibility::Foreground)], vec![1f32], vec![0f32]);
-    // let soids = soid_fx::detune::reece(&druidic_soids::id(), 12, 0.5f32);
-    (melody, soids, expr, feel_id, knob_mods, vec![delay::passthrough])
+    // let soids = soid_fx::detune::reece(&soids, 3, 0.5f32);
+    (melody, soids, expr, feelsoid_fx, knob_mods, vec![delay::passthrough])
 }
 
-/// Defines the constituent stems to create a complex kick drum
-/// Components include:
-///  - a transient id element
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
     Renderable::Group(vec![
         stem_hidden(arf, melody),

@@ -172,7 +172,8 @@ fn demonstrate() {
     use rand::Rng;
     let mut rng = rand::thread_rng();
 
-    let cps:f32 = 1.15;
+    let cps:f32 = 1.2;
+    let cps:f32 = 2.1;
     let root:f32 = 1.9;
     let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
 
@@ -207,12 +208,11 @@ fn demonstrate() {
 
 
 
-fn samp() -> SampleBuffer {
+fn samp(cps:f32, root:f32) -> SampleBuffer {
     use rand::Rng;
     let mut rng = rand::thread_rng();
 
-    let cps:f32 = 1.15;
-    let root:f32 = 1.9;
+    
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
 
@@ -256,11 +256,28 @@ fn test_hypnosis() {
     let n_versions = 8;
     let n_loops = 4;
 
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let mut root:f32 = rng.gen::<f32>();
+    let base_cps:f32 = 1.2f32 + rng.gen::<f32>();
+    let mut cps:f32 = base_cps;
+
     for i in 0..n_versions {
-        ring = samp();
+        ring = samp(cps, root);
         for j in 0..n_loops {
             track.extend(&ring)
         }
+
+        root *= 1.5f32;
+        if root > 2f32 {
+            root /= 2f32;
+        };
+
+        cps *= 1.5f32;
+        if cps > base_cps * 3f32 {
+            cps /= 3f32;
+        };
     }
 
     let filename = format!("{}/hypnoloop_{}.wav",location(demo_name), demo_name);

@@ -3,19 +3,6 @@ use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids, soid_fx, noise::NoiseColor};
 
-
-pub fn expr_noise(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-15f32)], vec![1f32], vec![0f32])
-}
-
-pub fn expr_tonal(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-15f32)], vec![1f32], vec![0f32])
-}
-
-
-// @art-choice This module would benefit from dynamic selection of knob params
-// from the given VEP parameters
-
 /// Selects a short lived impulse for the pink noise component of a closed hi hat
 fn amp_knob_noise(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let sustain = 0.1f32;
@@ -63,11 +50,12 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
         soid_fx::noise::rank(1, NoiseColor::Equal, 1f32),
     ]);
 
+    let expr:Expr = (vec![db_to_amp(-15f32)], vec![1f32], vec![0f32]);
 
     let mut knob_mods:KnobMods = KnobMods::unit();
     let mut rng = thread_rng();
     knob_mods.0.push((Knob {a: rng.gen::<f32>(), b: rng.gen::<f32>()/5f32, c:0f32 }, ranger::amod_pluck));
-    let stem_tonal = (melody, soids, expr_tonal(arf), feel_tonal, knob_mods, vec![delay::passthrough]);
+    let stem_tonal = (melody, soids, expr, feel_tonal, knob_mods, vec![delay::passthrough]);
 
     Renderable::Group(vec![
         stem_tonal

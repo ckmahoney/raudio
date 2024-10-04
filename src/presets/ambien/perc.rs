@@ -22,7 +22,7 @@ pub fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'re
     let soids:Soids = soid_fx::fmod::square(&soids,3);
     // let soids:Soids = soid_fx::fmod::square(&soids,3);
     
-    let expr = (vec![visibility_gain(Visibility::Visible)], vec![1f32], vec![0f32]);
+    let expr = (vec![visibility_gain(Visibility::Foreground)], vec![1f32], vec![0f32]);
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: (
@@ -102,7 +102,7 @@ pub fn stem_background() {
 /// Background component
 pub fn stem_hidden<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids = druidic_soids::octave(500f32);
-    let expr = (vec![2f32 * visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
+    let expr = (vec![visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: (

@@ -8,11 +8,12 @@ pub mod ratio {
     use super::*;
 
     /// Add a copy of soids where all mul are multiplied by 'k'
+    /// gain affects the amplitude of added copies. original sinus are not affected.
     pub fn constant(soids:&Soids, k:f32, gain: f32) -> Soids {
         let mut ret = soids.clone();
         let gain:f32 = gain * 0.5f32; // this adds one mul per mul, so halve the volume of both.
         soids.0.iter().enumerate().for_each(|(i,m)|{
-            ret.0[i] *= gain;
+            // ret.0[i] *= gain;
 
             ret.0.push(gain);
             ret.1.push(m*k);
