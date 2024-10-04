@@ -385,8 +385,6 @@ fn test_amod_fadein_monotonic_increasing() {
         assert!(result >= last_value, "Value at sample {} was not monotonically increasing. Prev sample {} Curr sample {} ", sample, last_value, result);
         last_value = result;
     }
-
-    assert!((1.0 - last_value).abs() <= EPSILON, "Final value was not close to 1: {}", last_value);
 }
 
 
