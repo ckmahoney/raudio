@@ -3,7 +3,7 @@ use crate::analysis::delay;
 use crate::complexity;
 use crate::files;
 
-static demo_name:&str = "chill-beat";
+static demo_name:&str = "amen-beat";
 
 use crate::render::{self, Renderable};
 use crate::reverb;
@@ -14,34 +14,52 @@ use crate::analysis::volume::db_to_amp;
 
 use presets::ambien::{ perc, kick, hats};
 
+// static cps:f32 = 1.8f32;
+static cps:f32 = 2.1f32;
+static root:f32 = 1f32;
 
 fn kick_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (2i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
+        // group A 
         (1i32,2i32), 
         (1i32,2i32), 
+        (-3i32,2i32), 
+        (1i32,4i32), 
+        (1i32,4i32), 
+        (-1i32,1i32), 
+
+        // group A again
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (-3i32,2i32), 
+        (1i32,4i32), 
+        (1i32,4i32), 
+        (-1i32,1i32), 
+
+        // group B
+        (1i32, 2i32),
+        (1i32, 2i32),
+        (-3i32, 2i32),
+        (1i32, 2i32),
+        (-1i32, 1i32),
+
+        // group C
+        (-1i32, 2i32),
+        (1i32, 4i32),
+        (1i32, 4i32),
+        (-3i32, 2i32),
+        (1i32, 2i32),
+        (-1i32, 1i32),
     ];
 
     let amps:Vec<Ampl> = vec![
-        1f32, 0.66f32, 1f32, 
-        1f32, 0.5f32, 0.75f32, 1f32, 0.66f32
+        1f32, 0.8f32, 0f32, 0.7f32, 1f32, 0f32,
+        1f32, 0.8f32, 0f32, 0.7f32, 1f32, 0f32,
+        1f32, 1f32, 0f32, 1f32, 0f32,
+        0f32, 1f32, 1f32, 0f32, 1f32, 0f32
     ].iter().map(|x| x * db_to_amp(-12f32)).collect::<Vec<f32>>();
 
-    let tones:Vec<Tone> = vec![
-        (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
-    ];
+    let tones:Vec<Tone> = vec![(5, (0i8, 0i8, 1i8)); tala.len()];
 
     vec![
         zip_line(tala, tones, amps)
@@ -56,42 +74,40 @@ fn hats_melody() -> Melody<Note> {
         (1i32,2i32), 
         (1i32,2i32), 
         (1i32,2i32), 
-        (1i32,2i32), 
-        (-1i32,2i32), 
-        (1i32,2i32),
+        (1i32,2i32),  
         (1i32,2i32), 
         (1i32,2i32), 
+
         (1i32,2i32), 
         (1i32,2i32), 
-        (-1i32,2i32), 
         (1i32,2i32), 
-        (-1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32),  
+        (1i32,2i32), 
+        (1i32,2i32), 
+
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32),  
+        (1i32,2i32), 
+        (1i32,2i32), 
+
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32),  
+        (1i32,2i32), 
         (1i32,2i32), 
     ];
 
-    let amps:Vec<Ampl> = vec![
-        0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32,
-        0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32,
-    ].iter().map(|x| x * db_to_amp(-24f32)).collect::<Vec<f32>>();
-
-    let tones:Vec<Tone> = vec![
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-    ];
+    let amps:Vec<Ampl> = tala.iter().map(|x| db_to_amp(-10f32)).collect::<Vec<f32>>();
+    let tones:Vec<Tone> = vec![(12, (0i8, 0i8, 1i8)); tala.len()];
 
     vec![
         zip_line(tala, tones, amps)
@@ -101,31 +117,50 @@ fn hats_melody() -> Melody<Note> {
 
 fn perc_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
+        // group A 
+        (-1i32,1i32), 
+        (3i32, 4i32), 
+        (1i32,2i32), 
+        (3i32,4i32), 
+        (3i32,4i32), 
+        (1i32,4i32), 
+
+        // group A 
+        (-1i32,1i32), 
+        (3i32, 4i32), 
+        (1i32,2i32), 
+        (3i32,4i32), 
+        (3i32,4i32), 
+        (1i32,4i32), 
+
+        // group B
+        (-1i32,1i32), 
+        (3i32, 4i32), 
+        (1i32,4i32), 
+        (-1i32,4i32), 
+        (1i32,4i32), 
+        (-1i32,1i32), 
+        (1i32,2i32), 
+
+        // group C
+        (-1i32, 4i32), 
+        (1i32,  4i32), 
+        (-1i32, 2i32), 
+        (3i32, 4i32), 
+        (1i32, 2i32), 
+        (1i32, 4i32), 
+        (-3i32, 2i32)
     ];
 
     let amps:Vec<Ampl> = vec![
-        0f32, 0.66f32, 0f32, 0.75f32,
-        0f32, 0.66f32, 0f32, 0.5f32,
-    ].iter().map(|x| x * db_to_amp(-12f32)).collect::<Vec<f32>>();
+        0f32, 1f32, 0.21f32, 0.5f32, 1f32, 0.6f32,
+        0f32, 0.8f32, 0.41f32, 0.5f32, 1f32, 0.4f32,
+        0f32, 1f32, 0.7f32, 0f32, 1f32, 0f32, 0.7f32,
+        0f32, 0.5f32, 0f32, 0.8f32, 0.5f32, 0.7f32, 0f32,
+        
+    ].iter().map(|x| if *x == 0f32 { 0f32 } else { 1f32}).collect::<Vec<f32>>();
 
-    let tones:Vec<Tone> = vec![
-        (8, (0i8, 0i8, 1i8)),
-        (8, (0i8, 0i8, 1i8)),
-        (8, (0i8, 0i8, 1i8)),
-        (8, (0i8, 0i8, 1i8)),
-        (8, (0i8, 0i8, 1i8)),
-        (8, (0i8, 0i8, 1i8)),
-        (8, (0i8, 0i8, 1i8)),
-        (8, (0i8, 0i8, 1i8)),
-    ];
+    let tones:Vec<Tone> = vec![(8, (0i8, 0i8, 1i8)); tala.len()];
 
     vec![
         zip_line(tala, tones, amps)
@@ -172,14 +207,11 @@ fn demonstrate() {
     use rand::Rng;
     let mut rng = rand::thread_rng();
 
-    let cps:f32 = 1.15;
-    let root:f32 = 1.9;
-    let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
-
     let delays:Vec<DelayParams> = vec![delay::passthrough];
 
     let hats_melody = hats_melody();
     let perc_melody = perc_melody();
+    println!("pm at zero {:?}", perc_melody[0]);
     let kick_mel = kick_melody();
 
     let stem_hats = hats::renderable(&hats_melody, &hats_arf());
@@ -211,9 +243,6 @@ fn samp() -> SampleBuffer {
     use rand::Rng;
     let mut rng = rand::thread_rng();
 
-    let cps:f32 = 1.15;
-    let root:f32 = 1.9;
-
     let delays:Vec<DelayParams> = vec![delay::passthrough];
 
     let hats_melody = hats_melody();
@@ -242,19 +271,13 @@ fn samp() -> SampleBuffer {
 
 #[test]
 fn test_demonstrate() {
-    demonstrate()
+    demonstrate() 
 }
 
-#[test]
-fn test_hypnosis() {
-    let path:String = location(demo_name);
-    files::with_dir(&path);
 
+fn render_group(n_versions:usize, n_loops:usize, label:&str) {
     let mut track:SampleBuffer = vec![];
     let mut ring:SampleBuffer = vec![];
-
-    let n_versions = 8;
-    let n_loops = 4;
 
     for i in 0..n_versions {
         ring = samp();
@@ -263,12 +286,39 @@ fn test_hypnosis() {
         }
     }
 
-    let filename = format!("{}/hypnoloop_{}.wav",location(demo_name), demo_name);
+    let filename = format!("{}/hypnoloop_{}_{}.wav",location(demo_name), demo_name, label);
     render::engrave::samples(SR, &track, &filename);
+}
+
+#[test]
+fn test_hypnosis() {
+    let path:String = location(demo_name);
+    files::with_dir(&path);
+
+    let groups = vec![
+        (8, 4, "left"),
+        (4, 8, "right"),
+    ];
+
+    for (n_versions, n_loops, label) in groups {
+        let filename = format!("{}/hypnoloop_{}.wav",location(demo_name), demo_name);
+        render_group(n_versions, n_loops, label)
+    }
+}
+
+#[test]
+fn test_demo() {
+    let path:String = location(demo_name);
+    files::with_dir(&path);
+    let n_versions = 1;
+    let n_loops = 1;
+    let label = "mantest";
+    let filename = format!("{}/hypnoloop_{}.wav",location(demo_name), demo_name);
+    render_group(n_versions, n_loops, label)
 }
 
 
 #[test]
 fn test_render_playbook() {
-    crate::render_playbook("/media/naltroc/engraver 2/music-gen/demo/chill-beat-extra-square/test_ambien_playbook", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
+    crate::render_playbook("/media/naltroc/engraver 2/music-gen/demo/amen/test_amen_playbook", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
 }

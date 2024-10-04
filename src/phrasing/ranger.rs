@@ -476,7 +476,7 @@ pub fn amod_pluck(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos
     let max_mul: f32 = NFf / (mul * fund); 
     let t:f32 = pos_cycles/n_cycles;
     let base_decay_rate:f32 = 5f32 + 20f32 * (1f32 - knob.a);
-    let decay_mod_add:f32 = 120f32 * (knob.b).powi(2i32) * (max_mul-mul)/max_mul;
+    let decay_mod_add:f32 = 120f32 * (knob.b).powi(2i32) * mul/max_mul;
     let decay_rate:f32 = base_decay_rate + decay_mod_add;
     1f32/(decay_rate*t).exp()
 }

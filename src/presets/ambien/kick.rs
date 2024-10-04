@@ -12,12 +12,36 @@ fn knob_amp() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     (Knob { a: 0.11f32, b: 1f32, c: 0f32 }, ranger::amod_pluck)
 }
 
-/// Defines the constituent stems to create a complex kick drum
-/// Components include:
-///  - a transient id element
-pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
-    
-    //# id component
+fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
+    let soids = druidic_soids::id();
+    let expr = (vec![visibility_gain(Visibility::Background)], vec![1f32], vec![0f32]);
+
+    let feel:Feel = Feel {
+        bp: (vec![MFf], vec![NFf]),
+        modifiers: (
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ),
+        clippers: (0f32, 1f32)
+    };
+    let mut knob_mods:KnobMods = KnobMods::unit();
+    knob_mods.0.push((
+        Knob {
+            a: 0f32,
+            b: 0.9f32,
+            c:0f32
+        },
+        ranger::amod_pluck
+    ));
+    let noises:Vec<Soids> = (0..10).map(|register| soid_fx::noise::rank(register, NoiseColor::Violet, 0.1f32)).collect();
+    let soids = soid_fx::concat(&noises);
+
+    (melody, soids, expr, feel, knob_mods, vec![delay::passthrough])
+}
+
+fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids_id = druidic_soids::id();
     let modifiers_id:ModifiersHolder = (
         vec![],
@@ -33,25 +57,25 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     };
     
     let mut knob_mods:KnobMods = KnobMods::unit();
-    // knob_mods.0.push(knob_amp());
-    // let soids = soid_fx::amod::reece(&soids_id, 12);
-    
-
-    let soids = soid_fx::map(&soids_id, 3, vec![
-        (soid_fx::fmod::square, 0.33f32),
-    ]);
-
-    let soids = soid_fx::map(&soids, 3, vec![
-        (soid_fx::fmod::triangle, 0.11f32),
-    ]);
-
-    let soids = soid_fx::map(&soids, 3, vec![
-        (soid_fx::fmod::sawtooth, 0.05f32),
-    ]);
+    knob_mods.0.push((
+        Knob {
+            a: 1f32,
+            b: 0.1f32,
+            c:0f32
+        },
+        ranger::amod_pluck
+    ));
+    let expr = (vec![visibility_gain(Visibility::Foreground)], vec![1f32], vec![0f32]);
     let soids = soid_fx::detune::reece(&druidic_soids::id(), 12, 0.5f32);
-    let stem_id = (melody, soids, expr_id(arf), feel_id, knob_mods, vec![delay::passthrough]);
+    (melody, soids, expr, feel_id, knob_mods, vec![delay::passthrough])
+}
 
+/// Defines the constituent stems to create a complex kick drum
+/// Components include:
+///  - a transient id element
+pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
     Renderable::Group(vec![
-        stem_id,
+        stem_visible(arf, melody),
+        stem_foreground(arf, melody),
     ])
 }

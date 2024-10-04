@@ -183,7 +183,7 @@ fn channel(cps:f32, root:f32, (melody, soids, expr, feel, knob_mods, delays):&St
         let mut channel_samples:Vec<SampleBuffer> = Vec::new();
 
         let len_cycles:f32 = time::count_cycles(line);
-        let rounding_offset = 10; // since usize rounding might cutoff some sample
+        let rounding_offset = 0; // since usize rounding might cutoff some sample
         let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(&delays));
 
         let signal_len = time::samples_of_cycles(cps, len_cycles) + append_delay;
@@ -191,8 +191,11 @@ fn channel(cps:f32, root:f32, (melody, soids, expr, feel, knob_mods, delays):&St
         let mut p:f32 =0f32;
         line.iter().enumerate().for_each(|(i, (_, tone, amp))| {
             let freq = root * tone_to_freq(tone);
-            
+            println!("Rendering as dur {}", durs[i]);
             let moment = summer(p, len_cycles, cps, root, *amp, freq, durs[i], soids, &expr, feel, knob_mods, &delays);
+            if durs[i] < 0f32 {
+                println!("Created these samples {:?}", &moment[0..10])
+            }
             channel_samples.push(moment);
             p += durs[i]/len_cycles;
         });
@@ -224,19 +227,22 @@ fn find_last_audible_index(vec: &Vec<f32>, thresh: f32) -> Option<usize> {
 }
 
 
-/// Given a list of signals that may overlap with one another (e.g. long delay or release times)
+/// Given a list of signals whose tails may intend to overlap with the head of the next signal 
+/// (e.g. long delay or release times)
 /// Create a sample representing their overlapped mixing.
 pub fn overlapping(base_len:usize, cps:f32, durs:Vec<f32>, samples:&Vec<SampleBuffer>) -> SampleBuffer {
     let mut signal:SampleBuffer = vec![0f32; base_len];
-    durs.iter().enumerate().fold(0, |pos, (i, dur)| { 
-        if signal.len() < pos + samples[i].len() {
+    durs.iter().enumerate().fold(0, |cue, (i, dur)| { 
+        // Make sure there's enough room for us to add reverb/delay artifacts
+        if signal.len() < cue + samples[i].len() {
             signal.append(&mut vec![0f32; samples[i].len()]);
-        }
+        } 
         
         for (j,s) in samples[i].iter().enumerate() {
-            signal[pos + j] += s
+            
+            signal[cue + j] += s
         }
-        pos + time::samples_of_dur(cps, *dur)
+        cue + time::samples_of_dur(cps, *dur)
     });
     signal
 }
@@ -334,7 +340,7 @@ pub fn summer<'render>(
     len_cycles:f32,
     cps:f32, 
     root: f32, 
-    vel: f32,  // amp is taken, call it vel for velicty
+    vel: f32,  // call it vel for velicty (name amp is taken)
     fundamental:f32,
     n_cycles:f32,
     soids:&Soids,
@@ -348,6 +354,7 @@ pub fn summer<'render>(
     let sig_samples = time::samples_of_cycles(cps, n_cycles);
     let mut sig = vec![0f32;  sig_samples + append_delay];
     let (gate_thresh, clip_thresh) = clippers;
+
 
     if n_cycles.signum() == -1f32 || vel <= *gate_thresh {
         // skip rests, fill an empty vec

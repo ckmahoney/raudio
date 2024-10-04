@@ -30,13 +30,14 @@ use crate::druid::{Element, Elementor, melodic, bell, noise};
 use crate::phrasing::contour::expr_none;
 use crate::phrasing::ranger::{self, Knob,KnobMods};
 use crate::render::Renderable;
-
+use crate::types::synthesis::{ModifiersHolder,Soids};
+use crate::phrasing::contour::Expr;
+use crate::druid::{self, soids as druidic_soids, soid_fx, noise::NoiseColor};
 use rand::thread_rng;
 
 
 
 use crate::analysis::delay::DelayParams;
-use crate::phrasing::contour::Expr;
 
 
 pub struct Armoir;
@@ -233,4 +234,13 @@ fn amod_exit(x:f32) -> f32 {
 pub fn amod_impulse(k:usize, x:f32, d:f32) -> f32 {
     let y:f32 = -1f32 + (1f32/(1f32-(-x).exp()));
     (0.5f32*y).tanh() * amod_exit(x)
+}
+
+pub fn visibility_gain(v:Visibility) -> f32 {
+    match v {
+        Visibility::Hidden => db_to_amp(-50f32),
+        Visibility::Background => db_to_amp(-35f32),
+        Visibility::Foreground => db_to_amp(-20f32),
+        Visibility::Visible => db_to_amp(-5f32)
+    }
 }

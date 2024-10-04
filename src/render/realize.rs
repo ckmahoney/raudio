@@ -37,6 +37,7 @@ pub fn massage_buffers_or_die(buffs:&mut Vec<Vec<f32>>, err_thresh:usize) -> Res
 
 /// Given a group of same-length SampleBuffers,
 /// Sum their signals and apply normalization if necessary.
+/// This normalization method compresses the signal to fit in [0, 1] when it has samples outside this range.
 pub fn mix_buffers(buffs: &mut Vec<Vec<f32>>) -> Result<Vec<f32>, &'static str> {
     if buffs.is_empty() {
         return Ok(Vec::new());
