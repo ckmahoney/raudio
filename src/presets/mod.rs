@@ -103,7 +103,7 @@ impl Instrument {
                 Kick => ambien::kick::renderable(melody, arf),
                 Perc => ambien::perc::renderable(melody, arf),
                 Hats => ambien::hats::renderable(melody, arf),
-                Lead => urbuntu::lead::renderable(melody, arf),
+                Lead => ambien::lead::renderable(melody, arf),
                 Bass => ambien::bass::renderable(melody, arf),
                 Chords => ambien::chords::renderable(melody, arf),
             }
