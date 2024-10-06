@@ -191,11 +191,7 @@ fn channel(cps:f32, root:f32, (melody, soids, expr, feel, knob_mods, delays):&St
         let mut p:f32 =0f32;
         line.iter().enumerate().for_each(|(i, (_, tone, amp))| {
             let freq = root * tone_to_freq(tone);
-            println!("Rendering as dur {}", durs[i]);
             let moment = summer(p, len_cycles, cps, root, *amp, freq, durs[i], soids, &expr, feel, knob_mods, &delays);
-            if durs[i] < 0f32 {
-                println!("Created these samples {:?}", &moment[0..10])
-            }
             channel_samples.push(moment);
             p += durs[i]/len_cycles;
         });
