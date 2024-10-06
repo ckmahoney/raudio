@@ -238,10 +238,11 @@ fn demonstrate() {
 }
 
 
-
-fn samp() -> SampleBuffer {
+fn samp(c:f32, r:f32) -> SampleBuffer {
     use rand::Rng;
     let mut rng = rand::thread_rng();
+
+    
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
 
@@ -266,21 +267,59 @@ fn samp() -> SampleBuffer {
     let complexity:f32 = rng.gen::<f32>();
     let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
 
-    render::combiner(cps, root, &renderables, &group_reverbs, None)
+    render::combiner(c, r, &renderables, &group_reverbs, None)
 }
 
 #[test]
 fn test_demonstrate() {
-    demonstrate() 
+    demonstrate()
 }
 
+#[test]
+fn test_hypnosis() {
+    let path:String = location(demo_name);
+    files::with_dir(&path);
+
+    let mut track:SampleBuffer = vec![];
+    let mut ring:SampleBuffer = vec![];
+
+    let n_versions = 8;
+    let n_loops = 4;
+
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    let mut roott:f32 = rng.gen::<f32>();
+    let base_cps:f32 = 1.2f32 + rng.gen::<f32>();
+    let mut cpss:f32 = base_cps;
+
+    for i in 0..n_versions {
+        ring = samp(cpss, root);
+        for j in 0..n_loops {
+            track.extend(&ring)
+        }
+
+        roott *= 1.5f32;
+        if roott > 2f32 {
+            roott /= 2f32;
+        };
+
+        cpss *= 1.5f32;
+        if cpss > base_cps * 3f32 {
+            cpss /= 3f32;
+        };
+    }
+
+    let filename = format!("{}/hypnoloop_{}.wav",location(demo_name), demo_name);
+    render::engrave::samples(SR, &track, &filename);
+}
 
 fn render_group(n_versions:usize, n_loops:usize, label:&str) {
     let mut track:SampleBuffer = vec![];
     let mut ring:SampleBuffer = vec![];
 
     for i in 0..n_versions {
-        ring = samp();
+        ring = samp(cps, root);
         for j in 0..n_loops {
             track.extend(&ring)
         }
@@ -290,21 +329,6 @@ fn render_group(n_versions:usize, n_loops:usize, label:&str) {
     render::engrave::samples(SR, &track, &filename);
 }
 
-#[test]
-fn test_hypnosis() {
-    let path:String = location(demo_name);
-    files::with_dir(&path);
-
-    let groups = vec![
-        (8, 4, "left"),
-        (4, 8, "right"),
-    ];
-
-    for (n_versions, n_loops, label) in groups {
-        let filename = format!("{}/hypnoloop_{}.wav",location(demo_name), demo_name);
-        render_group(n_versions, n_loops, label)
-    }
-}
 
 #[test]
 fn test_demo() {
