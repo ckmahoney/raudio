@@ -333,10 +333,10 @@ fn demonstrate() {
 
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
-        stem_kick,
-        stem_perc,
-        stem_hats,
-        // stem_bass,
+        // stem_kick,
+        // stem_perc,
+        // stem_hats,
+        stem_bass,
         // stem_chords,
         // stem_lead,
     ];
@@ -344,22 +344,22 @@ fn demonstrate() {
     use crate::Distance;
     use crate::types::timbre::Enclosure;
 
-    let complexity:f32 = rng.gen::<f32>();
-    let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
+    let complexity:f32 = rng.gen::<f32>().min(0.01);
+    let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Room, complexity);
     let keep_stems = Some(path.as_str());
-
+    let group_reverbs = vec![];
     let mix = render::combiner(cps, root, &renderables, &group_reverbs, keep_stems);
     let filename = format!("{}/{}.wav",location(demo_name), demo_name);
     render::engrave::samples(SR, &mix, &filename);
 }
 
 #[test]
-fn test_demonstrate() {
+fn test_demonstrate () {
     demonstrate()
 }
 
 
 #[test]
 fn test_render_playbook() {
-    crate::render_playbook("/media/naltroc/engraver 2/music-gen/demo/ambien-extra-square/test_ambien_playbook", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
+    crate::render_playbook("/media/naltroc/engraver 2/music-gen/demo/ambien/test_ambien_playbook", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
 }

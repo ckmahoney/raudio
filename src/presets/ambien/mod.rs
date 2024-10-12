@@ -12,6 +12,6 @@ pub fn amp_expr(n_seconds:f32) -> SampleBuffer {
     let r = 1f32/2f32;
 
     (0..n_samples).map(|x| {
-        (pi * (x as f32 / n_samples as f32) / n_seconds).sin().powf(r)
+        (pi * (x as f32 / n_samples as f32) / n_seconds ).sin().powf(r)
     }).collect()
 }

@@ -6,8 +6,9 @@ use crate::druid::{self, soids as druidic_soids, soid_fx};
 /// noise component
 fn stem_hidden<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids = druidic_soids::id();
-    let expr = (vec![visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
-
+    let mut rng = thread_rng();
+    let expr = (vec![visibility_gain(Visibility::Background)], vec![1f32], vec![0f32]);
+ 
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: (
@@ -19,10 +20,28 @@ fn stem_hidden<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render>
         clippers: (0f32, 1f32)
     };
     let mut knob_mods:KnobMods = KnobMods::unit();
+    // principal layer
     knob_mods.0.push((
         Knob {
             a: 0f32,
-            b: 0.9f32,
+            b: 0.3f32,
+            c:0f32
+        },
+        ranger::amod_pluck
+    ));
+    // attenuation layer
+    knob_mods.0.push((
+        Knob {
+            a: match arf.presence {
+                Presence::Staccatto => in_range(&mut rng, 0f32, 0.33f32),
+                Presence::Legato => in_range(&mut rng, 0.33f32, 0.66f32),
+                Presence::Tenuto => in_range(&mut rng, 0.88f32, 1f32),
+            },
+            b: match arf.energy {
+                Energy::High => in_range(&mut rng, 0f32, 0.33f32),
+                Energy::Medium => in_range(&mut rng, 0.33f32, 0.66f32),
+                Energy::Low => in_range(&mut rng, 0.88f32, 1f32),
+            },
             c:0f32
         },
         ranger::amod_pluck

@@ -462,8 +462,8 @@ pub fn combiner<'render>(
     keep_stems: Option<&str>
 ) -> SampleBuffer {
     // Collect channels by processing each renderable
-    let mut channels: Vec<SampleBuffer> = renderables.iter().flat_map(|renderable| {
-        match renderable {
+    let mut channels: Vec<SampleBuffer> = renderables.iter().enumerate().flat_map(|(j, renderable)| {
+        let ch = match renderable {
             Renderable::Instance(stem) => {
                 // Process a single stem
                 vec![channel(cps, root, stem)]
@@ -472,7 +472,16 @@ pub fn combiner<'render>(
                 // Process each stem in the group
                 stems.iter().map(|stem| channel(cps, root, stem)).collect::<Vec<_>>()
             }
+        }; 
+
+        if let Some(stem_dir) = keep_stems {
+            ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+                let filename = format!("{}/part-{}-stem-{}.wav", stem_dir, j, stem_num);
+                render::engrave::samples(SR, &channel_samples, &filename);
+            });
         }
+
+        ch
     }).collect();
     
     // Optionally save stems if `keep_stems` is provided

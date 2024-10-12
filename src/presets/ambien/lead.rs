@@ -73,46 +73,66 @@ fn generate_rich_texture(arf:&Arf) -> Soids {
     (amps, muls, offsets)
 }
 
-
-fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+fn amp_knob_staccatto(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let mut rng = thread_rng();
-    if let Presence::Staccatto = presence {
-
-        let sustain = match presence {
-            Presence::Staccatto => 0f32,
-            Presence::Legato => 0.66f32,
-            Presence::Tenuto => 1f32
-        };
-    
-        let decay_rate = match energy {
-            Energy::Low => rng.gen::<f32>()/5f32,
-            Energy::Medium => 0.25 + rng.gen::<f32>()/2f32,
-            Energy::High => 0.66f32 + 0.33 * rng.gen::<f32>(),
-        };
-        
-        return (Knob { a: sustain, b: decay_rate, c: 0.0}, ranger::amod_pluck)
-    };
-
-    let osc_rate = match presence {
-        Presence::Staccatto => 025f32,
+    let sustain = match presence {
+        Presence::Staccatto => 0f32,
         Presence::Legato => 0.66f32,
         Presence::Tenuto => 1f32
     };
 
-    let time_scale = match energy {
-        Energy::Low => rng.gen::<f32>()/3f32,
-        Energy::Medium => 0.42 + rng.gen::<f32>()/4f32,
+    let decay_rate = match energy {
+        Energy::Low => rng.gen::<f32>()/5f32,
+        Energy::Medium => 0.25 + rng.gen::<f32>()/2f32,
         Energy::High => 0.66f32 + 0.33 * rng.gen::<f32>(),
     };
+    
+     (Knob { a: sustain, b: decay_rate, c: 0.0}, ranger::amod_pluck)
+}
 
-    let dilation = match visibility {
-        Visibility::Visible => 0.5 + 0.5 * rng.gen::<f32>(),
-        Visibility::Foreground => 0.3 + 0.2 * rng.gen::<f32>(),
-        Visibility::Background => 0.1 * 0.2 * rng.gen::<f32>(),
-        Visibility::Hidden => 0.5f32,
+fn amp_knob_legato(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mut rng = thread_rng();
+    let contour = match visibility {
+        Visibility::Foreground => 0.1 * rng.gen::<f32>(),
+        Visibility::Visible => 0.1 * rng.gen::<f32>(),
+        Visibility::Background => 0.3 + 0.2 * rng.gen::<f32>(),
+        Visibility::Hidden => 0.45 + 0.45 * rng.gen::<f32>()
     };
 
-    return (Knob { a: osc_rate, b: time_scale, c: dilation }, ranger::amod_oscillation_sin_mul);
+    let osc_rate = match energy {
+        Energy::Low => rng.gen::<f32>()/8f32,
+        Energy::Medium => 0.2 + rng.gen::<f32>()/8f32,
+        Energy::High => 0.33f32 + 0.33 * rng.gen::<f32>(),
+    };
+
+    return (Knob { a: contour, b: 1f32, c: osc_rate }, ranger::amod_wavelet_morphing)
+}
+
+
+fn amp_knob_tenuto(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mut rng = thread_rng();
+    let osc_rate = match energy {
+        Energy::Low => 0.1 * rng.gen::<f32>(),
+        Energy::Medium => 0.3 + 0.2 * rng.gen::<f32>(),
+        Energy::High => 0.45 + 0.45 * rng.gen::<f32>()
+    };
+
+    let time_scale = match energy {
+        Energy::Low => rng.gen::<f32>()/5f32,
+        Energy::Medium => 0.2 + rng.gen::<f32>()/4f32,
+        Energy::High => 0.33f32 + 0.66 * rng.gen::<f32>(),
+    };
+
+    return (Knob { a: osc_rate, b: time_scale, c: 0f32 }, ranger::amod_oscillation_sin_mul)
+}
+
+
+fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    match presence {
+        Presence::Staccatto => amp_knob_staccatto(visibility, energy, presence),
+        Presence::Legato => amp_knob_legato(visibility, energy, presence),
+        Presence::Tenuto => amp_knob_tenuto(visibility, energy, presence),
+    }
 
 }
 

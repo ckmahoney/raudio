@@ -11,7 +11,7 @@ static contour_resolution:usize = 1200;
 static unit_decay:f32 = 9.210340372; 
 
 use rand;
-use rand::{Rng,prelude::SliceRandom};
+use rand::{rngs::ThreadRng,Rng,prelude::SliceRandom};
 
 /// Shared imports for all presets in this mod
 use crate::analysis::delay;
@@ -118,6 +118,7 @@ impl Instrument {
             }
         };
 
+        println!("Overwriting delays from preset with those specified in score");
         match renderable {
             Renderable::Instance(mut stem) => {
                 stem.5 = delays;
@@ -243,4 +244,8 @@ pub fn visibility_gain(v:Visibility) -> f32 {
         Visibility::Foreground => db_to_amp(-20f32),
         Visibility::Visible => db_to_amp(-5f32)
     }
+}
+
+pub fn in_range(rng:&mut ThreadRng, min:f32,max:f32) ->  f32{ 
+    min + (max - min) * rng.gen::<f32>()
 }

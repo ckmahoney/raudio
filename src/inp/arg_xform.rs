@@ -5,6 +5,11 @@ use crate::types::render::DruidicScoreEntry;
 use crate::types::timbre::{Enclosure, SpaceEffects, Positioning, AmpContour, Distance, Echo};
 use rand::{self, Rng, rngs::ThreadRng};
 
+// todo 
+// 1 separate stems by beat vs inst
+// 2 apply render process 
+// 3 put insts in bigger reverb
+
 
 /// Given a client request for positioning and echoing a melody,
 /// produce application parameters to create the effect.
@@ -77,6 +82,45 @@ pub fn gen_delays(rng:&mut ThreadRng, cps:f32, echo:&Echo, complexity:f32) -> Ve
     }
 }
 
+
+
+/// reverb_params
+pub fn reverb_params(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&Enclosure, complexity:f32) -> ReverbParams {
+    // decay correlates to transient preservation
+    let decay = match distance {
+        Distance::Far => 0.7 + rng.gen::<f32>() * 0.3f32,
+        Distance::Adjacent => 0.1 + rng.gen::<f32>() / 4f32,
+        Distance::Near => 0.05 + rng.gen::<f32>() / 8f32,
+    };
+
+    // duration translate to intensity of effect
+    let dur:f32 = 2f32.powf(5f32 * complexity) * match enclosure {
+        Enclosure::Spring => rng.gen::<f32>().powi(5i32).min(0.05),
+        Enclosure::Room => rng.gen::<f32>().powi(2i32).min(0.5).max(0.1),
+        Enclosure::Hall => rng.gen::<f32>()* 0.8f32,
+        Enclosure::Vast => rng.gen::<f32>().powf(0.25f32).max(0.5),
+    } / cps;
+
+    // amp correlates to size of reverb/space
+    let mut amp:f32 = match enclosure {
+        Enclosure::Spring => 0.1 * rng.gen::<f32>(),
+        Enclosure::Room => 0.1 + rng.gen::<f32>()/5f32,
+        Enclosure::Hall => 0.15 + rng.gen::<f32>()/3f32,
+        Enclosure::Vast => 0.25 + rng.gen::<f32>()/3f32,
+    };
+
+    // corrections to amp when to prevent blowing up the signal
+    if decay >= 0.6f32 {
+        amp /= 2f32;
+        if decay >= 0.8f32 {
+            amp /= 2f32;
+        }
+    }
+
+    ReverbParams { mix: complexity * 0.8f32, amp, dur, rate:decay }
+}
+
+
 /// Create a saturation layer and room layer
 pub fn gen_reverbs(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&Enclosure, complexity:f32) -> Vec<ReverbParams> {
     let gain = match distance {
@@ -88,29 +132,34 @@ pub fn gen_reverbs(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:&E
     let rate:f32 = match enclosure {
         Enclosure::Spring => rng.gen::<f32>().powi(8i32).min(0.05),
         Enclosure::Room => rng.gen::<f32>().powi(2i32).min(0.25).max(0.75),
-        Enclosure::Hall => rng.gen::<f32>(),
+        Enclosure::Hall => rng.gen::<f32>().min(0.8f32),
         Enclosure::Vast => rng.gen::<f32>().powf(0.5f32).max(0.5),
     };
 
-    let dur:f32 = 32f32 * match enclosure {
+    let dur:f32 = 12f32 * match enclosure {
         Enclosure::Spring => rng.gen::<f32>().powi(5i32).min(0.05),
         Enclosure::Room => rng.gen::<f32>().powi(2i32).min(0.5).max(0.1),
-        Enclosure::Hall => rng.gen::<f32>(),
+        Enclosure::Hall => rng.gen::<f32>()* 0.8f32,
         Enclosure::Vast => rng.gen::<f32>().powf(0.25f32).max(0.5),
-    } / cps;
+    } / cps.powi(2i32);
+
+    let gain:f32 = 0.2f32;
+
+    let dur:f32 = 4f32;
 
     let amp:f32 = gain * match enclosure {
         Enclosure::Spring => 2f32.powi(-2i32),
         Enclosure::Room => 2f32.powi(-3i32),
         Enclosure::Hall => 2f32.powi(-4i32),
         Enclosure::Vast => 2f32.powi(-5i32),
-    } * complexity.powf(0.25f32);
+    } * complexity.powf(-3f32);
 
     let mix:f32 = match distance {
         Distance::Far => 0.33f32,
         Distance::Adjacent => 0.22f32,
         Distance::Near => 0.11f32,
     };
+
     vec![
         gen_saturation(cps, complexity),
         ReverbParams { mix, amp, dur, rate }

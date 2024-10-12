@@ -1,21 +1,15 @@
-use super::*;
 use super::super::*;
 use crate::types::synthesis::{ModifiersHolder,Soids};
-use crate::phrasing::ranger::{KnobMods};
-use crate::druid::{self, soids as druidic_soids};
+use crate::phrasing::{contour::Expr, ranger::KnobMods};
+use crate::druid::{self, soids as druidic_soids, soid_fx};
 
-fn expr() -> Expr {
-    let ampenv = amp_expr(1f32);
-    (ampenv, vec![1f32], vec![0f32])
+pub fn expr(arf:&Arf) -> Expr {
+    (vec![visibility_gain(arf.visibility)], vec![1f32], vec![0f32])
 }
 
-fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> Option<(Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32)> {
-    if let Visibility::Hidden = visibility {
-        return None
-    }
-    if let Visibility::Background = visibility {
-        return None
-    }
+
+
+fn amp_knob_hidden(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let mut rng = thread_rng();
     let osc_rate = match energy {
         Energy::Low => 0.1 * rng.gen::<f32>(),
@@ -29,78 +23,89 @@ fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> Option<(
         Visibility::Background => 0.1 * 0.1 * rng.gen::<f32>(),
         Visibility::Hidden => 0.05f32 * rng.gen::<f32>(),
     };
-    return Some((Knob { a: osc_rate, b: intensity, c: 0.0 }, ranger::amod_slowest))
-
+    return (Knob { a: osc_rate, b: intensity, c: 0.0 }, ranger::amod_slowest)
 }
 
-pub fn driad(arf:&Arf) -> Ely {
-    let reference:f32 = 2f32.powi(5i32);
-    let mixers:[Soids; 6] = [
-        druidic_soids::octave(reference),
-        druidic_soids::octave(reference * 1.5f32),
-        druidic_soids::octave(reference * 3f32),
-        druidic_soids::octave(reference * 9f32),
-        druidic_soids::octave(reference * 15f32),
-        druidic_soids::octave(reference * 60f32),
-    ];
-    let mut soids:Soids = (vec![], vec![], vec![]);
-    let amp_offset:f32 = 1f32 / mixers.len() as f32;
-    for (amps, muls, offsets) in mixers {
-        for i in 0..amps.len() {
-
-            soids.0.push(amps[i] * amp_offset);
-            soids.1.push(muls[i]);
-            soids.2.push(offsets[i])
-        }
-    }
-
-    let modders:ModifiersHolder = (
-        vec![],
-        vec![],
-        vec![],
-        vec![],
-    );
-    let mut knob_mods:KnobMods = KnobMods::unit();
-    if let Some(knob_mod) = amp_knob(arf.visibility, Energy::High, Presence::Legato) {
-        // knob_mods.0.push(knob_mod) 
-    }
-    Ely::new(soids, modders, knob_mods)
+fn amp_knob_principal(rng:&mut ThreadRng, arf:&Arf)  -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    return (
+        Knob { 
+            a: match arf.presence {
+                Presence::Staccatto => in_range(rng, 0f32, 0.5f32),
+                Presence::Legato => in_range(rng, 0.33f32, 0.88f32),
+                Presence::Tenuto => in_range(rng, 0.88f32, 1f32),
+            },
+            b: match arf.energy {
+                Energy::High => in_range(rng, 0f32, 0.2f32),
+                Energy::Medium => in_range(rng, 0.2f32, 0.3f32),
+                Energy::Low => in_range(rng, 0.3f32, 0.5f32),
+            },
+            c: 0.0 
+        },  
+        ranger::amod_burp
+    )
 }
 
-pub fn amp_knob_collage(arf:&Arf) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    let mod_rate:f32 = match arf.energy {
-        Energy::Low => 0f32,
-        Energy::Medium => 0.5f32,
-        Energy::High => 1f32,
-    };
-
-    let mod_intensity:f32 = match arf.energy {
-        Energy::Low => 0f32,
-        Energy::Medium => 0.5f32,
-        Energy::High => 1f32,
-    };
-    (Knob { a: mod_rate, b: mod_intensity, c: 0.0 }, ranger::amod_collage)
+fn amp_knob_attenuation(rng:&mut ThreadRng, arf:&Arf)  -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    return (
+        Knob { 
+            a: match arf.energy {
+                Energy::High => in_range(rng, 0.5f32, 0.8f32),
+                Energy::Medium => in_range(rng, 0.3f32, 0.4f32),
+                Energy::Low => in_range(rng, 0.0f32, 0.31f32),
+            },
+            b: match arf.visibility {
+                Visibility::Visible => in_range(rng, 0.8f32, 1f32),
+                Visibility::Foreground => in_range(rng, 0.5f32, 0.8f32),
+                _ => in_range(rng, 0f32, 0.3f32),
+            },
+            c: 0.0 
+        }, 
+        ranger::amod_detune
+    )
 }
-
 
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
-    let mut ely = driad(arf);
-    let ely_sine = driad(arf); 
-
-    let feel_sine:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: ely_sine.modders,
-        clippers: (0f32, 1f32)
-    };
+    let mut rng = thread_rng();
+    //# id component
+    let soids = druidic_soids::id();
 
     let feel:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: ely.modders,
+        bp: (vec![MFf], vec![NFf/64f32]),
+        modifiers: (
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ),
         clippers: (0f32, 1f32)
     };
+    
+    let mut knob_mods:KnobMods = KnobMods::unit();
+    knob_mods.0.push(amp_knob_principal(&mut rng, &arf));
+    knob_mods.0.push(amp_knob_attenuation(&mut rng, &arf));
 
-    ely.knob_mods.0.push(amp_knob_collage(arf));
+    let soids = soid_fx::map(&soids, 3, vec![
+        (soid_fx::fmod::triangle, 0.33f32),
+        (soid_fx::fmod::square, 0.33f32),
+    ]);
 
-    let stem:Stem = (melody, ely.soids, expr(), feel, ely.knob_mods, vec![delay::passthrough]);
-    Renderable::Instance(stem)
+    let soids = soid_fx::map(&soids, 3, vec![
+        (soid_fx::fmod::sawtooth, 0.11f32),
+    ]);
+
+
+    // let soids = soid_fx::map(&soids, 2, vec![ 
+    //     (soid_fx::fmod::triangle, 0.01f32),
+    // ]);
+    
+    // let soids = match arf.energy { 
+    //     Energy::High => soid_fx::amod::reece(&soids, 4),
+    //     Energy::Medium => soid_fx::amod::reece(&soids, 3),
+    //     Energy::Low => soid_fx::amod::reece(&soids, 2),
+    // };
+    let stem = (melody, soids, expr(arf), feel, knob_mods, vec![delay::passthrough]);
+
+    Renderable::Group(vec![
+        stem,
+    ])
 }

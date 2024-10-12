@@ -1,3 +1,5 @@
+use std::os::unix::thread;
+
 use super::super::*;
 
 fn knob_amp() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
@@ -17,7 +19,11 @@ pub fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'re
         (peak3, 0.3f32),
     ];
 
-    let soids:Soids = compound_ratios.iter().fold(druidic_soids::id(), |soids, (k, gain)| soid_fx::ratio::constant(&soids, *k, *gain));
+    let soids:Soids = soid_fx::concat(&vec![
+        compound_ratios.iter().fold(druidic_soids::id(), |soids, (k, gain)| soid_fx::ratio::constant(&soids, *k, *gain)),
+        soid_fx::noise::rank(0, NoiseColor::Violet, 1f32/7f32),
+        soid_fx::noise::rank(1, NoiseColor::Pink, 1f32/11f32),
+    ]);
     let soids:Soids = soid_fx::fmod::sawtooth(&soids, 5);
     let soids:Soids = soid_fx::fmod::square(&soids,3);
     // let soids:Soids = soid_fx::fmod::square(&soids,3);
@@ -66,8 +72,8 @@ pub fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'re
 pub fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids = soid_fx::concat(&vec![
         soid_fx::noise::rank(1, NoiseColor::Pink, 1f32/5f32),
-        soid_fx::noise::rank(3, NoiseColor::Pink, 1f32/3f32),
-        soid_fx::noise::rank(5, NoiseColor::Pink, 1f32/9f32),
+        soid_fx::noise::rank(2, NoiseColor::Equal, 1f32/9f32),
+        soid_fx::noise::rank(3, NoiseColor::Violet, 1f32/3f32),
     ]);
     let expr = (vec![visibility_gain(Visibility::Background)], vec![1f32], vec![0f32]);
     let feel:Feel = Feel {
@@ -82,15 +88,34 @@ pub fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<
     };
     
     let mut knob_mods:KnobMods = KnobMods::unit();
+    let mut rng:ThreadRng = thread_rng();
+    // principal layer
     knob_mods.0.push((
         Knob {
-            a: 0.4f32,
-            b: 0f32,
+            a: 0.2f32,
+            b: 0.3f32,
+            c: 0f32
+        },
+        ranger::amod_pluck
+    ));
+    
+    // attenuation layer
+    knob_mods.0.push((
+        Knob {
+            a: match arf.presence {
+                Presence::Staccatto => in_range(&mut rng, 0f32, 0.33f32),
+                Presence::Legato => in_range(&mut rng, 0.33f32, 0.66f32),
+                Presence::Tenuto => in_range(&mut rng, 0.88f32, 1f32),
+            },
+            b: match arf.energy {
+                Energy::High => in_range(&mut rng, 0f32, 0.33f32),
+                Energy::Medium => in_range(&mut rng, 0.33f32, 0.5f32),
+                Energy::Low => in_range(&mut rng, 0.5f32, 0.66f32),
+            },
             c:0f32
         },
         ranger::amod_pluck
     ));
-    let mut rng = thread_rng();
     (melody, soids, expr, feel, knob_mods, vec![delay::passthrough])
 }
 

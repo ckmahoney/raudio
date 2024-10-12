@@ -547,7 +547,7 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
 /// 
 /// `a`: Tremelo period. Value of 0 is 1 hits per note, and value of 1 is 2^4 hits per note.  
 /// `b`: time scale response to multiplier. 0 is passthrough, 1 has more periods as frequency increases.   
-/// `c`: osc rate dilation. 0.5 is passthrough, 0 is 1 is maximum dilation 
+/// `c`: not used.
 /// 
 /// ## Desmos 
 /// https://www.desmos.com/calculator/2bf9xonkci

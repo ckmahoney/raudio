@@ -1,82 +1,157 @@
+use std::os::unix::thread;
+
 use super::*;
 use super::super::*;
 use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 
-// @art-choice This module would benefit from dynamic selection of knob params
-// from the given VEP parameters
-
-fn amp_knob_overs(arf:&Arf) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    let mod_time:f32 = match arf.visibility {
-        Visibility::Hidden => 0.5f32,
-        Visibility::Background => 0.25f32,
-        Visibility::Foreground => 0.75f32,
-        Visibility::Visible => 1f32,
-    };
-    let mod_rate:f32 = match arf.energy {
-        Energy::Low => 0f32,
-        Energy::Medium => 0.5f32,
-        Energy::High => 1f32,
-    };
-    let delay_depth:f32 = match arf.presence {
-        Presence::Legato => 1f32,
-        Presence::Staccatto => 0.66f32,
-        Presence::Tenuto => 0.33f32,
-    };
-    (Knob { a: mod_time, b: mod_rate, c: delay_depth }, ranger::amod_seesaw )
-}
-
-fn amp_knob_unders(a:f32) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
-    (Knob { a: 0.5f32, b: 1f32, c: 0f32 }, ranger::amod_seesaw)
-}
-
-pub fn expr_overs(arf:&Arf) -> Expr {
+fn expr() -> Expr {
     let ampenv = amp_expr(4f32);
     (ampenv, vec![1f32], vec![0f32])
 }
 
-pub fn expr_unders(arf:&Arf) -> Expr {
-    let ampenv = amp_expr(4f32);
-    (ampenv, vec![1f32], vec![0f32])
+fn select_overtones(freq:f32, arf:&Arf) -> Vec<f32> {
+    let n = match arf.energy {
+        Energy::Low => 3,
+        Energy::Medium => 4,
+        Energy::High => 5,
+    };
+
+    let r = match arf.visibility {
+        Visibility::Hidden => 0,
+        Visibility::Background => 1,
+        Visibility::Foreground => 2,
+        Visibility::Visible => 3,
+    };
+
+    let limit = match arf.energy {
+        Energy::Low => 3,
+        Energy::Medium => 4,
+        Energy::High => 5,
+    };
+    let mut rng = thread_rng();
+    let options:Vec<f32> =( 1..=limit).into_iter().step_by(2).flat_map(|x| 
+        if r == 0 {vec![x as f32]} 
+        else {
+            (-r..r).into_iter().map(|i| 1.5f32.powi(i as i32)).collect() 
+        } 
+    ).collect();
+    let muls:Vec<f32> = (0..n).into_iter().map(|a| *options.choose(&mut rng).unwrap()).collect();
+    muls
 }
 
+/// create a harmonic pallette texture like a house stab
+fn generate_rich_texture(arf:&Arf) -> Soids {
+    let mut amps:Vec<f32> = vec![];
+    let mut muls:Vec<f32> = vec![];
+    let mut offsets:Vec<f32> = vec![];
 
-/// Defines the constituent stems to create a simple closed hat drum
-/// Components include:
-///  - an impulse of staccato undertone voicing
-///  - a pluck of pink overs 
-pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+    let reference_freq:f32 = match arf.visibility {
+        Visibility::Hidden => 2f32.powi(9i32),
+        Visibility::Background => 2f32.powi(8i32),
+        Visibility::Foreground => 2f32.powi(6i32),
+        Visibility::Visible => 2f32.powi(5i32),
+    };
 
-    let soids_overs = druidic_soids::integer_overs(2f32.powi(5i32)); 
-    let modifiers_overs:ModifiersHolder = (vec![], vec![], vec![], vec![]);
-    let feel_overs:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: modifiers_overs,
-        clippers: (0f32, 1f32)
+    let overs = select_overtones(reference_freq, arf);
+    let shade:Soids = match arf.energy {
+        Energy::Low => druidic_soids::octave(2f32.powi(9i32)),
+        Energy::Medium => druidic_soids::overs_triangle(2f32.powi(9i32)),
+        Energy::High => druidic_soids::overs_sawtooth(2f32.powi(9i32)),
+    };
+    let mut rng = thread_rng();
+
+    for i in 0..overs.len() {
+        let mult = overs[i];
+        let ampl:f32 = rng.gen::<f32>() * 0.5 + 0.5;
+        let offset:f32 = rng.gen::<f32>() * pi - (pi/2f32);
+        shade.0.iter().for_each(|amp| amps.push(ampl * amp));
+        shade.1.iter().for_each(|mul| muls.push(mult * mul));
+        shade.2.iter().for_each(|offset| offsets.push(offset + *offset));
+    }
+    (amps, muls, offsets)
+}
+
+fn amp_knob_staccatto(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mut rng = thread_rng();
+    let sustain = match presence {
+        Presence::Staccatto => 0f32,
+        Presence::Legato => 0.66f32,
+        Presence::Tenuto => 1f32
+    };
+
+    let decay_rate = match energy {
+        Energy::Low => rng.gen::<f32>()/5f32,
+        Energy::Medium => 0.25 + rng.gen::<f32>()/2f32,
+        Energy::High => 0.66f32 + 0.33 * rng.gen::<f32>(),
     };
     
-    let mut knob_mods_overs:KnobMods = KnobMods::unit();
-    knob_mods_overs.0.push(amp_knob_overs(arf));
+     (Knob { a: sustain, b: decay_rate, c: 0.0}, ranger::amod_pluck)
+}
 
-    let stem_overs = (melody, soids_overs, expr_overs(arf), feel_overs, knob_mods_overs, vec![delay::passthrough]);
+fn amp_knob_legato(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mut rng = thread_rng();
+    let contour = match visibility {
+        Visibility::Foreground => 0.1 * rng.gen::<f32>(),
+        Visibility::Visible => 0.1 * rng.gen::<f32>(),
+        Visibility::Background => 0.3 + 0.2 * rng.gen::<f32>(),
+        Visibility::Hidden => 0.45 + 0.45 * rng.gen::<f32>()
+    };
 
-    //# melodic component
+    let osc_rate = match energy {
+        Energy::Low => rng.gen::<f32>()/8f32,
+        Energy::Medium => 0.2 + rng.gen::<f32>()/8f32,
+        Energy::High => 0.33f32 + 0.33 * rng.gen::<f32>(),
+    };
 
-    let soids_unders = druidic_soids::integer_unders(2f32.powi(8i32)); 
-    let modifiers_unders:ModifiersHolder = (vec![], vec![], vec![], vec![]);
-    let feel_unders:Feel = Feel {
+    return (Knob { a: contour, b: 1f32, c: osc_rate }, ranger::amod_wavelet_morphing)
+}
+
+
+fn amp_knob_tenuto(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    let mut rng = thread_rng();
+    let osc_rate = match energy {
+        Energy::Low => 0.1 * rng.gen::<f32>(),
+        Energy::Medium => 0.3 + 0.2 * rng.gen::<f32>(),
+        Energy::High => 0.45 + 0.45 * rng.gen::<f32>()
+    };
+
+    let time_scale = match energy {
+        Energy::Low => rng.gen::<f32>()/5f32,
+        Energy::Medium => 0.2 + rng.gen::<f32>()/4f32,
+        Energy::High => 0.33f32 + 0.66 * rng.gen::<f32>(),
+    };
+
+    return (Knob { a: osc_rate, b: time_scale, c: 0f32 }, ranger::amod_oscillation_sin_mul)
+}
+
+
+fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    match presence {
+        Presence::Staccatto => amp_knob_staccatto(visibility, energy, presence),
+        Presence::Legato => amp_knob_legato(visibility, energy, presence),
+        Presence::Tenuto => amp_knob_tenuto(visibility, energy, presence),
+    }
+}
+
+
+pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+    let soids:Soids = generate_rich_texture(arf);
+    let mut knob_mods:KnobMods = KnobMods::unit();
+    knob_mods.0.push(amp_knob(arf.visibility, arf.energy, arf.presence));
+
+    let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
-        modifiers: modifiers_unders,
+        modifiers: (
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ),
         clippers: (0f32, 1f32)
     };
 
-    let mut knob_mods_unders:KnobMods = KnobMods::unit();
-    knob_mods_unders.0.push(amp_knob_overs(arf));
-    let stem_unders = (melody, soids_unders, expr_unders(arf), feel_unders, knob_mods_unders, vec![delay::passthrough]);
-
-    Renderable::Group(vec![
-        stem_overs,
-        stem_unders
-    ])
+    let stem = (melody, soids, expr(), feel, knob_mods, vec![delay::passthrough]);
+    Renderable::Instance(stem)
 }

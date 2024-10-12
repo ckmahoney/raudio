@@ -3,10 +3,11 @@ use crate::analysis::delay;
 use crate::complexity;
 use crate::files;
 
-static demo_name:&str = "amen-beat";
+static demo_name:&str = "convolution-reverb";
 
 use crate::render::{self, Renderable};
 use crate::reverb;
+use crate::reverb::convolution::ReverbParams;
 use crate::types::render::{Stem, Melody, Feel};
 use crate::presets::Instrument;
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
@@ -211,6 +212,7 @@ fn demonstrate() {
 
     let hats_melody = hats_melody();
     let perc_melody = perc_melody();
+    println!("pm at zero {:?}", perc_melody[0]);
     let kick_mel = kick_melody();
 
     let stem_hats = hats::renderable(&hats_melody, &hats_arf());
@@ -229,20 +231,39 @@ fn demonstrate() {
 
     let complexity:f32 = rng.gen::<f32>();
     let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
-    let group_reverbs = vec![];
+    let mixes:Vec<f32> = (1..10).map(|i| i as f32 / 10f32).collect();
+    let durs:Vec<f32> = vec![0.5f32, 1f32, 2f32, 4f32];
+    // let durs:Vec<f32> = vec![8f32, 16f32];
+    let rates:Vec<f32> = (0..10).map(|i| i as f32 / 10f32).collect();
+    let amps:Vec<f32> = (1..5).map(|i| i as f32 / 5f32).collect();
+    let keep_stems = None;
 
-    let keep_stems = Some(path.as_str());
+    for mix in &mixes {
+        for dur in &durs {
+            for rate in &rates {
+                for amp in &amps {
+                    let reverbs:Vec<ReverbParams> = vec![
+                        ReverbParams {
+                            mix:*mix,
+                            dur:*dur,
+                            rate:*rate,
+                            amp:*amp
+                        }
+                    ];
+                    let samples = render::combiner(cps, root, &renderables, &reverbs, keep_stems);
+                    let filename = format!("{}/reverb_amp_{}_mix_{}_rate_{}_dur_{}.wav",location(demo_name), amp, mix, rate, dur);
+                    render::engrave::samples(SR, &samples, &filename);
+                }
+            }
+        }
+    }
 
-    let mix = render::combiner(cps, root, &renderables, &group_reverbs, keep_stems);
-    let filename = format!("{}/{}.wav",location(demo_name), demo_name);
-    render::engrave::samples(SR, &mix, &filename);
 }
 
 
 fn samp(c:f32, r:f32) -> SampleBuffer {
     use rand::Rng;
     let mut rng = rand::thread_rng();
-
     
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
@@ -272,7 +293,7 @@ fn samp(c:f32, r:f32) -> SampleBuffer {
 }
 
 #[test]
-fn test_demonstrate() {
+fn test_demonstrate1x() {
     demonstrate()
 }
 

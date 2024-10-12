@@ -40,10 +40,10 @@ fn contour_sample(k:f32, t:f32) -> f32 {
     (k * t).exp().max(0.0)
 }
 
-/// Produce an exponentially decaying white noise sample 
-/// amp: direct amplitude coeffecient to scale the entire signal
-/// rate: standard range value mapping into decay rates from -50 (shortest, rate=0) to -5 (longest, rate=1)
-/// dur: length in seconds of impulse to generate
+/// Produce an exponentially decaying white noise sample  
+/// amp: direct amplitude coeffecient to scale the entire signal  
+/// rate: standard range value mapping into decay rates from -50 (shortest, rate=0) to -5 (longest, rate=1)  
+/// dur: length in seconds of impulse to generate  
 fn gen_impulse(amp:f32, rate:f32, dur:f32) -> SampleBuffer {
     let n_samples = time::samples_of_dur(1f32, dur);
     let mut rng = thread_rng();
