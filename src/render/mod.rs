@@ -462,7 +462,7 @@ pub fn combiner<'render>(
     keep_stems: Option<&str>
 ) -> SampleBuffer {
     // Collect channels by processing each renderable
-    let mut channels: Vec<SampleBuffer> = renderables.iter().enumerate().flat_map(|(j, renderable)| {
+    let mut channels: Vec<SampleBuffer> = renderables.iter().enumerate().map(|(j, renderable)| {
         let ch = match renderable {
             Renderable::Instance(stem) => {
                 // Process a single stem
@@ -473,15 +473,19 @@ pub fn combiner<'render>(
                 stems.iter().map(|stem| channel(cps, root, stem)).collect::<Vec<_>>()
             }
         }; 
-
         if let Some(stem_dir) = keep_stems {
+            // keep the substems
             ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
-                let filename = format!("{}/part-{}-stem-{}.wav", stem_dir, j, stem_num);
+                let filename = format!("{}/part-{}-twig-{}.wav", stem_dir, j, stem_num);
                 render::engrave::samples(SR, &channel_samples, &filename);
             });
         }
+        let rendered_channel = pad_and_mix_buffers(ch);
 
-        ch
+        match rendered_channel {
+            Ok(signal) => signal,
+            Err(msg)=> panic!("Unexpected error while mixing channels {}",msg)
+        }
     }).collect();
     
     // Optionally save stems if `keep_stems` is provided
