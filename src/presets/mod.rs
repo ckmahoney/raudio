@@ -1,6 +1,8 @@
 pub mod basic;
 pub mod hard;
 pub mod ambien;
+pub mod bird;
+pub mod hop;
 pub mod kuwuku;
 pub mod smooth;
 pub mod urbuntu;
@@ -99,13 +101,21 @@ impl Instrument {
             //     Chords => kuwuku::chords::renderable(melody, arf),
             // };
 
+            // match arf.role {
+            //     Kick => ambien::kick::renderable(melody, arf),
+            //     Perc => ambien::perc::renderable(melody, arf),
+            //     Hats => ambien::hats::renderable(melody, arf),
+            //     Lead => ambien::lead::renderable(melody, arf),
+            //     Bass => ambien::bass::renderable(melody, arf),
+            //     Chords => ambien::chords::renderable(melody, arf),
+            // }
             match arf.role {
-                Kick => ambien::kick::renderable(melody, arf),
-                Perc => ambien::perc::renderable(melody, arf),
-                Hats => ambien::hats::renderable(melody, arf),
-                Lead => ambien::lead::renderable(melody, arf),
-                Bass => ambien::bass::renderable(melody, arf),
-                Chords => ambien::chords::renderable(melody, arf),
+                Kick => bird::kick::renderable(melody, arf),
+                Perc => bird::perc::renderable(melody, arf),
+                Hats => bird::hats::renderable(melody, arf),
+                Lead => bird::lead::renderable(melody, arf),
+                Bass => bird::bass::renderable(melody, arf),
+                Chords => bird::chords::renderable(melody, arf),
             }
         } else {
             match arf.role {

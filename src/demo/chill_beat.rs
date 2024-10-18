@@ -3,7 +3,7 @@ use crate::analysis::delay;
 use crate::complexity;
 use crate::files;
 
-static demo_name:&str = "chill-beat";
+static demo_name:&str = "chill-beat-hop";
 
 use crate::render::{self, Renderable};
 use crate::reverb;
@@ -12,7 +12,8 @@ use crate::presets::Instrument;
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::volume::db_to_amp;
 
-use presets::ambien::{ perc, kick, hats};
+use presets::ambien::{ perc,  hats};
+use presets::hop::{ kick};
 
 
 fn kick_melody() -> Melody<Note> {
@@ -132,14 +133,14 @@ fn perc_melody() -> Melody<Note> {
     ]
 }
 
-fn kick_arf() -> Arf {
+fn kick_arf(p:Presence) -> Arf {
     Arf {
         mode: Mode::Enharmonic,
         role: Role::Perc,
         register: 5,
         visibility: Visibility::Visible,
         energy: Energy::Medium,
-        presence: Presence::Tenuto,
+        presence: p,
     }
 }
 
@@ -185,13 +186,17 @@ fn demonstrate() {
 
     let stem_hats = hats::renderable(&hats_melody, &hats_arf());
     let stem_perc = perc::renderable(&perc_melody, &perc_arf());
-    let stem_kick = kick::renderable(&kick_mel, &kick_arf());
+    let stem_kick1 = kick::renderable(&kick_mel, &kick_arf(Presence::Staccatto));
+    let stem_kick2 = kick::renderable(&kick_mel, &kick_arf(Presence::Tenuto));
+    let stem_kick3 = kick::renderable(&kick_mel, &kick_arf(Presence::Legato));
 
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
-        stem_kick,
-        stem_perc,
-        stem_hats,
+        stem_kick1,
+        stem_kick2,
+        stem_kick3,
+        // stem_perc,
+        // stem_hats,
     ];
 
     use crate::Distance;
@@ -207,6 +212,10 @@ fn demonstrate() {
 }
 
 
+#[test]
+fn test_demonstrate() {
+    demonstrate()
+}
 
 fn samp(cps:f32, root:f32) -> SampleBuffer {
     use rand::Rng;
@@ -222,7 +231,7 @@ fn samp(cps:f32, root:f32) -> SampleBuffer {
 
     let stem_hats = hats::renderable(&hats_melody, &hats_arf());
     let stem_perc = perc::renderable(&perc_melody, &perc_arf());
-    let stem_kick = kick::renderable(&kick_mel, &kick_arf());
+    let stem_kick = kick::renderable(&kick_mel, &kick_arf(Presence::Tenuto));
 
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
@@ -240,10 +249,6 @@ fn samp(cps:f32, root:f32) -> SampleBuffer {
     render::combiner(cps, root, &renderables, &group_reverbs, None)
 }
 
-#[test]
-fn test_demonstrate() {
-    demonstrate()
-}
 
 #[test]
 fn test_hypnosis() {

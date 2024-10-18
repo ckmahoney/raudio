@@ -1,6 +1,7 @@
 mod ambien;
 mod amen_beat;
 mod beat;
+mod chords;
 mod chill_beat;
 mod convolution_reverb;
 mod effects;
