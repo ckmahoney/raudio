@@ -21,6 +21,81 @@ pub mod ratio {
         });
         ret
     }
+
+    /// Create a copy of soids where all mul are multiplied by a constant factor
+    /// to produce a boost at the "perfect fifth"
+    /// range adds octaves up (0 is 1 octave)
+    /// gain affects the amplitude of added copies. original sinus are not affected.
+    pub fn fifth_up(soids:&Soids, range:usize, gain: f32) -> Soids {
+        let a = soids.0.len() * range+1;
+        let mut ret:Soids = (
+            Vec::with_capacity(a),
+            Vec::with_capacity(a),
+            Vec::with_capacity(a),
+        );
+
+        for b in 0..(range+1) {
+            let k:f32 = 2f32.powi(b as i32) * 1.5f32;
+            let amp = gain / 2f32.powi(b as i32);
+            soids.0.iter().enumerate().for_each(|(i,m)|{
+                ret.0.push(amp);
+                ret.1.push(m*k);
+                ret.2.push(0f32);
+            });
+        }
+
+        ret
+    }
+
+    /// Create a copy of soids where all mul are multiplied by a constant factor
+    /// to produce a boost at the "perfect fifth"
+    /// range adds octaves up (0 is 1 octave)
+    /// gain affects the amplitude of added copies. original sinus are not affected.
+    pub fn quince_up(soids:&Soids, range:usize, gain: f32) -> Soids {
+        let a = soids.0.len() * range+1;
+        let mut ret:Soids = (
+            Vec::with_capacity(a),
+            Vec::with_capacity(a),
+            Vec::with_capacity(a),
+        );
+
+        for b in 0..(range+1) {
+            let k:f32 = 2f32.powi(b as i32) * 1.5f32.powi(2i32);
+            let amp = gain / 2f32.powi(b as i32);
+            soids.0.iter().enumerate().for_each(|(i,m)|{
+                ret.0.push(amp);
+                ret.1.push(m*k);
+                ret.2.push(0f32);
+            });
+        }
+
+        ret
+    }
+
+    /// Create a copy of soids where all mul are multiplied by a constant factor
+    /// to produce a boost at the "perfect fifth"
+    /// range adds octaves up (0 is 1 octave)
+    /// gain affects the amplitude of added copies. original sinus are not affected.
+    pub fn dquince_up(soids:&Soids, range:usize, gain: f32) -> Soids {
+        let a = soids.0.len() * range+1;
+        let mut ret:Soids = (
+            Vec::with_capacity(a),
+            Vec::with_capacity(a),
+            Vec::with_capacity(a),
+        );
+
+        for b in 0..(range+1) {
+            let k:f32 = 2f32.powi(b as i32) * 1.5f32.powi(3i32);
+            let amp = gain / 2f32.powi(b as i32);
+            soids.0.iter().enumerate().for_each(|(i,m)|{
+                ret.0.push(amp);
+                ret.1.push(m*k);
+                ret.2.push(0f32);
+            });
+        }
+
+        ret
+    }
 }
 
 pub mod detune {
@@ -96,7 +171,7 @@ pub mod noise {
 pub mod amod {
     use super::*;
 
-        pub fn reece(soids:&Soids, n:usize) -> Soids {
+    pub fn reece(soids:&Soids, n:usize) -> Soids {
             
         if n == 0 {
             panic!("Must provide a nonzero value for n")
@@ -116,6 +191,7 @@ pub mod amod {
                 new_soids.1.push(mul * modulated_over);
                 new_soids.2.push(offset);
             }
+            
             for i in 0..n {
                 new_soids.0.push(one / ((i+1) as f32).sqrt());
                 new_soids.0.push(one);
@@ -245,6 +321,10 @@ pub fn map(soids:&Soids, n:usize, fx:Vec<SoidMod>) -> Soids {
     ret
 }
 
+pub fn empty_soids() -> Soids {
+    (vec![],vec![],vec![])
+}
+
 /// Given a collection of sinusoidal args, merge them all into a single Soids tuple.
 pub fn concat(soids:&Vec<Soids>) -> Soids {
     let mut amps = Vec::new();
@@ -258,4 +338,231 @@ pub fn concat(soids:&Vec<Soids>) -> Soids {
     }
 
     (amps, muls, offsets)
+}
+
+pub mod chordlike {
+    use super::*;
+
+    /// A collection of monics that produce a major chord. 
+    /// `freq` The reference frequency (fudamental) 
+    /// `range` The number of harmonic octaves to include. 0 is one octave, 1 is two octaves, etc. 
+    pub fn major(freq:f32, range:usize) -> Soids {
+        let mut max_mul: f32 = NFf /  freq;
+
+        if max_mul < 1f32 {
+            return empty_soids() 
+        }
+
+        if max_mul % 2f32 == 0f32 {
+            max_mul -= 1f32
+        };  
+
+        let monics:Vec<f32> = vec![1f32,3f32,5f32];
+        let mut amps:Vec<f32> = vec![];
+        let mut muls:Vec<f32> = vec![];
+        let mut offsets:Vec<f32> = vec![];
+        for i in 0..(range+1) {
+            for m in &monics {
+                let mul = m * 2f32.powi(i as i32);
+                if mul <= max_mul {
+                    let amp = one/(mul * 2f32.powi(i as i32));
+                    amps.push(amp);
+                    muls.push(mul);
+                    offsets.push(0f32);
+                }
+            }
+        }
+
+        (amps, muls, offsets)
+    }
+
+
+
+    /// A collection of monics that produce a major seventh chord. 
+    /// `freq` The reference frequency (fudamental) 
+    /// `range` The number of harmonic octaves to include. 0 is one octave, 1 is two octaves, etc. 
+    pub fn major_seven(freq:f32, range:usize) -> Soids {
+        let mut max_mul: f32 = NFf /  freq;
+
+        if max_mul < 1f32 {
+            return empty_soids() 
+        }
+
+        if max_mul % 2f32 == 0f32 {
+            max_mul -= 1f32
+        };  
+
+        let monics:Vec<f32> = vec![1f32,3f32,5f32, 1.5f32 * 5f32];
+        let mut amps:Vec<f32> = vec![];
+        let mut muls:Vec<f32> = vec![];
+        let mut offsets:Vec<f32> = vec![];
+        for i in 0..(range+1) {
+            for m in &monics {
+                let mul = m * 2f32.powi(i as i32);
+                if mul <= max_mul {
+                    let amp = one/(mul * 2f32.powi(i as i32));
+                    amps.push(amp);
+                    muls.push(mul);
+                    offsets.push(0f32);
+                }
+            }
+        }
+
+        (amps, muls, offsets)
+    }
+
+    /// A collection of monics that produce a minor seventh chord. 
+    /// `freq` The reference frequency (fudamental) 
+    /// `range` The number of harmonic octaves to include. 0 is one octave, 1 is two octaves, etc. 
+    pub fn minor_seven(freq:f32, range:usize) -> Soids {
+        let mut max_mul: f32 = NFf /  freq;
+
+        if max_mul < 1f32 {
+            return empty_soids() 
+        }
+
+        if max_mul % 2f32 == 0f32 {
+            max_mul -= 1f32
+        };  
+
+        let monics:Vec<f32> = vec![1f32,3f32,5f32, 1.5f32*5f32];
+        let mut amps:Vec<f32> = vec![];
+        let mut muls:Vec<f32> = vec![];
+        let mut offsets:Vec<f32> = vec![];
+        for i in 0..(range+1) {
+            for m in &monics {
+                let k:f32 = 2f32.powi(1i32+i as i32);
+                let mul = crate::analysis::fit(k, one/m);
+                if mul <= max_mul {
+                    let amp = one/(mul * k);
+                    amps.push(amp);
+                    muls.push(mul);
+                    offsets.push(0f32);
+                }
+            }
+        }
+
+        (amps, muls, offsets)
+    }
+
+    /// A collection of monics that produce a minor chord.  
+    /// This uses undertone minor: where the fundamental (reference) functions as the perfect fifth of the minor chord.
+    /// `freq` The reference frequency (fudamental).  
+    /// `range` The number of harmonic octaves to include. 0 is one octave, 1 is two octaves, etc.  
+    pub fn minor(freq:f32, range:usize) -> Soids {
+        let mut max_mul: f32 = NFf /  freq;
+
+        if max_mul < 1f32 {
+            return empty_soids() 
+        }
+
+        if max_mul % 2f32 == 0f32 {
+            max_mul -= 1f32
+        };  
+
+        let monics:Vec<f32> = vec![1f32,3f32,5f32];
+        let mut amps:Vec<f32> = vec![];
+        let mut muls:Vec<f32> = vec![];
+        let mut offsets:Vec<f32> = vec![];
+        for i in 0..(range+1) {
+            for m in &monics {
+                let k:f32 = 2f32.powi(1i32+i as i32);
+                let mul = crate::analysis::fit(k, one/m);
+                if mul <= max_mul {
+                    let amp = one/(mul * k);
+                    amps.push(amp);
+                    muls.push(mul);
+                    offsets.push(0f32);
+                }
+            }
+        }
+
+        (amps, muls, offsets)
+    }
+
+    /// Convenient preset to make the "relative minor" chord.
+    /// This uses undertone minor: where the fundamental (reference) functions as the perfect fifth of the minor chord.
+    /// `freq` The reference frequency (fudamental).  
+    /// `range` The number of harmonic octaves to include. 0 is one octave, 1 is two octaves, etc.  
+    pub fn minor_offset(freq:f32, range:usize) -> Soids {
+        let mut max_mul: f32 = NFf /  freq;
+
+        if max_mul < 1f32 {
+            return empty_soids() 
+        }
+
+        if max_mul % 2f32 == 0f32 {
+            max_mul -= 1f32
+        };  
+
+        let monics:Vec<f32> = vec![1f32,3f32,5f32];
+        let mut amps:Vec<f32> = vec![];
+        let mut muls:Vec<f32> = vec![];
+        let mut offsets:Vec<f32> = vec![];
+
+        let freq_offset:f32 = 1.5f32.powi(-4i32);
+        for i in 0..(range+1) {
+            for m in &monics {
+                let k:f32 = 2f32.powi(1i32+i as i32);
+                let mul = crate::analysis::fit(k, freq_offset/m);
+                if mul <= max_mul {
+                    let amp = one/(mul * k);
+                    amps.push(amp);
+                    muls.push(mul);
+                    offsets.push(0f32);
+                }
+            }
+        }
+
+        (amps, muls, offsets)
+    }
+
+
+
+    pub fn dimdom(freq:f32, range:usize) -> Soids {
+        let mut max_mul: f32 = NFf /  freq;
+
+        if max_mul < 1f32 {
+            return empty_soids() 
+        }
+
+        if max_mul % 2f32 == 0f32 {
+            max_mul -= 1f32
+        };  
+
+        let monics:Vec<f32> = vec![1f32,3f32,5f32];
+        let mut amps:Vec<f32> = vec![];
+        let mut muls:Vec<f32> = vec![];
+        let mut offsets:Vec<f32> = vec![];
+
+        let freq_offset_overs:f32 = 1.5f32.powi(2i32);
+        let freq_offset_unders:f32 = 1.5f32.powi(-2i32);
+        for i in 0..(range+1) {
+            // overtones
+            for m in &monics {
+                let k:f32 = 2f32.powi(i as i32);
+                let mul = crate::analysis::fit(k, freq_offset_overs*m);
+                if mul <= max_mul {
+                    let amp = one/(mul * k).powi(1i32);
+                    amps.push(amp);
+                    muls.push(mul);
+                    offsets.push(0f32);
+                }
+            }
+            
+            // undertones
+            for m in &monics {
+                let k:f32 = 2f32.powi(1i32+i as i32);
+                let mul = crate::analysis::fit(k, freq_offset_unders/m);
+                if mul <= max_mul {
+                    let amp = one/(mul * k).powi(1i32);
+                    amps.push(amp);
+                    muls.push(mul);
+                    offsets.push(0f32);
+                }
+            }
+        }
+
+        (amps, muls, offsets)
+    }
 }
