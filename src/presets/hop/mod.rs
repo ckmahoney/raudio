@@ -1,7 +1,7 @@
 use super::*;
 
 use super::*;
-// pub mod perc;
+pub mod perc;
 // pub mod chords;
 pub mod kick;
 pub mod hats;
