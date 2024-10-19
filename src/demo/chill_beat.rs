@@ -12,21 +12,22 @@ use crate::presets::Instrument;
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::volume::db_to_amp;
 
-use presets::ambien::{ perc,  hats};
-use presets::hop::{ kick};
+use presets::ambien::{ perc};
+use presets::hop::{ kick,  hats};
+use rand::thread_rng;
 
 
 fn kick_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
         (3i32,2i32), 
         (3i32,2i32), 
-        (2i32,1i32), 
+        (2i32,2i32), 
         (3i32,2i32), 
         (3i32,2i32), 
-        (2i32,1i32), 
+        (2i32,2i32), 
         (6i32,2i32), 
         (6i32,2i32), 
-        (4i32,1i32), 
+        (4i32,2i32), 
     ];
 
     let amps:Vec<Ampl> = vec![
@@ -62,41 +63,37 @@ fn hats_melody() -> Melody<Note> {
         (1i32,2i32), 
         (1i32,2i32), 
         (1i32,2i32), 
-        (-1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (-1i32,1i32), 
         (1i32,2i32),
         (1i32,2i32), 
         (1i32,2i32), 
         (1i32,2i32), 
         (1i32,2i32), 
-        (-1i32,2i32), 
         (1i32,2i32), 
-        (-1i32,2i32), 
+        (-1i32,1i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
+        (1i32,2i32), 
         (1i32,2i32), 
     ];
+    let mut rng = thread_rng();
+    let amps:Vec<Ampl> = (0..tala.len()).map(|x| {
+        rng.gen::<f32>() * 0.2f32 + 0.4f32
+    }).collect();
 
-    let amps:Vec<Ampl> = vec![
-        0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32,
-        0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32, 0.5f32,
-    ].iter().map(|x| x * db_to_amp(-24f32)).collect::<Vec<f32>>();
-
-    let tones:Vec<Tone> = vec![
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-        (12, (0i8, 0i8, 1i8)),
-    ];
+    let tones:Vec<Tone> = vec![(12, (0i8, 0i8, 1i8)); tala.len()];
 
     vec![
         zip_line(tala, tones, amps)
@@ -159,14 +156,14 @@ fn perc_arf() -> Arf {
         presence: Presence::Staccatto,
     }
 }
-fn hats_arf() -> Arf {
+fn hats_arf(p:Presence) -> Arf {
     Arf {
         mode: Mode::Enharmonic,
         role: Role::Hats,
         register: 12,
         visibility: Visibility::Foreground,
         energy: Energy::Medium,
-        presence: Presence::Legato,
+        presence: p,
     }
 }
 
@@ -179,8 +176,7 @@ fn demonstrate() {
 
     let cps:f32 = 1.2;
     let cps:f32 = 3.1;
-    let root:f32 = 1.9;
-    let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
+    let root:f32 = 1.9; 
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
 
@@ -188,19 +184,23 @@ fn demonstrate() {
     let perc_melody = perc_melody();
     let kick_mel = kick_melody();
 
-    let stem_hats = hats::renderable(&hats_melody, &hats_arf());
+    let stem_hats1 = hats::renderable(&hats_melody, &hats_arf(Presence::Staccatto));
+    let stem_hats2 = hats::renderable(&hats_melody, &hats_arf(Presence::Legato));
+    let stem_hats3 = hats::renderable(&hats_melody, &hats_arf(Presence::Tenuto));
     let stem_perc = perc::renderable(&perc_melody, &perc_arf());
     let stem_kick1 = kick::renderable(&kick_mel, &kick_arf(Presence::Staccatto));
-    let stem_kick2 = kick::renderable(&kick_mel, &kick_arf(Presence::Tenuto));
-    let stem_kick3 = kick::renderable(&kick_mel, &kick_arf(Presence::Legato));
+    let stem_kick2 = kick::renderable(&kick_mel, &kick_arf(Presence::Legato));
+    let stem_kick3 = kick::renderable(&kick_mel, &kick_arf(Presence::Tenuto));
 
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
         stem_kick1,
-        stem_kick2,
-        stem_kick3,
+        // stem_kick2,
+        // stem_kick3,
         // stem_perc,
-        // stem_hats,
+        stem_hats1,
+        stem_hats2,
+        stem_hats3,
     ];
 
     use crate::Distance;
@@ -233,7 +233,7 @@ fn samp(cps:f32, root:f32) -> SampleBuffer {
     let perc_melody = perc_melody();
     let kick_mel = kick_melody();
 
-    let stem_hats = hats::renderable(&hats_melody, &hats_arf());
+    let stem_hats = hats::renderable(&hats_melody, &hats_arf(Presence::Staccatto));
     let stem_perc = perc::renderable(&perc_melody, &perc_arf());
     let stem_kick = kick::renderable(&kick_mel, &kick_arf(Presence::Tenuto));
 

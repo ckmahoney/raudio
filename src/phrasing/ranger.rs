@@ -129,7 +129,12 @@ pub fn fmod_sweepdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32,
     let b_coef:f32 = -(100f32 - 95f32*knob.b);
     let decay_mul:f32 = (b_coef * t).exp();
     let scaled_mul = 2f32.powf(a * max_mul.log2());
-    one + decay_mul * scaled_mul
+    let v = one + decay_mul * scaled_mul;
+
+    if v < 1f32 {
+        panic!("Not supposed to go below 1")
+    }
+    v
 }
 
 /// A continuous frequency mod that adds detuning to the harmonic.

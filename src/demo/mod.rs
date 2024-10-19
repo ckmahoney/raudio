@@ -23,7 +23,7 @@ use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpas
 use crate::analysis::delay::{self, DelayParams};
 use crate::synth::{MFf,NFf, SR, SampleBuffer};
 use crate::render::Renderable;
-
+use rand::Rng;
 pub fn location(name:&str) -> String {
     format!("{}/{}", out_dir, name)
 }

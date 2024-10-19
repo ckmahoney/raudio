@@ -15,8 +15,8 @@ fn gain(arf:&Arf) -> f32 {
     
     let mul = match arf.energy {
         Energy::High => 3f32,
-        Energy::Medium => 3f32,
-        Energy::Low => 3f32,
+        Energy::Medium => 2f32,
+        Energy::Low => 1f32,
     };
 
     x * mul
@@ -77,7 +77,7 @@ pub fn stem_noise<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'rend
 pub fn stem_bass<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let soids = druidic_soids::upto(2);
 
-    let expr = (vec![gain(arf)], vec![1f32], vec![0f32]); 
+    let expr = (vec![db_to_amp(-4.5f32)*gain(arf)], vec![1f32], vec![0f32]); 
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: (
