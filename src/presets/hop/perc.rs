@@ -35,7 +35,7 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
             vec![],
         ),
         clippers: (0f32, 1f32)
-    };
+    }; 
     let mut knob_mods:KnobMods = KnobMods::unit();
     knob_mods.0.push(amp_knob(arf.visibility, Energy::High, Presence::Legato));
 
