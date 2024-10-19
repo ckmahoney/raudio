@@ -60,6 +60,16 @@ pub fn unit(freq:f32) -> Soids {
     (amps, muls, offs) 
 }
 
+// integer components starting at 1 up to n
+pub fn upto(n:usize) -> Soids {
+    let mut muls:Vec<f32> = vec![1f32];
+    muls.append(&mut (1..n).map(|ku| ku as f32).collect::<Vec<f32>>());
+    let l =muls.len();
+    let amps:Vec<f32> = vec![1f32; l];
+    let offs:Vec<f32> = vec![0f32; l];
+    (amps, muls, offs) 
+}
+
 /// Generates sinusoids representing undertone placement using an "octave" pattern.
 pub fn under_octave(freq: f32) -> Soids {
     let n = (freq / MFf / 2f32) as usize;

@@ -18,32 +18,36 @@ use presets::hop::{ kick};
 
 fn kick_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
-        (1i32,1i32), 
-        (1i32,1i32), 
+        (3i32,2i32), 
+        (3i32,2i32), 
         (2i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,1i32), 
-        (1i32,2i32), 
-        (1i32,2i32), 
+        (3i32,2i32), 
+        (3i32,2i32), 
+        (2i32,1i32), 
+        (6i32,2i32), 
+        (6i32,2i32), 
+        (4i32,1i32), 
     ];
 
     let amps:Vec<Ampl> = vec![
-        1f32, 0.66f32, 1f32, 
-        1f32, 0.5f32, 0.75f32, 1f32, 0.66f32
+        1f32, 0.88f32, 0.66f32, 
+        1f32, 0.88f32, 0.66f32, 
+        1f32, 0.88f32, 0.66f32, 
+        // 1f32, 0.5f32, 0.75f32, 1f32, 0.66f32
     ].iter().map(|x| x * db_to_amp(-12f32)).collect::<Vec<f32>>();
 
     let tones:Vec<Tone> = vec![
         (5, (0i8, 0i8, 1i8)),
         (5, (0i8, 0i8, 1i8)),
+        (5, (-5i8, 0i8, 1i8)),
         (5, (0i8, 0i8, 1i8)),
         (5, (0i8, 0i8, 1i8)),
+        (5, (-5i8, 0i8, 1i8)),
         (5, (0i8, 0i8, 1i8)),
         (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
-        (5, (0i8, 0i8, 1i8)),
+        (5, (-5i8, 0i8, 1i8)),
     ];
-
+ 
     vec![
         zip_line(tala, tones, amps)
     ]
@@ -174,7 +178,7 @@ fn demonstrate() {
     let mut rng = rand::thread_rng();
 
     let cps:f32 = 1.2;
-    let cps:f32 = 2.1;
+    let cps:f32 = 3.1;
     let root:f32 = 1.9;
     let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
 
