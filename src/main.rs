@@ -118,5 +118,6 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
 
 #[test]
 fn test_render_playbook() {
-    render_playbook("/media/naltroc/engraver 2/music-gen/demo/test_render_playbook", "src/demo/test-druidic-score.json", "test-druidic-render")
+    let filepath:&str = &format!("{}/demo/test_render_playbook", crate::demo::out_dir);
+    render_playbook(filepath, "src/demo/test-druidic-score.json", "test-druidic-render")
 }

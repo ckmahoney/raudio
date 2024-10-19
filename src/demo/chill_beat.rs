@@ -284,5 +284,7 @@ fn test_hypnosis() {
 
 #[test]
 fn test_render_playbook() {
-    crate::render_playbook("/media/naltroc/engraver 2/music-gen/demo/chill-beat-extra-square/test_ambien_playbook", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
+    let filepath:&str = &format!("{}/demo/chill/test_chill_playbook", crate::demo::out_dir);
+
+    crate::render_playbook(filepath, "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
 }
