@@ -4,8 +4,10 @@ pub mod ifft;
 pub mod ninja;
 pub mod realize; 
 
+use crate::analysis::volume::db_to_amp;
+use crate::presets::DB_HEADROOM;
 use crate::synth::{SR, SRf, MFf, MF, NFf, NF, pi2, pi, SampleBuffer};
-use crate::analysis::{delay, xform_freq, freq::slice_signal};
+use crate::analysis::{delay, xform_freq, freq::slice_signal, freq::apply_filter, freq::apply_resonance};
 use crate::druid::{Elementor, Element, ApplyAt, melody_frexer, inflect};
 use crate::druid::applied_modulation::{self, update_mods};
 use crate::monic_theory::tone_to_freq;
@@ -28,22 +30,6 @@ pub enum Renderable<'render> {
     Group(Vec<Stem<'render>>),
 }
 
-#[inline]
-/// Returns an amplitude identity or cancellation value
-/// for the given frequency and bandpass settings
-/// 
-/// idea: enable attenuation by providing conventional Q settings wrt equalization/filtering.
-/// That is, Ratio Q for how wide the attenuation reaches and Mod Q for how much to attenuate.
-fn filter(progress:f32, freq:f32, bandpass:(&Vec<f32>, &Vec<f32>)) -> Range {
-    let p = progress.max(0f32).min(1f32);
-    let min_f = sample(&bandpass.0, p).max(MF as f32);
-    let max_f = sample(&bandpass.1, p).min(NF as f32);
-    if freq < min_f || freq > max_f {
-        return 0f32
-    } else {
-      return 1f32  
-    }
-}
 
 pub fn rescale(samples: &[f32], original_freq: f32, target_freq: f32) -> Vec<f32> {
     let ratio = original_freq / target_freq;
@@ -205,6 +191,7 @@ fn channel(cps:f32, root:f32, (melody, soids, expr, feel, knob_mods, delays):&St
         Err(msg) => panic!("Failed to mix and render channel: {}", msg)
     }
 }
+
 /// Convolution and delay effects may produce a long tail of empty signal.
 /// Remove it.
 pub fn trim_zeros(signal: &mut Vec<f32>) {
@@ -243,96 +230,30 @@ pub fn overlapping(base_len:usize, cps:f32, durs:Vec<f32>, samples:&Vec<SampleBu
     signal
 }
 
-/// Render a signal from contextual and decorative parameters. 
-/// Returns a SampleBuffer representing the moment produced from this request.
-pub fn summit<'render>(
-    cps:f32, 
-    root: f32, 
-    fundamental:f32,
-    n_cycles:f32,
-    soids:&Soids,
-    Feel { bp,  modifiers, clippers }: &'render Feel,
-    delays: &Vec::<delay::DelayParams>
-) -> Vec<f32> {
-    let rounding_offset = 10;
-    let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(delays));
-    let sig_samples = time::samples_of_cycles(cps, n_cycles);
-    let n_samples = sig_samples + append_delay;
-    let mut sig = vec![0f32; n_samples];
-    let (gate_thresh, clip_thresh) = clippers;
-    let (modsAmp, modsFreq, modsPhase, modTime) = modifiers;
-    for delay_params in delays {
-        let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
-        for j in 0..sig_samples {
-            // setup position and progress 
-            let p: f32 = j as f32 / sig_samples as f32;
-            let t0:f32 = (j as f32 ) / SRf;
-            let t: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
-            let mut v: f32 = 0f32;
-
-            // // sample the amp, freq, and phase offset envelopes
-            // let mut am = sample(&expr.0, p);
-            // let mut fm = sample(&expr.1, p);
-            // let mut pm = sample(&expr.2, p);
-
-            let amplifiers = &soids.0;
-            let multipliers = &soids.1;
-            let phases = &soids.2;
-
-            // if (am) < *gate_thresh {
-            //     continue;
-            // }
-
-            for (i, &m) in multipliers.iter().enumerate() {
-                let a0 = amplifiers[i];
-                if a0 > *gate_thresh {
-                    // let amp = am * modsAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
-                    let amp = modsAmp.iter().fold(a0, |acc, ma| ma.apply(t, acc)); 
-                    if amp < *gate_thresh {
-                        continue
-                    }
-                    let k = i + 1;
-                    let f0:f32 = m  * fundamental;
-                    let frequency = modsFreq.iter().fold(f0, |acc, mf| mf.apply(t, acc));
-                    if frequency > NFf || frequency < MFf {
-                        continue
-                    }
-                    let p0 = frequency * pi2 * t;
-                    let phase = modsPhase.iter().fold(p0, |acc, mp| mp.apply(t, acc)); 
-                    
-                    v += amp * phase.sin();
-                }
-            };
-
-            for replica_n in 0..=(delay_params.n_echoes.max(1)) {
-                let offset_j = samples_per_echo * replica_n;
-                let gain =  delay::gain(j, replica_n, delay_params);
-                if gain < *gate_thresh {
-                    continue;
-                }
-                // apply gating and clipping to the summed sample
-                if gain *  v.abs() > *clip_thresh {
-                    sig[j+offset_j] += gain *  v.signum() * (*clip_thresh);
-                } else if gain * v.abs() >= *gate_thresh {
-                    sig[j+offset_j] += gain * v;
-                } else {
-                    // don't mix this too-quiet sample!
-                }
-            }
-        }
-    }
-    sig
-}
-
-/// Render a signal from contextual and decorative parameters. 
-/// Returns a SampleBuffer representing the moment produced from this request.
+/// Render a signal from contextual and decorative parameters.  
+/// Returns a SampleBuffer representing the moment produced from this request.  
 /// 
-/// This model offers three methods of modulation:
-/// The Feel.expr tuple is the simplest, offering ADSR like envelope contours for (amp, freq, phase).
-/// The next simplest is the Feel.modifiers tuple. It is analogous to a guitar pedal: a static set of parameters that are continuously modulationg the signal. 
-/// The most complex option are the rangers. These are functions of (fundamental, k, p, duration) that are applied on a per-multiplier basis. This offers the most granular control at higher  copmute cost as each function is called per-multipler per-sample.
+/// This model offers three methods of modulation:  
+/// The Feel.expr tuple is the simplest, offering ADSR like envelope contours for (amp, freq, phase).  
+/// The next simplest is the Feel.modifiers tuple. It is analogous to a guitar pedal: a static set of parameters that are continuously modulationg the signal.  
+/// The most complex option are the rangers. These are functions of (fundamental, k, p, duration) that are applied on a per-multiplier basis. This offers the most granular control at higher  copmute cost as each function is called per-multipler per-sample.  
+/// 
+/// ## Arguments  
+///     `p` Position in the phrase in [0, 1] as defined by render context  
+///     `len_cycles` The duration of the phrase this note event lives in
+///     `cps` Cycles Per Second, The sample rate scaling factor (aka playback rate or BPM)  
+///     `root` The fundamental frequency of the composition  
+///     `vel` Velocity, a constant scalar for output amplitude  
+///     `fundamental` The fundamental frequency of the note event  
+///     `n_cycles` The length in cycles of the note event  
+///     `soids` The sinusoidal arguments for a Fourier series  
+///     `expr` Note-length tuple of ADSR envelopes to apply to (amplitude, frequency, phase offset)  
+///     `Feel` Phrase-length effects to apply to current note event  
+///     `KnobMods` Modulation effects to apply to current note event  
+///     `delays` Stack of delay effects to apply to output sample  
+#[inline]
 pub fn summer<'render>(
-    p:f32,
+    curr_progress:f32,
     len_cycles:f32,
     cps:f32, 
     root: f32, 
@@ -345,12 +266,13 @@ pub fn summer<'render>(
     KnobMods (knobsAmp, knobsFreq, knobsPhase):&KnobMods,
     delays: &Vec::<delay::DelayParams>
 ) -> Vec<f32> {
+    let headroom_factor:f32 = db_to_amp(DB_HEADROOM); // would be good to lazy::static this
     let rounding_offset:usize = 10;
+    let rounding_offset:usize = 0;
     let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(delays));
     let sig_samples = time::samples_of_cycles(cps, n_cycles);
     let mut sig = vec![0f32;  sig_samples + append_delay];
     let (gate_thresh, clip_thresh) = clippers;
-
 
     if n_cycles.signum() == -1f32 || vel <= *gate_thresh {
         // skip rests, fill an empty vec
@@ -359,34 +281,33 @@ pub fn summer<'render>(
     let (modsAmp, modsFreq, modsPhase, modTime) = modifiers;
 
     // slice the overall bandpass filter for this note's cutoff range
-    let end_p:f32 = p + (n_cycles/len_cycles);
-    let bp_sample_highpass:Vec<f32> = if bp.0.len() == 1 {
-        vec![bp.0[0]]
-    } else {
-        slice_signal(&bp.0, p, end_p, sig_samples)
-    };
-    let bp_sample_lowpass:Vec<f32> = if bp.1.len() == 1 {
-        vec![bp.1[0]]
-    } else {
-        slice_signal(&bp.1, p, end_p, sig_samples)
-    };
+    let end_p:f32 = curr_progress + (n_cycles/len_cycles);
+    let bp_slice_highpass:Vec<f32> = slice_signal(&bp.0, curr_progress, end_p, sig_samples);
+    let bp_slice_lowpass:Vec<f32> = slice_signal(&bp.1, curr_progress, end_p, sig_samples);
 
-    let resampled_aenv = slice_signal(&expr.0, 0f32, 1f32, sig_samples);
-    
+    // Use exact-length buffers to prevent index interpolation during render
+    let resampled_aenv = slice_signal(&expr.0, curr_progress, end_p, sig_samples);
     let resampled_fenv = slice_signal(&expr.1, 0f32, 1f32, sig_samples);
     let resampled_penv = slice_signal(&expr.2, 0f32, 1f32, sig_samples);
-    
 
+    // seems that we want DB_PER_OCTAVE and DB_DISTANCE to have a product of 48. 
+    // (for lowpass filter)
+    const DB_PER_OCTAVE:f32 = 48f32; // vertical compression of energy (instantaneous  compression)
+    const DB_DISTANCE:f32 = 1f32; // temporal spread of energy (spread over time)
+
+    // render the sample with the provided effects and context
     for delay_params in delays {
         let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
         for j in 0..sig_samples {
             // setup position and progress 
-            let inner_p: f32 = j as f32 / sig_samples as f32;
+            // let inner_p: f32 = j as f32 / sig_samples as f32;
             
             // sample the amp, freq, and phase offset envelopes
             let mut am = resampled_aenv[j];
             let mut fm = resampled_fenv[j];
             let mut pm = resampled_penv[j];
+            let hp = bp_slice_highpass[j];
+            let lp = bp_slice_lowpass[j];
 
             let t0:f32 = (j as f32 ) / SRf;
             let pos_cycles: f32 = modTime.iter().fold(t0, |acc, mt| mt.apply(t0, acc)); 
@@ -399,14 +320,16 @@ pub fn summer<'render>(
             if vel < *gate_thresh {
                 continue;
             }
-            let pp = p + (inner_p * len_cycles);
+            // let pp = p + (inner_p * len_cycles);
             for (i, &m) in multipliers.iter().enumerate() {
                 let a0 = am * amplifiers[i];
                 if a0 < *gate_thresh {
                     continue
                 }
                 let a1:f32 = knobsAmp.iter().fold(a0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
-                let amp = vel * modsAmp.iter().fold(a1, |acc, ma| ma.apply(pos_cycles, acc)); 
+                let mut amp = vel * modsAmp.iter().fold(a1, |acc, ma| ma.apply(pos_cycles, acc)); 
+
+                // pre-filter attenuation. if the local amp scale is below thresh, before filter/boost fx, we can't use this sample.
                 if amp < *gate_thresh {
                     continue
                 }
@@ -416,12 +339,12 @@ pub fn summer<'render>(
                 
                 let frequency = modsFreq.iter().fold(f1, |acc, mf| mf.apply(pos_cycles, acc));
 
+                // pre-filter fast check. These are application-wide hard limits.
                 if frequency > NFf || frequency < MFf  {
                     continue
                 }
-                if 0f32 == filter(j as f32/sig_samples as f32, frequency, (&bp_sample_highpass,&bp_sample_lowpass)) {
-                    continue
-                }
+
+                amp *= apply_filter(frequency, hp, lp, DB_PER_OCTAVE, DB_DISTANCE);
                 
                 let p0 = pm + frequency * pi2 * pos_cycles;
                 let p1:f32 = knobsPhase.iter().fold(p0, |acc, (knob,func)| acc+func(knob, cps, fundamental, m, n_cycles, pos_cycles));
@@ -436,7 +359,8 @@ pub fn summer<'render>(
                 if gain < *gate_thresh {
                     continue;
                 }
-                // apply gating and clipping to the summed sample
+
+                // apply gating and clipping 
                 if gain * v.abs() > *clip_thresh {
                     sig[j+offset_j] += gain *  v.signum() * (*clip_thresh);
                 } else if gain * v.abs() >= *gate_thresh {
@@ -445,6 +369,10 @@ pub fn summer<'render>(
                     // don't mix this too-quiet sample!
                 }
             }
+
+            // post-gen filter: 
+            // apply global headroom scaling
+            sig[j] *= headroom_factor;
         }
     }
     sig

@@ -11,67 +11,6 @@ fn expr() -> Expr {
     (ampenv, vec![1f32], vec![0f32])
 }
 
-fn select_overtones(freq:f32, arf:&Arf) -> Vec<f32> {
-    let n = match arf.energy {
-        Energy::Low => 3,
-        Energy::Medium => 4,
-        Energy::High => 5,
-    };
-
-    let r = match arf.visibility {
-        Visibility::Hidden => 0,
-        Visibility::Background => 1,
-        Visibility::Foreground => 2,
-        Visibility::Visible => 3,
-    };
-
-    let limit = match arf.energy {
-        Energy::Low => 3,
-        Energy::Medium => 4,
-        Energy::High => 5,
-    };
-    let mut rng = thread_rng();
-    let options:Vec<f32> =( 1..=limit).into_iter().step_by(2).flat_map(|x| 
-        if r == 0 {vec![x as f32]} 
-        else {
-            (-r..r).into_iter().map(|i| 1.5f32.powi(i as i32)).collect() 
-        } 
-    ).collect();
-    let muls:Vec<f32> = (0..n).into_iter().map(|a| *options.choose(&mut rng).unwrap()).collect();
-    muls
-}
-
-/// create a harmonic pallette texture like a house stab
-fn generate_rich_texture(arf:&Arf) -> Soids {
-    let mut amps:Vec<f32> = vec![];
-    let mut muls:Vec<f32> = vec![];
-    let mut offsets:Vec<f32> = vec![];
-
-    let reference_freq:f32 = match arf.visibility {
-        Visibility::Hidden => 2f32.powi(9i32),
-        Visibility::Background => 2f32.powi(8i32),
-        Visibility::Foreground => 2f32.powi(6i32),
-        Visibility::Visible => 2f32.powi(5i32),
-    };
-
-    let overs = select_overtones(reference_freq, arf);
-    let shade:Soids = match arf.energy {
-        Energy::Low => druidic_soids::octave(2f32.powi(9i32)),
-        Energy::Medium => druidic_soids::overs_triangle(2f32.powi(9i32)),
-        Energy::High => druidic_soids::overs_sawtooth(2f32.powi(9i32)),
-    };
-    let mut rng = thread_rng();
-
-    for i in 0..overs.len() {
-        let mult = overs[i];
-        let ampl:f32 = rng.gen::<f32>() * 0.5 + 0.5;
-        let offset:f32 = rng.gen::<f32>() * pi - (pi/2f32);
-        shade.0.iter().for_each(|amp| amps.push(ampl * amp));
-        shade.1.iter().for_each(|mul| muls.push(mult * mul));
-        shade.2.iter().for_each(|offset| offsets.push(offset + *offset));
-    }
-    (amps, muls, offsets)
-}
 
 fn amp_knob_staccatto(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     let mut rng = thread_rng();
@@ -137,7 +76,7 @@ fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, f
 
 
 pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
-    let soids:Soids = generate_rich_texture(arf);
+    let soids:Soids = druidic_soids::id();
     let mut knob_mods:KnobMods = KnobMods::unit();
     knob_mods.0.push(amp_knob(arf.visibility, arf.energy, arf.presence));
 

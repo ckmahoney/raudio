@@ -7,6 +7,7 @@ use crate::timbre::{Phrasing, FilterMode, BandpassFilter, AmpContour};
 use crate::synthesis::FilterPoint;
 
 pub mod contour;
+pub mod dynamics;
 pub mod lifespan;
 pub mod micro;
 pub mod ranger;

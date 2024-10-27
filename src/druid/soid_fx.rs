@@ -98,36 +98,6 @@ pub mod ratio {
     }
 }
 
-pub mod detune {
-    use super::*;
-
-    /// Detunes the multipliers with n additional voices using frequency distortion
-    /// Produces a neuro reece effect
-    pub fn reece(soids:&Soids, n:usize, depth: f32) -> Soids {
-        let mut ret:Soids = soids.clone();
-        let mut rng =  thread_rng();
-        let max_distance = 8f32;
-        let applied_distance = one + (depth * (max_distance - one));
-        
-        let gain = one / (soids.0.len() * n) as f32;
-        (0..n).into_iter().for_each(|i| {
-            soids.1.iter().for_each(|m| {
-                // put even indicies above the multiplier,
-                // odd go below. 
-                let mul = if i % 2 == 0 {
-                    m * 2f32.powf(rng.gen::<f32>() * applied_distance/48f32)
-                } else {
-                    m * 2f32.powf(rng.gen::<f32>() * -applied_distance/48f32)
-                };
-                ret.0.push(gain);
-                ret.1.push(mul);
-                ret.2.push(0f32);
-            })
-        });
-        ret
-    }
-}
-
 pub mod noise {
     use crate::druid::noise::NoiseColor;
     use super::*;
@@ -186,6 +156,7 @@ pub mod noise {
 pub mod amod {
     use super::*;
 
+    /// Uses amp and fmod to create a reece effect
     pub fn reece(soids:&Soids, n:usize) -> Soids {
             
         if n == 0 {
@@ -198,16 +169,17 @@ pub mod amod {
             let mul = soids.1[i];
             let offset = soids.2[i];
 
-            // add one element above and one element below ai / 48
+            // add one element above and one element below i / 48
 
             for i in 0..n {
+                // over 
                 new_soids.0.push(0.5f32 * one / ((i+1) as f32).powi(2i32));
                 let modulated_over = 2f32.powf(i as f32/v as f32);
                 new_soids.1.push(mul * modulated_over);
                 new_soids.2.push(offset);
-            }
+
+                // under
             
-            for i in 0..n {
                 new_soids.0.push(one / ((i+1) as f32).sqrt());
                 new_soids.0.push(one);
                 let modulated_under = one - (2f32.powf(i as f32/v as f32) - one);
@@ -277,10 +249,6 @@ pub mod fmod {
         });
         ret
     }
-}
-
-pub mod pmod {
-    use super::*;
 
     pub fn reece(soids:&Soids, n:usize) -> Soids {
             
@@ -312,7 +280,6 @@ pub mod pmod {
         new_soids
     }
 }
-
 
 pub type SoidMod = (fn (&Soids, n:usize) -> Soids, f32);
 

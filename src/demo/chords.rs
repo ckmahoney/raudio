@@ -13,6 +13,7 @@ use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpas
 use crate::analysis::volume::db_to_amp;
 
 use presets::bird::{lead, bass, perc, chords, kick, hats};
+use presets::hop;
 
 fn bass_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
@@ -49,15 +50,13 @@ fn bass_melody() -> Melody<Note> {
 
 fn chords_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
+        (4i32, 1i32), 
+        (4i32, 1i32),
         (2i32, 1i32), 
-        (2i32, 1i32),
-        (2i32, 1i32), 
-        (2i32, 1i32), 
+        (6i32, 1i32), 
     ];
 
-    let amps:Vec<Ampl> = vec![
-        1f32, 0.66f32, 0.66f32, 1f32,
-    ].iter().map(|x| x * db_to_amp(-30f32)).collect::<Vec<f32>>();
+    let amps:Vec<Ampl> = vec![1f32; tala.len()];
 
     let line_1:Vec<Tone> = vec![
         (8, (0i8, 0i8, 1i8)),
@@ -247,14 +246,14 @@ fn bass_arf() -> Arf {
 }
 
 
-fn chords_arf() -> Arf {
+fn chords_arf(visibility:Visibility, energy:Energy, presence:Presence) -> Arf {
     Arf {
         mode: Mode::Melodic,
         role: Role::Chords,
-        register: 8,
-        visibility: Visibility::Visible,
-        energy: Energy::Medium,
-        presence: Presence::Tenuto,
+        register: 6,
+        visibility,
+        energy,
+        presence,
     }
 }
 
@@ -311,8 +310,10 @@ fn demonstrate() {
     use rand::Rng;
     let mut rng = rand::thread_rng();
 
-    let cps:f32 = 1.15;
-    let root:f32 = 1.9;
+    let cps:f32 = 1.12;
+    let cps:f32 = 2.24;
+    let cps:f32 = 2f32;
+    let root:f32 = 1.02;
     let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
@@ -326,7 +327,9 @@ fn demonstrate() {
 
     let stem_lead = lead::renderable(&lead_melody, &lead_arf());
     let stem_hats = hats::renderable(&hats_melody, &hats_arf());
-    let stem_chords =chords::renderable(&chords_melody, &chords_arf());
+    let stem_chords1 = hop::chords::renderable(&chords_melody, &chords_arf(Visibility::Foreground, Energy::Medium, Presence::Legato));
+    let stem_chords2 = hop::chords::renderable(&chords_melody, &chords_arf(Visibility::Background, Energy::Medium,  Presence::Staccatto));
+    let stem_chords3 = hop::chords::renderable(&chords_melody, &chords_arf(Visibility::Hidden, Energy::Medium,  Presence::Tenuto));
     let stem_bass = bass::renderable(&bass_melody, &bass_arf());
     let stem_perc = perc::renderable(&perc_melody, &perc_arf());
     let stem_kick = kick::renderable(&kick_mel, &kick_arf());
@@ -337,7 +340,9 @@ fn demonstrate() {
         // stem_perc,
         // stem_hats,
         // stem_bass,
-        stem_chords,
+        stem_chords1,
+        stem_chords2,
+        stem_chords3,
         // stem_lead,
     ];
 

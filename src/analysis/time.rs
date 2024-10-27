@@ -26,11 +26,13 @@ pub fn samples_of_dur(cps:f32, dur:f32) -> usize {
 } 
 
 /// Given a duration in seconds, return the number of samples representing this length
+#[inline]
 pub fn samples_from_dur(cps:f32, dur:f32) -> usize {
     (SRf * dur.abs() / cps) as usize
 }
 
 /// Provides the number of samples required to span k cycles at cps.
+#[inline]
 pub fn samples_of_cycles(cps:f32, k:f32) -> usize {
     (samples_per_cycle(cps) as f32 * k.abs()) as usize
 }

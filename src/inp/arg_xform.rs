@@ -103,7 +103,7 @@ pub fn reverb_params(rng:&mut ThreadRng, cps:f32, distance:&Distance, enclosure:
 
     // duration translate to intensity of effect
     // this also scales with the signal! Really needs to have scale factor as input.
-    let dur:f32 = 4f32 * 2f32.powf(5f32 * complexity) * match enclosure {
+    let dur:f32 = 32f32 * 2f32.powf(5f32 * complexity) * match enclosure {
         Enclosure::Spring => rng.gen::<f32>().powi(5i32).min(0.05),
         Enclosure::Room => rng.gen::<f32>().powi(2i32).min(0.5).max(0.1),
         Enclosure::Hall => rng.gen::<f32>()* 0.8f32,

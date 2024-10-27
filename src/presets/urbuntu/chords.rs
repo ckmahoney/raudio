@@ -5,7 +5,7 @@ use crate::druid::{self, soids as druidic_soids};
 
 
 pub fn expr_tonal(arf:&Arf) -> Expr {
-    (vec![db_to_amp(-40f32)], vec![1f32], vec![0f32])
+    (vec![visibility_gain(arf.visibility)], vec![1f32], vec![0f32])
 }
 
 // @art-choice This module would benefit from dynamic selection of knob params

@@ -1,8 +1,8 @@
 pub mod basic;
 pub mod hard;
 pub mod ambien;
-pub mod bird;
 pub mod hop;
+pub mod bird;
 pub mod kuwuku;
 pub mod smooth;
 pub mod urbuntu;
@@ -17,13 +17,13 @@ use rand::{rngs::ThreadRng,Rng,prelude::SliceRandom};
 
 /// Shared imports for all presets in this mod
 use crate::analysis::delay;
-use crate::synth::{MFf, NFf, SampleBuffer, pi, pi2};
+use crate::synth::{MIN_REGISTER,MAX_REGISTER, MFf, NFf, SampleBuffer, pi, pi2, SR, SRf};
 use crate::phrasing::older_ranger::{Modders,OldRangerDeprecated,WOldRangerDeprecateds};
-use crate::phrasing::lifespan;
-use crate::phrasing::micro;
+use crate::phrasing::{micro,lifespan, dynamics};
 use crate::{render, AmpLifespan};
 use crate::analysis::{trig,volume::db_to_amp};
 
+use crate::time;
 use crate::types::render::{Feel, Melody, Stem};
 use crate::types::synthesis::{Freq, Note, Direction, Ely, PhaseModParams, ModulationEffect};
 use crate::types::timbre::{Arf, Role, Mode, Visibility, Sound, Sound2, Energy, Presence, Phrasing};
@@ -37,22 +37,91 @@ use crate::phrasing::contour::Expr;
 use crate::druid::{self, soids as druidic_soids, soid_fx, noise::NoiseColor};
 use rand::thread_rng;
 
+// user configurable headroom value. defaults to -15Db
+pub const DB_HEADROOM:f32 = -15f32;
+// pub const DB_HEADROOM:f32 = -0f32;
 
 
 use crate::analysis::delay::DelayParams;
 
 
-pub struct Armoir;
-impl Armoir {
-    pub fn select_melodic(energy:Energy) -> Dressor {
-        match energy {
-            Energy::Low => melodic::dress_triangle as fn(f32) -> Dressing,
-            Energy::Medium => melodic::dress_square as fn(f32) -> Dressing,
-            Energy::High => melodic::dress_sawtooth as fn(f32) -> Dressing 
-        }
-    }
+pub fn amp_microtransient(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+    (Knob { a: 0.45f32, b: 0f32, c: 1.0}, ranger::amod_microbreath_4_20)
 }
 
+
+/// Generate a phrase-length filter contour with a triangle shape, oscillating `k` times per phrase.
+/// Peaks `k` times within the phrase and tapers back down to `start_cap` at the end.
+pub fn filter_contour_triangle_shape_lowpass<'render>(
+    lowest_register: i8,
+    n_samples: usize,
+    k: f32
+) -> SampleBuffer {
+    let mut highpass_contour: SampleBuffer = vec![MFf; n_samples];
+    let mut lowpass_contour: SampleBuffer = Vec::with_capacity(n_samples);
+
+    let start_cap: f32 = 2.1f32;
+    let final_cap: f32 = MAX_REGISTER as f32 - lowest_register as f32 - start_cap;
+
+    let min_f: f32 = 2f32.powf(lowest_register as f32 + start_cap);
+    let max_f: f32 = 2f32.powf(lowest_register as f32 + start_cap + final_cap);
+    let n: f32 = n_samples as f32;
+    let df: f32 = (max_f - min_f).log2();
+
+    for i in 0..n_samples {
+        let x: f32 = i as f32 / n;
+
+        // Modulate the frequency of oscillation using k
+        let x_adjusted = (k * x).fract();
+        let triangle_wave = if x_adjusted <= 0.5 {
+            2.0 * x_adjusted
+        } else {
+            2.0 * (1.0 - x_adjusted)
+        };
+
+        // Calculate the lowpass frequency based on the triangle wave
+        lowpass_contour.push(min_f + 2f32.powf(df * triangle_wave));
+    }
+
+    lowpass_contour
+}
+
+
+/// Generate a phrase-length filter contour with a triangle shape, oscillating `k` times per phrase.
+/// Peaks `k` times within the phrase and tapers back down to `start_cap` at the end.
+pub fn filter_contour_triangle_shape_highpass<'render>(
+    lowest_register: i8,
+    highest_register: i8,
+    n_samples: usize,
+    k: f32
+) -> SampleBuffer {
+    let mut highpass_contour: SampleBuffer = Vec::with_capacity(n_samples);
+    let mut lowpass_contour: SampleBuffer = vec![NFf; n_samples];
+
+    let start_cap: f32 = (3.0f32).min(MAX_REGISTER as f32 - highest_register as f32);
+    let final_cap: f32 = MAX_REGISTER as f32 - highest_register as f32 - start_cap;
+
+    let min_f: f32 = 2f32.powf(lowest_register as f32);
+    let max_f: f32 = 2f32.powf(highest_register as f32 + start_cap);
+    let n: f32 = n_samples as f32;
+    let df: f32 = (max_f - min_f).log2();
+
+    for i in 0..n_samples {
+        let x: f32 = i as f32 / n;
+
+        let x_adjusted = (k * x).fract();
+        let triangle_wave = if x_adjusted <= 0.5 {
+            2.0 * x_adjusted
+        } else {
+            2.0 * (1.0 - x_adjusted)
+        };
+
+        // Calculate the lowpass frequency based on the triangle wave
+        highpass_contour.push(max_f - 2f32.powf(df * triangle_wave));
+    }
+
+    highpass_contour
+}
 
 #[derive(Debug)]
 pub struct Dressing {
@@ -66,23 +135,7 @@ pub type Dressor = fn (f32) -> Dressing;
 pub struct Instrument;
 
 impl Instrument {
-    pub fn unit<'render>(melody:&'render Melody<Note>, energy:Energy, delays:Vec<DelayParams>) -> Stem<'render> {
-        let dressor = Armoir::select_melodic(energy);
-        let dressing:Dressing = dressor(crate::synth::MFf);
-
-        // overly verbose code to demonstrate the pattern 
-        let dressing_as_vecs = vec![(dressing.amplitudes, dressing.multipliers, dressing.offsets)];
-        let tmp = trig::prepare_soids_input(dressing_as_vecs);
-        let soids = trig::process_soids(tmp);
-        (
-            melody,
-            soids,
-            (vec![1f32],vec![1f32],vec![0f32]),
-            Feel::unit(),
-            KnobMods::unit(),
-            delays
-        )
-    }
+    
 
     pub fn select<'render>(melody:&'render Melody<Note>, arf:&Arf, delays:Vec<DelayParams>) -> Renderable<'render> {
         use Role::*;
@@ -91,44 +144,51 @@ impl Instrument {
         use crate::presets::hard::*;
         use crate::presets::basic::*;
         
-        let renderable = if true {
-            // match arf.role {
-            //     Kick => kuwuku::kick::renderable(melody, arf),
-            //     Perc => kuwuku::perc::renderable(melody, arf),
-            //     Hats => kuwuku::hats::renderable(melody, arf),
-            //     Lead => urbuntu::lead::renderable(melody, arf),
-            //     Bass => kuwuku::bass::renderable(melody, arf),
-            //     Chords => kuwuku::chords::renderable(melody, arf),
-            // };
-
-            // match arf.role {
-            //     Kick => ambien::kick::renderable(melody, arf),
-            //     Perc => ambien::perc::renderable(melody, arf),
-            //     Hats => ambien::hats::renderable(melody, arf),
-            //     Lead => ambien::lead::renderable(melody, arf),
-            //     Bass => ambien::bass::renderable(melody, arf),
-            //     Chords => ambien::chords::renderable(melody, arf),
-            // }
-            match arf.role {
-                Kick => bird::kick::renderable(melody, arf),
-                Perc => bird::perc::renderable(melody, arf),
-                Hats => bird::hats::renderable(melody, arf),
-                Lead => bird::lead::renderable(melody, arf),
-                Bass => bird::bass::renderable(melody, arf),
-                Chords => bird::chords::renderable(melody, arf),
-            }
-        } else {
-            match arf.role {
-                Kick => urbuntu::kick::renderable(melody, arf),
-                Perc => urbuntu::perc::renderable(melody, arf),
-                Hats => urbuntu::hats::renderable(melody, arf),
-                Lead => urbuntu::lead::renderable(melody, arf),
-                Bass => urbuntu::bass::renderable(melody, arf),
-                Chords => urbuntu::chords::renderable(melody, arf),
-            }
+        let renderable = match arf.role {
+            Kick => hop::kick::renderable(melody, arf),
+            Perc => hop::perc::renderable(melody, arf),
+            Hats => hop::hats::renderable(melody, arf),
+            Lead => hop::lead::renderable(melody, arf),
+            Bass => hop::bass::renderable(melody, arf),
+            Chords => hop::chords::renderable(melody, arf),
         };
+    
+        // match arf.role {
+        //     Kick => kuwuku::kick::renderable(melody, arf),
+        //     Perc => kuwuku::perc::renderable(melody, arf),
+        //     Hats => kuwuku::hats::renderable(melody, arf),
+        //     Lead => urbuntu::lead::renderable(melody, arf),
+        //     Bass => kuwuku::bass::renderable(melody, arf),
+        //     Chords => kuwuku::chords::renderable(melody, arf),
+        // };
 
-        println!("Overwriting delays from preset with those specified in score");
+        // match arf.role {
+        //     Kick => ambien::kick::renderable(melody, arf),
+        //     Perc => ambien::perc::renderable(melody, arf),
+        //     Hats => ambien::hats::renderable(melody, arf),
+        //     Lead => ambien::lead::renderable(melody, arf),
+        //     Bass => ambien::bass::renderable(melody, arf),
+        //     Chords => ambien::chords::renderable(melody, arf),
+        // }
+        // match arf.role {
+        //     Kick => bird::kick::renderable(melody, arf),
+        //     Perc => bird::perc::renderable(melody, arf),
+        //     Hats => bird::hats::renderable(melody, arf),
+        //     Lead => bird::lead::renderable(melody, arf),
+        //     Bass => bird::bass::renderable(melody, arf),
+        //     Chords => bird::chords::renderable(melody, arf),
+        // }
+
+        // match arf.role {
+        //     Kick => urbuntu::kick::renderable(melody, arf),
+        //     Perc => urbuntu::perc::renderable(melody, arf),
+        //     Hats => urbuntu::hats::renderable(melody, arf),
+        //     Lead => urbuntu::lead::renderable(melody, arf),
+        //     Bass => urbuntu::bass::renderable(melody, arf),
+        //     Chords => urbuntu::chords::renderable(melody, arf),
+        // }
+            
+            
         match renderable {
             Renderable::Instance(mut stem) => {
                 stem.5 = delays;
@@ -249,10 +309,10 @@ pub fn amod_impulse(k:usize, x:f32, d:f32) -> f32 {
 
 pub fn visibility_gain(v:Visibility) -> f32 {
     match v {
-        Visibility::Hidden => db_to_amp(-50f32),
-        Visibility::Background => db_to_amp(-35f32),
-        Visibility::Foreground => db_to_amp(-20f32),
-        Visibility::Visible => db_to_amp(-5f32)
+        Visibility::Hidden => db_to_amp(-18f32),
+        Visibility::Background => db_to_amp(-12f32),
+        Visibility::Foreground => db_to_amp(-9f32),
+        Visibility::Visible => db_to_amp(-6f32)
     }
 }
 

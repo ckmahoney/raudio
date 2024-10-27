@@ -1,5 +1,6 @@
 mod ambien;
 mod amen_beat;
+mod bass;
 mod beat;
 mod chords;
 mod chill_beat;
@@ -7,6 +8,7 @@ mod convolution_reverb;
 mod effects;
 mod kuwuku;
 mod trio;
+mod trio_hop;
 mod urbuntu;
 mod vagrant;
 use crate::{presets, render};
@@ -20,7 +22,7 @@ pub static out_dir:&str = "audio/demo";
 
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
-use crate::analysis::delay::{self, DelayParams};
+use crate::analysis::{volume::db_to_amp, self, delay::{self, DelayParams}};
 use crate::synth::{MFf,NFf, SR, SampleBuffer};
 use crate::render::Renderable;
 use rand::Rng;

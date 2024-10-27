@@ -190,12 +190,14 @@ pub fn overs_triangle(freq:f32) -> Soids {
     (amplitudes, multipliers, offsets)
 }
 
+/// See Wolfram:  
+/// [Fourier Series Sawtooth Wave](https://mathworld.wolfram.com/FourierSeriesSawtoothWave.html)
 pub fn overs_sawtooth(freq:f32) -> Soids {
     let n = (NFf / freq) as usize;
 
     let multipliers:Vec<f32> = (1..=n).map(|x| x as f32).collect();
-    let amplitudes:Vec<f32> = (1..=n).map(|i| 2f32 / (pi * i as f32)).collect();
-    let offsets:Vec<f32> = vec![0f32; multipliers.len()];
+    let amplitudes:Vec<f32> = (1..=n).map(|n| 1f32 / (pi * n as f32)).collect();
+    let offsets:Vec<f32> = (1..=multipliers.len()).map(|n| if n % 2 == 0 { 0f32 } else {pi}).collect();
 
     (amplitudes, multipliers, offsets)
 

@@ -93,16 +93,6 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
         (soid_fx::fmod::sawtooth, 0.11f32),
     ]);
 
-
-    // let soids = soid_fx::map(&soids, 2, vec![ 
-    //     (soid_fx::fmod::triangle, 0.01f32),
-    // ]);
-    
-    // let soids = match arf.energy { 
-    //     Energy::High => soid_fx::amod::reece(&soids, 4),
-    //     Energy::Medium => soid_fx::amod::reece(&soids, 3),
-    //     Energy::Low => soid_fx::amod::reece(&soids, 2),
-    // };
     let stem = (melody, soids, expr(arf), feel, knob_mods, vec![delay::passthrough]);
 
     Renderable::Group(vec![

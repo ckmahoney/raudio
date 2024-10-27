@@ -264,7 +264,7 @@ fn kick_arf() -> Arf {
         mode: Mode::Enharmonic,
         role: Role::Perc,
         register: 5,
-        visibility: Visibility::Visible,
+        visibility: Visibility::Foreground,
         energy: Energy::Medium,
         presence: Presence::Tenuto,
     }
@@ -313,7 +313,6 @@ fn demonstrate() {
 
     let cps:f32 = 1.15;
     let root:f32 = 1.9;
-    let labels:Vec<&str> = vec!["vibe", "sine", "brush"];
 
     let delays:Vec<DelayParams> = vec![delay::passthrough];
 
@@ -333,12 +332,12 @@ fn demonstrate() {
 
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
-        // stem_kick,
-        // stem_perc,
-        // stem_hats,
+        stem_kick,
+        stem_perc,
+        stem_hats,
         stem_bass,
-        // stem_chords,
-        // stem_lead,
+        stem_chords,
+        stem_lead,
     ];
 
     use crate::Distance;

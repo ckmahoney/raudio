@@ -20,6 +20,7 @@ pub static passthrough:DelayParams = DelayParams {
 };
 
 /// determine the amplitude coeffecieint for a delay replica index
+#[inline]
 pub fn gain(j:usize, replica:usize, params: &DelayParams) -> f32 {
     if replica == 0 || is_passthrough(params) {
         return 1f32

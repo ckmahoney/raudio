@@ -65,7 +65,7 @@ pub fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'re
 
 
 /// tonal component
-pub fn stem_foreground<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
+pub fn stem_tonal<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: (vec![], vec![], vec![], vec![]),
@@ -96,6 +96,6 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
 
     Renderable::Group(vec![
         stem_visible(arf, melody),
-        stem_foreground(arf, melody),
+        stem_tonal(arf, melody),
     ])
 }

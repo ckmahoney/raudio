@@ -13,7 +13,7 @@ use crate::synth::{MFf, NFf, SR, SRf, pi, pi2,pi_2,pi_4};
 static one:f32 = 1f32;
 static half:f32 = 0.5f32;
 
-const MIN_DB:f32=-30f32;
+const MIN_DB:f32=-60f32;
 const MAX_DB:f32=0f32;
 
 #[derive(Copy,Clone,Debug)]
@@ -293,7 +293,7 @@ pub fn amod_breath(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
 
 
 
-/// A oneshot amplitude contouring for microtransients. 
+/// A oneshot amplitude contouring for microtransients (4ms to 20ms)
 ///
 /// ## Arguments
 /// `cps` Instantaneous playback rate as cycles per second  
@@ -304,12 +304,12 @@ pub fn amod_breath(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
 /// 
 /// ## Knob Params
 /// 
-/// `a`: The total length of the amplitude contour. 0 is the shortest microtransient (12ms) while 1 is the longest (60ms). 
-/// `b`: The decay mode of the amplitude contour. 0 is rapid decay, 0.5 is linear, 1 is slow decay.    
+/// `a`: The total length of the amplitude contour. 0 is the shortest microtransient (4ms) while 1 is the longest (20ms). 
+/// `b`: Unused.  
 /// `c`: Tempo response. 0 for cps invariant durations. 1 for durations that scale with time. Rounds down.   
-pub fn amod_microtransient(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
-    const min_ms:f32 = 12f32;
-    const max_ms:f32 = 60f32;  // Adjusted to 60ms as per your earlier comment
+pub fn amod_microtransient_4_20(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    const min_ms:f32 = 4f32;
+    const max_ms:f32 = 20f32; 
 
     let playback_scaling:f32 = if knob.c.floor() == 0.0 { 1.0 } else { 1.0 / cps };
     let length_ms = (min_ms + (max_ms - min_ms) * knob.a) * playback_scaling;
@@ -326,8 +326,125 @@ pub fn amod_microtransient(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles:
     }
 
     let p:f32 = curr_sample as f32 / n_samples as f32;
-    let y = one - (curr_sample as f32 /n_samples as f32);
-    db_to_amp(-120f32 + 120f32*y)
+    let y = (one - (curr_sample as f32 /n_samples as f32)).powf(0.5f32);
+    db_to_amp(MIN_DB + MIN_DB.abs()*y)
+}
+
+
+
+/// A oneshot amplitude contouring for microtransients (20ms to 100ms)
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: The total length of the amplitude contour. 0 is the shortest microtransient (20ms) while 1 is the longest (100ms). 
+/// `b`: Unused.  
+/// `c`: Tempo response. 0 for cps invariant durations. 1 for durations that scale with time. Rounds down.   
+pub fn amod_microtransient_20_100(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    const min_ms:f32 = 20f32;
+    const max_ms:f32 = 100f32; 
+
+    let playback_scaling:f32 = if knob.c.floor() == 0.0 { 1.0 } else { 1.0 / cps };
+    let length_ms = (min_ms + (max_ms - min_ms) * knob.a) * playback_scaling;
+    let length_seconds = length_ms / 1000f32;
+    let seconds_per_sample = 1.0f32 / SRf;
+
+    let n_samples = (length_seconds * SRf).floor() as usize;
+    let t:f32 = pos_cycles / n_cycles;
+    let curr_sample = (t * n_cycles * SRf / cps).floor() as usize;
+    let curr_sample = curr_sample.min(n_samples);
+
+    if curr_sample >= n_samples {
+        return 0.0;
+    }
+
+    let p:f32 = curr_sample as f32 / n_samples as f32;
+    let y = (one - (curr_sample as f32 /n_samples as f32)).powf(0.5f32);
+    db_to_amp(MIN_DB + MIN_DB.abs()*y)
+}
+
+
+
+/// A oneshot amplitude contouring for easing onsets (4ms to 20ms)
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: The total length of the amplitude contour. 0 is the shortest microtransient (4ms) while 1 is the longest (20ms). 
+/// `b`: Unused.  
+/// `c`: Tempo response. 0 for cps invariant durations. 1 for durations that scale with time. Rounds down.   
+pub fn amod_microbreath_4_20(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    const min_ms:f32 = 4f32;
+    const max_ms:f32 = 20f32; 
+
+    let playback_scaling:f32 = if knob.c.floor() == 0.0 { 1.0 } else { 1.0 / cps };
+    let length_ms = (min_ms + (max_ms - min_ms) * knob.a) * playback_scaling;
+    let length_seconds = length_ms / 1000f32;
+    let seconds_per_sample = 1.0f32 / SRf;
+
+    let n_samples = (length_seconds * SRf).floor() as usize;
+    let t:f32 = pos_cycles / n_cycles;
+    let curr_sample = (t * n_cycles * SRf / cps).floor() as usize;
+    let curr_sample = curr_sample.min(n_samples);
+
+    if curr_sample >= n_samples {
+        return 1.0;
+    }
+
+    let p:f32 = curr_sample as f32 / n_samples as f32;
+    let y =  (curr_sample as f32 /n_samples as f32).powf(1.5f32);
+    db_to_amp(MIN_DB + MIN_DB.abs()*y)
+}
+
+
+
+/// A oneshot amplitude contouring for easing onsets (20ms to 100ms)
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: The total length of the amplitude contour. 0 is the shortest microtransient (20ms) while 1 is the longest (100ms). 
+/// `b`: Unused.  
+/// `c`: Tempo response. 0 for cps invariant durations. 1 for durations that scale with time. Rounds down.   
+pub fn amod_microbreath_20_100(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    const min_ms:f32 = 20f32;
+    const max_ms:f32 = 100f32; 
+
+    let playback_scaling:f32 = if knob.c.floor() == 0.0 { 1.0 } else { 1.0 / cps };
+    let length_ms = (min_ms + (max_ms - min_ms) * knob.a) * playback_scaling;
+    let length_seconds = length_ms / 1000f32;
+    let seconds_per_sample = 1.0f32 / SRf;
+
+    let n_samples = (length_seconds * SRf).floor() as usize;
+    let t:f32 = pos_cycles / n_cycles;
+    let curr_sample = (t * n_cycles * SRf / cps).floor() as usize;
+    let curr_sample = curr_sample.min(n_samples);
+
+    if curr_sample >= n_samples {
+        return 1.0;
+    }
+
+    let p:f32 = curr_sample as f32 / n_samples as f32;
+    let y = (curr_sample as f32 /n_samples as f32).powf(1.5f32);
+    db_to_amp(MIN_DB + MIN_DB.abs()*y)
 }
 
 
@@ -407,7 +524,7 @@ fn test_amod_microtransient_monotonic_decreasing() {
 
     for sample in 0..SR {
         let pos_cycles = sample as f32 / SRf;
-        let result = amod_microtransient(&knob, cps, fund, mul, n_cycles, pos_cycles);
+        let result = amod_microtransient_4_20(&knob, cps, fund, mul, n_cycles, pos_cycles);
         assert!(result <= last_value, "Value at sample {} was not monotonically decreasing. Prev sample {} Curr sample {} ", sample, last_value, result);
         last_value = result;
     }
@@ -780,12 +897,12 @@ pub fn amod_seesaw(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
 
 
 ///
-/// `a`: Detune amount. 0 is none; 0.5 is just noticable/vintage; 1 is noticable.
-/// `b`: Detune mix. 0 is none; 1 is completely mixed.
+/// `a`: Detune amount. 0 is none; 0.5 is just noticable/vintage; 1 is noticable.  
+/// `b`: unused
 pub fn amod_detune(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
     let t:f32 = pos_cycles/n_cycles;
     let osc_mod_mul:f32 = 2f32.powf(knob.a * 4f32);
-    one - knob.b * (t * mul.powf(2f32 * knob.a) *  pi).sin().abs()
+    one - (t * mul.powf(2f32 * knob.a) *  pi).sin().abs()
 }
 
 pub fn fmod_geo(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {

@@ -3,8 +3,8 @@ use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::ranger::{KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 
-fn expr() -> Expr {
-    (vec![db_to_amp(-30f32)], vec![1f32], vec![0f32])
+fn expr(arf:&Arf) -> Expr {
+    (vec![visibility_gain(arf.visibility)], vec![1f32], vec![0f32])
 }
 
 fn amp_knob(visibility:Visibility, energy:Energy, presence:Presence) -> Option<(Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32)> {
@@ -67,6 +67,6 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
         clippers: (0f32, 1f32)
     };
 
-    let stem:Stem = (melody, ely.soids, expr(), feel, ely.knob_mods, vec![delay::passthrough]);
+    let stem:Stem = (melody, ely.soids, expr(arf), feel, ely.knob_mods, vec![delay::passthrough]);
     Renderable::Instance(stem)
 }

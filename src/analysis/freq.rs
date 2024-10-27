@@ -109,9 +109,14 @@ pub fn render_checkpoints(
 /// assert!(sliced_signal[sliced_signal.len()-1] <= 4.0);
 /// ```
 /// 
+#[inline]
 pub fn slice_signal(sig: &[f32], p1: f32, p2: f32, into_n_samples: usize) -> Vec<f32> {
     if into_n_samples == 0 {
         return Vec::new();
+    }
+
+    if sig.len() == 1 {
+        return vec![sig[0]; into_n_samples]
     }
 
     let mut sliced_signal = Vec::with_capacity(into_n_samples);
@@ -153,6 +158,158 @@ pub fn slice_signal(sig: &[f32], p1: f32, p2: f32, into_n_samples: usize) -> Vec
     sliced_signal
 }
 
+fn db_to_amp(db: f32) -> f32 {
+    10f32.powf(db / 20.0)
+}
+
+
+/// Applies a bandpass filter with gradual rolloff to the specified frequency, based on customizable dB per octave and distance.
+/// 
+/// # Parameters
+/// - `curr_freq`: The current frequency being filtered, in Hertz.
+/// - `highpass_f`: The cutoff frequency for the highpass component, in Hertz. Frequencies below this are attenuated.
+/// - `lowpass_f`: The cutoff frequency for the lowpass component, in Hertz. Frequencies above this are attenuated.
+/// - `db_per_octave`: The attenuation in decibels applied per octave outside the cutoff range. Can be positive or negative; absolute value is used.
+/// - `db_distance`: The number of octaves over which the rolloff occurs, determining the gradualness of attenuation.
+/// 
+/// # Returns
+/// A floating-point amplitude coefficient representing the attenuation for `curr_freq`. 
+/// Values within the band (between `highpass_f` and `lowpass_f`) return `1.0`, 
+/// while out-of-band frequencies are attenuated exponentially according to `db_per_octave` and `db_distance`.
+///
+/// # Example
+/// ```rust
+/// let amplitude = apply_filter(500.0, 200.0, 4000.0, -24.0, 2.0);
+/// ```
+#[inline]
+pub fn apply_filter(curr_freq: f32, highpass_f: f32, lowpass_f: f32, db_per_octave: f32, db_distance: f32) -> f32 {
+    if curr_freq >= highpass_f && curr_freq <= lowpass_f {
+        return 1.0;
+    }
+
+    let gain = db_to_amp(-db_per_octave.abs());
+    let df_distance = if curr_freq > lowpass_f {
+        (curr_freq / lowpass_f).log2()
+    } else {
+        (highpass_f / curr_freq).log2()
+    };
+
+    if df_distance > db_distance {
+        gain.powf(db_distance)
+    } else {
+        gain.powf(df_distance)
+    }
+}
+
+
+/// Applies resonance around a target frequency within a defined range, with adjustable boost in decibels.
+///
+/// # Parameters
+/// - `curr_freq`: The frequency to be processed, in Hertz.
+/// - `resonance_f`: The center frequency for resonance, in Hertz.
+/// - `resonance_distance`: The range (in octaves) around `resonance_f` over which resonance is applied.
+/// - `max_boost_db`: The maximum gain applied at the center frequency, in dB.
+///
+/// # Returns
+/// The amplitude coefficient for `curr_freq`, boosted within the resonance range and attenuated outside.
+#[inline]
+pub fn apply_resonance(curr_freq: f32, resonance_f: f32, resonance_distance: f32, max_boost_db: f32) -> f32 {
+    if curr_freq <= 0.0 || resonance_f <= 0.0 || resonance_distance <= 0.0 {
+        return 0.0; // Avoid invalid frequencies and distances
+    }
+
+    let df_octave = (curr_freq / resonance_f).log2().abs();
+    let max_gain = db_to_amp(max_boost_db);
+
+    if df_octave <= resonance_distance {
+        // Calculate the resonance boost factor within the resonance range
+        let boost_factor = 1.0 + (1.0 - df_octave / resonance_distance) * (max_gain - 1.0);
+        boost_factor.min(max_gain)
+    } else {
+        // Gradual attenuation for frequencies outside the resonance range
+        let attenuation_factor = (resonance_distance / df_octave) * (max_gain - 1.0) + 1.0;
+        attenuation_factor.min(1.0)
+    }
+}
+
+#[cfg(test)]
+mod filter_unit_test {
+    use super::*;
+
+    #[test]
+    fn test_in_band_no_attenuation() {
+        assert_eq!(apply_filter(500.0, 200.0, 4000.0, 24.0, 2.0), 1.0);
+    }
+
+    #[test]
+    fn test_low_frequency_attenuation() {
+        let result = apply_filter(100.0, 200.0, 4000.0, 24.0, 2.0);
+        assert!(result < 1.0 && result > 0.0);
+    }
+
+    #[test]
+    fn test_high_frequency_attenuation() {
+        let result = apply_filter(8000.0, 200.0, 4000.0, 24.0, 2.0);
+        assert!(result < 1.0 && result > 0.0);
+    }
+
+    #[test]
+    fn test_full_attenuation_below_cutoff() {
+        let result = apply_filter(50.0, 200.0, 4000.0, 24.0, 2.0);
+        let expected = db_to_amp(-24.0).powf(2.0);
+        assert!((result - expected).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_full_attenuation_above_cutoff() {
+        let result = apply_filter(16000.0, 200.0, 4000.0, 24.0, 2.0);
+        let expected = db_to_amp(-24.0).powf(2.0);
+        assert!((result - expected).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_gradual_rolloff_lowpass() {
+        let closer_to_lowpass = apply_filter(3500.0, 200.0, 4000.0, 24.0, 2.0);
+        let further_from_lowpass = apply_filter(7000.0, 200.0, 4000.0, 24.0, 2.0);
+        assert!(closer_to_lowpass > further_from_lowpass);
+    }
+
+    #[test]
+    fn test_gradual_rolloff_highpass() {
+        let closer_to_highpass = apply_filter(250.0, 200.0, 4000.0, 24.0, 2.0);
+        let further_from_highpass = apply_filter(100.0, 200.0, 4000.0, 24.0, 2.0);
+        assert!(closer_to_highpass > further_from_highpass);
+    }
+
+    
+    #[test]
+    fn test_resonance_center_boost() {
+        let amplitude = apply_resonance(1000.0, 1000.0, 1.0, 6.0);
+        assert!((amplitude - db_to_amp(6.0)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_within_resonance_range() {
+        let amplitude = apply_resonance(1200.0, 1000.0, 1.0, 6.0);
+        assert!(amplitude > 1.0);
+    }
+
+    #[test]
+    fn test_outside_resonance_range() {
+        let amplitude = apply_resonance(2000.0, 1000.0, 1.0, 6.0);
+        assert!(amplitude <= 1.0);
+    }
+
+    #[test]
+    fn test_invalid_frequency() {
+        assert_eq!(apply_resonance(0.0, 1000.0, 1.0, 6.0), 0.0);
+    }
+
+    #[test]
+    fn test_invalid_resonance_frequency() {
+        assert_eq!(apply_resonance(1000.0, 0.0, 1.0, 6.0), 0.0);
+    }
+}
 
 
 #[cfg(test)]
