@@ -210,8 +210,7 @@ fn bp_sighpad<'render>(cps:f32, mel:&'render Melody<Note>, arf:&Arf, len_cycles:
 
 
     let resos = vec![
-        boost_macro
-        // BoostGroup::static_width(1350f32, 2420f32, 24f32, 2f32, 2f32),
+        // boost_macro
     ];
 
     (highpass, lowpass, resos)
