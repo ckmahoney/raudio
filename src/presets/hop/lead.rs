@@ -41,7 +41,7 @@ fn freq_knob_tonal(v:Visibility, e:Energy, p:Presence) -> (Knob, fn(&Knob, f32, 
     let modulation_amount = match e {
         Energy::Low => 0.005f32 + 0.003 * rng.gen::<f32>(),
         Energy::Medium => 0.008f32 + 0.012f32 * rng.gen::<f32>(),
-        Energy::High => 0.25f32 + 0.75f32 * rng.gen::<f32>()
+        Energy::High => 0.25f32 + 0.5f32 * rng.gen::<f32>()
     };
     (Knob { a: modulation_amount, b: 0f32, c: 0.0}, ranger::fmod_warble)
 }

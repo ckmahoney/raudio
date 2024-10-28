@@ -137,7 +137,7 @@ pub struct Instrument;
 impl Instrument {
     
 
-    pub fn select<'render>(melody:&'render Melody<Note>, arf:&Arf, delays:Vec<DelayParams>) -> Renderable<'render> {
+    pub fn select<'render>(cps:f32, melody:&'render Melody<Note>, arf:&Arf, delays:Vec<DelayParams>) -> Renderable<'render> {
         use Role::*;
         use crate::synth::MFf;
         use crate::phrasing::ranger::KnobMods;
@@ -150,7 +150,7 @@ impl Instrument {
             Hats => hop::hats::renderable(melody, arf),
             Lead => hop::lead::renderable(melody, arf),
             Bass => hop::bass::renderable(melody, arf),
-            Chords => hop::chords::renderable(melody, arf),
+            Chords => hop::chords::renderable(cps, melody, arf),
         };
     
         // match arf.role {

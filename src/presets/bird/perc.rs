@@ -28,7 +28,7 @@ pub fn stem_visible<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'re
     let soids:Soids = soid_fx::fmod::square(&soids,3);
     // let soids:Soids = soid_fx::fmod::square(&soids,3);
     
-    let expr = (vec![visibility_gain(Visibility::Foreground)], vec![1f32], vec![0f32]);
+    let expr = (vec![visibility_gain(arf.visibility) * visibility_gain(Visibility::Foreground)], vec![1f32], vec![0f32]);
     let feel:Feel = Feel {
         bp: (vec![MFf], vec![NFf]),
         modifiers: (
