@@ -87,6 +87,14 @@ pub fn complexity(v:&Visibility, e:&Energy, p:&Presence) -> f32 {
     (cv + ce + cp) / 3f32
 }
 
+fn dimensions_to_cycles(dims:&Dimensions) -> f32 {
+    ((dims.base as i32).pow(dims.size as u32)*dims.cpc as i32) as f32
+}
+
+fn score_duration_seconds(score:&DruidicScore) -> f32 {
+    let len_cycles:f32 = dimensions_to_cycles(&score.dimensions);
+    len_cycles/score.conf.cps
+}
 
 pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stems:bool) -> String  {
     let mixdown_name = format!("{}/{}.wav", out_dir, asset_name);
@@ -97,13 +105,15 @@ pub fn render_score(score:DruidicScore, out_dir:&str, asset_name:&str, keep_stem
     let mut i = 0;
     for (client_positioning, arf, melody) in &score.parts { 
             let delays = inp::arg_xform::gen_delays(&mut rng, score.conf.cps, &client_positioning.echo, complexity(&arf.visibility, &arf.energy, &arf.presence));
-            let stem = presets::Instrument::select(melody, arf, delays);
+            let stem = presets::Instrument::select(score.conf.cps, melody, arf, delays);
             i = i+1;
             stems.push(stem)
     }
     let verb_complexity:f32 = rng.gen::<f32>()/10f32;
+    let len_seconds:f32 = score_duration_seconds(&score);
     let group_reverb:Vec<reverb::convolution::ReverbParams> = vec![inp::arg_xform::reverb_params(
         &mut rng, 
+        len_seconds,
         score.conf.cps, 
         &Distance::Near, 
         &score.groupEnclosure, 

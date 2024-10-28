@@ -49,11 +49,11 @@ pub fn find_reach(melody: &Melody<Note>) -> ((i8, usize), (i8, usize)) {
 /// to be applied in-context.
 pub struct Levels {
     /// starting / ending positition as a scalar
-    stable: f32,
+    pub stable: f32,
     /// scalar value 
-    peak: f32, 
+    pub peak: f32, 
     /// scalar value as a percent of peak
-    sustain: f32,
+    pub sustain: f32,
 }
 
 /// Absolute measurements of time 
@@ -61,11 +61,11 @@ pub struct Levels {
 #[derive(Clone, Copy, Debug)]
 pub struct ODR {
     /// in milliseconds
-    onset: f32,
+    pub onset: f32,
     /// time in ms to get to sustain
-    decay: f32,
+    pub decay: f32,
     /// time in ms to drop to stable value
-    release: f32
+    pub release: f32
 }
 impl ODR {
     /// Calculate the total number of samples required to satisfy the minimum possible ODR
@@ -97,6 +97,8 @@ impl ODR {
         *self
     }
 }
+
+
 
 #[cfg(test)]
 mod tests_odr {
@@ -188,41 +190,46 @@ pub fn mask_wah(
     cps:f32, 
     line:&Vec<Note>, 
     Levels{stable, peak, sustain}:&Levels, 
-    ODR {onset, decay, release}:&ODR
+    base_odr:&ODR
 ) -> SampleBuffer {
     let n_samples = time::samples_of_line(cps, line);
     let mut contour:SampleBuffer = Vec::with_capacity(n_samples);
     let applied_peak = peak.clamp(1f32, MAX_REGISTER as f32 - MIN_REGISTER as f32);
 
-    let n_samples_ramp:usize = time::samples_of_milliseconds(cps, *onset);
-    let n_samples_fall:usize = time::samples_of_milliseconds(cps, *decay);
-    let n_samples_kill:usize = time::samples_of_milliseconds(cps, *release);
-    // sustain level, boxed in by the ramp/fall/kill values
-    let n_samples_hold:usize = n_samples - n_samples_ramp - n_samples_kill;
 
     for (i, note) in (*line).iter().enumerate() {
+        let n_samples_note: usize = time::samples_of_note(cps, note);
+
+        let dur_seconds = time::step_to_seconds(cps, &(*note).0);
+        let odr:ODR = base_odr.fit_in_samples(cps, dur_seconds);
+
+        let n_samples_ramp:usize = time::samples_of_milliseconds(cps, odr.onset);
+        let n_samples_fall:usize = time::samples_of_milliseconds(cps, odr.decay);
+        let n_samples_kill:usize = time::samples_of_milliseconds(cps, odr.release);
+        // sustain level, boxed in by the ramp/fall/kill values
+        let n_samples_hold:usize = n_samples_note - (n_samples_fall + n_samples_ramp + n_samples_kill);
+
         let curr_freq:f32 = note_to_freq(note);
         let stable_freq= curr_freq+ 2f32.powf(*stable);
-        let n_samples_note: usize = time::samples_of_note(cps, note);
         for j in 0..n_samples_note {
             let cutoff_freq:f32 = if j < n_samples_ramp {
                 // onset
                 let p = j as f32 / n_samples_ramp as f32;
-                stable_freq + 2f32.powf(applied_peak * p)
+                2f32.powf(applied_peak * p + stable_freq.log2())
             } else if j < n_samples_ramp + n_samples_fall {
                 // decay
                 let p = (j - n_samples_ramp)  as f32/ n_samples_fall as f32;
-                let d_sustain = (1f32-p) * (1f32-sustain);
-                stable_freq + 2f32.powf(applied_peak * d_sustain)
+                let d_sustain = (p * (1f32-sustain));
+                2f32.powf((applied_peak - applied_peak * d_sustain) + stable_freq.log2())
             } else if j < n_samples_ramp + n_samples_fall + n_samples_hold {
                 let p = (j - n_samples_ramp - n_samples_fall)as f32 / n_samples_hold as f32;
                 // sustain
-                stable_freq + 2f32.powf(applied_peak * sustain)
+                2f32.powf(applied_peak * sustain + stable_freq.log2())
             } else {
                 // release
                 let p = (j - n_samples_ramp - n_samples_fall - n_samples_hold) as f32/ n_samples_kill as f32;
                 let d_sustain = (1f32-p) * sustain;
-                stable_freq + 2f32.powf(d_sustain)
+                2f32.powf(d_sustain + stable_freq.log2())
             };
 
             contour.push(cutoff_freq);
@@ -231,50 +238,4 @@ pub fn mask_wah(
     contour
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::time; // Ensure `time::samples_of_note` and `time::samples_of_line` are accessible
-
-    #[test]
-    fn test_mask_wah_contour_initial_high_and_stable_end() {
-        let cps = 2f32; // Sample rate in Hz, e.g., 44100 Hz
-
-        let line: Vec<Note> = vec![
-            ((1, 4), (5, (0,0,1)), 1.0),  // (Duration, Tone, Ampl)
-            ((1, 4), (5, (0,0,1)), 1.0),
-            ((1, 2), (5, (0,0,1)), 1.0),
-        ];
-
-        let levels = Levels {
-            peak: 5f32,
-            sustain: 2f32,
-            stable: 1f32
-        };
-
-        let odr = ODR {
-            onset: 30f32,
-            decay: 200f32,
-            release: 60f32,
-        };
-
-        // let contour = mask_wah(cps, &line);
-        // let stable_freq = 200.0; // Stable frequency as per the mask_wah function
-        // let initial_samples = 8000; // Initial high cutoff frequency for the first 8000 samples
-
-        // // Ensure contour is non-empty and has correct length
-        // let expected_length = time::samples_of_line(cps, &line);
-        // assert_eq!(contour.len(), expected_length, "Contour length mismatch");
-
-        // // Check the initial samples of the first note
-        // for i in 0..initial_samples.min(contour.len()) {
-        //     assert!(contour[i] > stable_freq, "Initial contour frequency should be higher than stable frequency");
-        // }
-
-        // // Check that the contour stabilizes to the stable frequency after the initial ramp
-        // for i in (initial_samples+10)..contour.len() {
-        //     assert_eq!(contour[i], stable_freq, "Contour should stabilize at the stable frequency after initial high");
-        // }
-    }
-}
 

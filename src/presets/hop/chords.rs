@@ -5,7 +5,7 @@ use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 use crate::time;
-use crate::analysis::melody::{mask_wah, find_reach};
+use crate::analysis::melody::{ODR, Levels, mask_wah, find_reach};
 
 
 fn amp_knob_detune(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
@@ -130,7 +130,20 @@ fn bp<'render>(cps:f32, mel:&'render Melody<Note>, arf:&Arf, len_cycles:f32) -> 
         (vec![MFf], vec![NFf])
     };
 
-    // lowpass = mask_wah(cps, &mel[low_index]);
+    // sustain must be less than 1!
+    let levels = Levels {
+        stable:0.7f32, 
+        peak: 6f32,   
+        sustain: 0.1f32, 
+    };
+
+    // 
+    let odr = ODR {
+        onset: 60.0,
+        decay: 1330.0,    
+        release: 110.0,  
+    };
+    lowpass = mask_wah(cps, &mel[low_index], &levels, &odr);
 
     (highpass, lowpass)
 }
