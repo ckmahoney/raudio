@@ -8,6 +8,7 @@ pub mod synthesis {
     use super::render;
     use crate::druid::melodic;
     use crate::phrasing::ranger::KnobMods;
+    use crate::analysis::in_range;
 
     pub type Rotation = i8;
     pub type Q = i8;
@@ -68,28 +69,57 @@ pub mod synthesis {
     // applied as a gain reduction to out-of-range frequencies
     #[derive(Clone,Debug)]
     pub struct BoostGroup {
-        bp: Bp, 
-        // amount to increase this signal by 
+        pub bp: Bp, 
+        // amount to attenuate out of range values 
         // (applied as a decrease to all out of range values by inverse)
-        db_gain: f32,
+        pub att: f32,
         // db per octave
-        rolloff: f32,
+        pub rolloff: f32,
         // intensity of rolloff
-        q:f32
+        pub q:f32
     }
 
     impl BoostGroup {
-        pub fn static_width(min_freq:f32, max_freq:f32, db_gain:f32, rolloff:f32, q:f32) -> Self {
+        pub fn static_width(min_freq:f32, max_freq:f32, att:f32, rolloff:f32, q:f32) -> Self {
             Self {
                 bp: (vec![min_freq], vec![max_freq]),
-                db_gain,
+                att,
                 rolloff,
                 q
             }
         }
     }
 
-    pub type Bp2 = (Vec<f32>, Vec<f32>, Vec<BoostGroup>);
+    #[derive(Copy,Clone,Debug)]
+    pub struct BoostGroupMacro {
+        // min/max freqs. is a static value for macro application
+        pub bandpass: [f32;2],
+        // min/max range of allowed frequencies in octaves
+        pub bandwidth: [f32;2], 
+        // amount to attenuate out of range values 
+        // (applied as a decrease to all out of range values by inverse)
+        pub att: [f32;2],
+        // db per octave
+        pub rolloff: [f32;2],
+        // intensity of rolloff
+        pub q:[f32;2]
+    }
+
+    impl BoostGroupMacro{
+        pub fn gen(&self) -> BoostGroup {
+            let mut rng = rand::thread_rng();
+            let min_freq = in_range(&mut rng, self.bandpass[0], self.bandpass[1]);
+            let width = in_range(&mut rng, self.bandwidth[0], self.bandwidth[1]);
+            BoostGroup {
+                bp: (vec![min_freq], vec![min_freq+2f32.powf(width)]),
+                att: in_range(&mut rng, self.att[0], self.att[1]),
+                rolloff: in_range(&mut rng, self.rolloff[0], self.rolloff[1]),
+                q: in_range(&mut rng, self.q[0], self.q[1]),
+            }
+        }
+    }
+
+    pub type Bp2 = (Vec<f32>, Vec<f32>, Vec<BoostGroupMacro>);
 
 
     #[derive(Clone,Copy)]

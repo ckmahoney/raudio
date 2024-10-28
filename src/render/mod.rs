@@ -18,7 +18,7 @@ use crate::render;
 use crate::reverb::convolution;
 use crate::time::{self, samples_per_cycle};
 use crate::types::timbre::{AmpContour, Arf, AmpLifespan};
-use crate::types::synthesis::{Bp2,GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Soids};
+use crate::types::synthesis::{Bp2,BoostGroup,BoostGroupMacro,GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Soids};
 use crate::types::render::{Stem2, Melody,Span, Stem, Feel};
 use rand;
 use rand::{Rng, thread_rng};
@@ -464,6 +464,12 @@ pub fn summer_with_reso<'render>(
     let end_p:f32 = curr_progress + (n_cycles/len_cycles);
     let bp_slice_highpass:Vec<f32> = slice_signal(&bp.0, curr_progress, end_p, sig_samples);
     let bp_slice_lowpass:Vec<f32> = slice_signal(&bp.1, curr_progress, end_p, sig_samples);
+    let mut boostgroups:Vec<BoostGroup> = bp.2.iter().map(|boostgroup_macro| {boostgroup_macro.gen() }).collect();
+    let reso_slices:Vec<(Vec<f32>,Vec<f32>)> = (&boostgroups).iter().map(|boostgroup| {
+        let boost_slice_highpass:Vec<f32> = slice_signal(&boostgroup.bp.0, curr_progress, end_p, sig_samples);
+        let boost_slice_lowpass:Vec<f32> = slice_signal(&boostgroup.bp.1, curr_progress, end_p, sig_samples);
+        (boost_slice_highpass, boost_slice_lowpass)
+    }).collect();
 
     // Use exact-length buffers to prevent index interpolation during render
     let resampled_aenv = slice_signal(&expr.0, curr_progress, end_p, sig_samples);
@@ -515,6 +521,19 @@ pub fn summer_with_reso<'render>(
                 }
 
                 amp *= apply_filter(frequency, hp, lp, DB_PER_OCTAVE, DB_DISTANCE);
+
+                for (i, (boost_min, boost_max)) in (&reso_slices).iter().enumerate() {
+                    let b_min= boost_min[j];
+                    let b_max= boost_max[j];
+                    // rolloff and q get applied here. rolloff is given as octaves to fade to attenuation level (gain)
+                    let d_octave = (frequency.log2() - b_min.log2()).max(0.0)
+                        - (b_max.log2() - frequency.log2()).max(0.0);
+
+                    let boostgroup:&BoostGroup=&boostgroups[i];
+                    let y = d_octave / boostgroup.rolloff;
+                    let gain = db_to_amp(y * -boostgroup.att.abs()) * boostgroup.q.powf(y);
+                    amp *= gain
+                }
                 
                 let p0 = pm + frequency * pi2 * pos_cycles;
                 let p1:f32 = knobsPhase.iter().fold(p0, |acc, (knob,func)| acc+func(knob, cps, fundamental, m, n_cycles, pos_cycles));

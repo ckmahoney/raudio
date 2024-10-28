@@ -1,7 +1,7 @@
 use hound::Sample;
 
 use super::super::*;
-use crate::types::synthesis::{ModifiersHolder,Soids};
+use crate::types::synthesis::{BoostGroupMacro,BoostGroup,ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 use crate::time;
@@ -191,6 +191,14 @@ fn bp_sighpad<'render>(cps:f32, mel:&'render Melody<Note>, arf:&Arf, len_cycles:
         release: [1510.0, 2000f32],  
     };
 
+    let boost_macro = BoostGroupMacro {
+        bandpass: [300f32, 350f32],
+        bandwidth: [0.25f32, 0.77f32],
+        att: [8f32, 12f32],
+        rolloff: [21f32, 2.3f32],
+        q: [1f32, 2f32]
+    };
+
     let (highpass, mut lowpass):(Vec<f32>, Vec<f32>) = if let Visibility::Visible = arf.visibility {
         match arf.energy {
             Energy::Low => (filter_contour_triangle_shape_highpass(lowest_register, highest_register, n_samples, size*rate_per_size), vec![NFf]),
@@ -200,8 +208,10 @@ fn bp_sighpad<'render>(cps:f32, mel:&'render Melody<Note>, arf:&Arf, len_cycles:
         (vec![MFf], vec![NFf])
     };
 
+
     let resos = vec![
-        BoostGroup::static_width(350f32, 420f32, 12f32, 2f32, 1f32)
+        boost_macro
+        // BoostGroup::static_width(1350f32, 2420f32, 24f32, 2f32, 2f32),
     ];
 
     (highpass, lowpass, resos)

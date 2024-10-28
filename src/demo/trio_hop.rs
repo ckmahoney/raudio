@@ -197,7 +197,6 @@ fn demonstrate() {
     let group_reverbs = vec![];
     let mix = render::combiner(cps, root, &renderables, &group_reverbs, keep_stems);
     let filename = format!("{}/{}.wav",location(demo_name), demo_name);
-    println!("REndered to {}", filename);
     render::engrave::samples(SR, &mix, &filename);
 }
 
