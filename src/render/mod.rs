@@ -458,6 +458,11 @@ pub fn summer_with_reso<'render>(
     let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(delays));
     let sig_samples = time::samples_of_cycles(cps, n_cycles);
     let mut sig = vec![0f32;  sig_samples + append_delay];
+
+    if n_cycles.signum() == -1f32 || vel <= 0f32 {
+        // skip rests, fill an empty vec
+        return sig
+    }
     
 
     // slice the overall bandpass filter for this note's cutoff range
@@ -520,7 +525,6 @@ pub fn summer_with_reso<'render>(
                     continue
                 }
 
-                amp *= apply_filter(frequency, hp, lp, DB_PER_OCTAVE, DB_DISTANCE);
 
                 for (i, (boost_min, boost_max)) in (&reso_slices).iter().enumerate() {
                     let b_min= boost_min[j];
@@ -538,8 +542,12 @@ pub fn summer_with_reso<'render>(
                 let p0 = pm + frequency * pi2 * pos_cycles;
                 let p1:f32 = knobsPhase.iter().fold(p0, |acc, (knob,func)| acc+func(knob, cps, fundamental, m, n_cycles, pos_cycles));
                 let phase = p1; 
+
+                let final_freq = phase.sin();
+
+                amp *= apply_filter(frequency, hp, lp, DB_PER_OCTAVE, DB_DISTANCE);
                 
-                v += amp * phase.sin();
+                v += amp * final_freq;
             };
 
             for replica_n in 0..=(delay_params.n_echoes.max(1)) {

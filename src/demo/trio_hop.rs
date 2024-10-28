@@ -177,12 +177,12 @@ fn demonstrate() {
     let chords_melody = chords_melody();
     let bass_melody = bass_melody();
 
-    let stem_lead = lead::renderable(&lead_melody, &lead_arf());
+    let stem_lead = lead::renderable(cps, &lead_melody, &lead_arf());
     let stem_chords =chords::renderable(cps, &chords_melody, &chords_arf());
-    let stem_bass = bass::renderable(&bass_melody, &bass_arf());
+    let stem_bass = bass::renderable(cps, &bass_melody, &bass_arf());
 
     use Renderable::{Instance,Group};
-    let renderables:Vec<Renderable> = vec![
+    let renderables:Vec<Renderable2> = vec![
         stem_bass,
         // stem_chords,
         stem_lead,
@@ -195,7 +195,7 @@ fn demonstrate() {
     let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Room, complexity);
     let keep_stems = Some(path.as_str());
     let group_reverbs = vec![];
-    let mix = render::combiner(cps, root, &renderables, &group_reverbs, keep_stems);
+    let mix = render::combiner_with_reso(cps, root, &renderables, &group_reverbs, keep_stems);
     let filename = format!("{}/{}.wav",location(demo_name), demo_name);
     render::engrave::samples(SR, &mix, &filename);
 }

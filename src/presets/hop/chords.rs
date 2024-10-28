@@ -5,7 +5,7 @@ use crate::types::synthesis::{BoostGroupMacro,BoostGroup,ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids};
 use crate::time;
-use crate::analysis::melody::{ODR, ODRMacro, Levels,LevelMacro, mask_wah, mask_sighwah,find_reach};
+use crate::analysis::melody::{ODR, ODRMacro, Levels,LevelMacro, mask_wah, mask_sigh,find_reach};
 
 
 fn amp_knob_detune(visibility:Visibility, energy:Energy, presence:Presence) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
@@ -110,112 +110,6 @@ fn dynamics(arf:&Arf, n_samples:usize, k:f32) -> SampleBuffer {
     dynamp_contour
 }
 
-/// Create bandpass automations with respsect to Arf and Melody
-fn bp_cresc<'render>(cps:f32, mel:&'render Melody<Note>, arf:&Arf, len_cycles:f32) -> (SampleBuffer, SampleBuffer) {
-    let size = len_cycles.log2()-1f32; // offset 1 to account for lack of CPC. -1 assumes CPC=2
-    let rate_per_size = match arf.energy {
-        Energy::Low => 0.5f32,
-        Energy::Medium => 1f32,
-        Energy::High => 2f32,
-    };
-    let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
-    let n_samples:usize = (len_cycles/2f32) as usize * SR;
-
-    let (highpass, lowpass):(Vec<f32>, Vec<f32>) = if let Visibility::Visible = arf.visibility {
-        match arf.energy {
-            Energy::Low => (filter_contour_triangle_shape_highpass(lowest_register, highest_register, n_samples, size*rate_per_size), vec![NFf]),
-            _ => (vec![MFf],filter_contour_triangle_shape_lowpass(lowest_register, n_samples, size*rate_per_size))
-        }
-    } else {
-        (vec![MFf], vec![NFf])
-    };
-
-    let levels = Levels::new(0.7f32, 4f32, 0.5f32);
-    let odr = ODR {
-        onset: 60.0,
-        decay: 1330.0,    
-        release: 110.0,  
-    };
-
-    (highpass, lowpass)
-}
-
-/// Create bandpass automations with respsect to Arf and Melody
-fn bp_wah<'render>(cps:f32, mel:&'render Melody<Note>, arf:&Arf, len_cycles:f32) -> (SampleBuffer, SampleBuffer) {
-    let size = len_cycles.log2()-1f32; // offset 1 to account for lack of CPC. -1 assumes CPC=2
-    let rate_per_size = match arf.energy {
-        Energy::Low => 0.5f32,
-        Energy::Medium => 1f32,
-        Energy::High => 2f32,
-    };
-    let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
-    let n_samples:usize = (len_cycles/2f32) as usize * SR;
-
-    let levels = Levels::new(0.7f32, 4f32, 0.5f32);
-    let odr = ODR {
-        onset: 60.0,
-        decay: 1330.0,    
-        release: 110.0,  
-    };
-    let (highpass, lowpass):(Vec<f32>, Vec<f32>) = if let Visibility::Visible = arf.visibility {
-        match arf.energy {
-            Energy::Low => (filter_contour_triangle_shape_highpass(lowest_register, highest_register, n_samples, size*rate_per_size), vec![NFf]),
-            _ => (vec![MFf], mask_wah(cps, &mel[low_index], &levels, &odr))
-        }
-    } else {
-        (vec![MFf], vec![NFf])
-    };
-
-    (highpass, lowpass)
-}
-
-/// Create bandpass automations with respsect to Arf and Melody
-fn bp_sighpad<'render>(cps:f32, mel:&'render Melody<Note>, arf:&Arf, len_cycles:f32) -> Bp2 {
-    let size = len_cycles.log2()-1f32; // offset 1 to account for lack of CPC. -1 assumes CPC=2
-    let rate_per_size = match arf.energy {
-        Energy::Low => 0.5f32,
-        Energy::Medium => 1f32,
-        Energy::High => 2f32,
-    };
-    let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
-    let n_samples:usize = (len_cycles/2f32) as usize * SR;
-    let levels = Levels::new(0.7f32, 4f32, 0.5f32);
-    let level_macro:LevelMacro = LevelMacro {
-        stable: [1f32, 1f32],
-        peak: [2.5f32, 4f32],
-        sustain: [0.4f32, 0.8f32],
-    };
-    let odr_macro = ODRMacro {
-        onset: [1260.0, 2120f32],
-        decay: [2330.0, 8500f32],    
-        release: [1510.0, 2000f32],  
-    };
-
-    let boost_macro = BoostGroupMacro {
-        bandpass: [300f32, 350f32],
-        bandwidth: [0.25f32, 0.77f32],
-        att: [8f32, 12f32],
-        rolloff: [21f32, 2.3f32],
-        q: [1f32, 2f32]
-    };
-
-    let (highpass, mut lowpass):(Vec<f32>, Vec<f32>) = if let Visibility::Visible = arf.visibility {
-        match arf.energy {
-            Energy::Low => (filter_contour_triangle_shape_highpass(lowest_register, highest_register, n_samples, size*rate_per_size), vec![NFf]),
-            _ => (vec![MFf], mask_sighwah(cps, &mel[low_index], &level_macro, &odr_macro))
-        }
-    } else {
-        (vec![MFf], vec![NFf])
-    };
-
-
-    let resos = vec![
-        // boost_macro
-    ];
-
-    (highpass, lowpass, resos)
-}
-
 pub fn renderable<'render>(cps:f32, melody:&'render Melody<Note>, arf:&Arf) -> Renderable2<'render> {
     // spent 30mins testing these values. need to record elsewhere
     // 8 is the optimal value for high energy because using 7 has the same appearance but costs 2x more
@@ -228,11 +122,9 @@ pub fn renderable<'render>(cps:f32, melody:&'render Melody<Note>, arf:&Arf) -> R
         Energy::High => 2f32.powi(8i32),
     }; 
     let len_cycles:f32 = time::count_cycles(&melody[0]);
-
     let soids = druidic_soids::overs_sawtooth(mullet);
-    // let soids = soid_fx::amod::reece(&soids, 2);
 
-    let bp:Bp2 = bp_sighpad(cps, melody, arf, len_cycles);
+    let bp:Bp2 = get_bp(cps, melody, arf, len_cycles);
 
     let mut knob_mods_tonal:KnobMods = KnobMods::unit();
     knob_mods_tonal.0.push(amp_microtransient(arf.visibility, arf.energy, arf.presence));
@@ -242,8 +134,6 @@ pub fn renderable<'render>(cps:f32, melody:&'render Melody<Note>, arf:&Arf) -> R
     let dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
 
     let expr = (
-        // dynamics(arf, n_samples, 4f32), 
-        // vec![1f32], 
         dynamics,
         vec![1f32], 
         vec![0f32]

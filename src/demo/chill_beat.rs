@@ -170,27 +170,27 @@ fn demonstrate() {
     let perc_melody = perc_melody();
     let kick_mel = kick_melody();
 
-    let stem_hats1 = hats::renderable(&hats_melody, &hats_arf(Presence::Staccatto));
-    let stem_hats2 = hats::renderable(&hats_melody, &hats_arf(Presence::Legato));
-    let stem_hats3 = hats::renderable(&hats_melody, &hats_arf(Presence::Tenuto));
-    let stem_perc1   = perc::renderable(&perc_melody, &perc_arf(Presence::Staccatto));
-    let stem_perc2 = perc::renderable(&perc_melody, &perc_arf(Presence::Legato));
-    let stem_perc3 = perc::renderable(&perc_melody, &perc_arf(Presence::Tenuto));
-    let stem_kick1 = kick::renderable(&kick_mel, &kick_arf(Presence::Staccatto));
-    let stem_kick2 = kick::renderable(&kick_mel, &kick_arf(Presence::Legato));
-    let stem_kick3 = kick::renderable(&kick_mel, &kick_arf(Presence::Tenuto));
+    let stem_hats1 = hats::renderable(cps, &hats_melody, &hats_arf(Presence::Staccatto));
+    let stem_hats2 = hats::renderable(cps, &hats_melody, &hats_arf(Presence::Legato));
+    let stem_hats3 = hats::renderable(cps, &hats_melody, &hats_arf(Presence::Tenuto));
+    let stem_perc1   = perc::renderable(cps, &perc_melody, &perc_arf(Presence::Staccatto));
+    let stem_perc2 = perc::renderable(cps, &perc_melody, &perc_arf(Presence::Legato));
+    let stem_perc3 = perc::renderable(cps, &perc_melody, &perc_arf(Presence::Tenuto));
+    let stem_kick1 = kick::renderable(cps, &kick_mel, &kick_arf(Presence::Staccatto));
+    let stem_kick2 = kick::renderable(cps, &kick_mel, &kick_arf(Presence::Legato));
+    let stem_kick3 = kick::renderable(cps, &kick_mel, &kick_arf(Presence::Tenuto));
 
-    use Renderable::{Instance,Group};
-    let renderables:Vec<Renderable> = vec![
+    use Renderable2::{Instance,Group};
+    let renderables:Vec<Renderable2> = vec![
         stem_kick1,
-        // stem_kick2,
-        // stem_kick3,
-        // stem_perc1,
+        stem_kick2,
+        stem_kick3,
+        stem_perc1,
         stem_perc2,
-        // stem_perc3,
+        stem_perc3,
         // stem_hats1,
         // stem_hats2,
-        stem_hats3,
+        // stem_hats3,
     ];
 
     use crate::Distance;
@@ -200,8 +200,8 @@ fn demonstrate() {
     let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
     let keep_stems = Some(path.as_str());
 
-    let mix = render::combiner(cps, root, &renderables, &group_reverbs, keep_stems);
-    let filename = format!("{}/{}.wav",location(demo_name), demo_name);
+    let mix = render::combiner_with_reso(cps, root, &renderables, &group_reverbs, keep_stems);
+    let filename = format!("{}/{}.wav",path, demo_name);
     render::engrave::samples(SR, &mix, &filename);
 }
 
@@ -221,12 +221,12 @@ fn samp(cps:f32, root:f32) -> SampleBuffer {
     let perc_melody = perc_melody();
     let kick_mel = kick_melody();
 
-    let stem_hats = hats::renderable(&hats_melody, &hats_arf(Presence::Legato));
-    let stem_perc = perc::renderable(&perc_melody, &perc_arf(Presence::Staccatto));
-    let stem_kick = kick::renderable(&kick_mel, &kick_arf(Presence::Tenuto));
+    let stem_hats = hats::renderable(cps, &hats_melody, &hats_arf(Presence::Legato));
+    let stem_perc = perc::renderable(cps, &perc_melody, &perc_arf(Presence::Staccatto));
+    let stem_kick = kick::renderable(cps, &kick_mel, &kick_arf(Presence::Tenuto));
 
     use Renderable::{Instance,Group};
-    let renderables:Vec<Renderable> = vec![
+    let renderables:Vec<Renderable2> = vec![
         stem_kick,
         stem_perc,
         stem_hats,
@@ -238,7 +238,7 @@ fn samp(cps:f32, root:f32) -> SampleBuffer {
     let complexity:f32 = rng.gen::<f32>();
     let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
 
-    render::combiner(cps, root, &renderables, &group_reverbs, None)
+    render::combiner_with_reso(cps, root, &renderables, &group_reverbs, None)
 }
 
 

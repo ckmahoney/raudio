@@ -168,19 +168,21 @@ impl ODR {
 pub fn mask_wah(
     cps:f32, 
     line:&Vec<Note>, 
-    Levels{stable, peak, sustain}:&Levels, 
-    base_odr:&ODR
+    level_macro:&LevelMacro, 
+    odr_macro:&ODRMacro
 ) -> SampleBuffer {
     let n_samples = time::samples_of_line(cps, line);
     let mut contour:SampleBuffer = Vec::with_capacity(n_samples);
-    let applied_peak = peak.clamp(1f32, MAX_REGISTER as f32 - MIN_REGISTER as f32);
 
 
     for (i, note) in (*line).iter().enumerate() {
+        let Levels {peak, sustain, stable} = level_macro.gen();
+        let applied_peak = peak.clamp(1f32, MAX_REGISTER as f32 - MIN_REGISTER as f32);
+
         let n_samples_note: usize = time::samples_of_note(cps, note);
 
         let dur_seconds = time::step_to_seconds(cps, &(*note).0);
-        let odr:ODR = base_odr.fit_in_samples(cps, dur_seconds);
+        let odr:ODR = (odr_macro.gen()).fit_in_samples(cps, dur_seconds);
 
         let n_samples_ramp:usize = time::samples_of_milliseconds(cps, odr.onset);
         let n_samples_fall:usize = time::samples_of_milliseconds(cps, odr.decay);
@@ -189,7 +191,7 @@ pub fn mask_wah(
         let n_samples_hold:usize = n_samples_note - (n_samples_fall + n_samples_ramp + n_samples_kill);
 
         let curr_freq:f32 = note_to_freq(note);
-        let stable_freq_base = *stable * curr_freq.log2();
+        let stable_freq_base = stable * curr_freq.log2();
         for j in 0..n_samples_note {
             let cutoff_freq:f32 = if j < n_samples_ramp {
                 // onset
@@ -225,7 +227,7 @@ pub fn mask_wah(
 /// with a unique ODSR per-note
 /// bound by the Level and ODR macros provided.
 /// Guaranteed that a complete ODR will always fit in each noteevent's duration.
-pub fn mask_sighwah(
+pub fn mask_sigh(
     cps:f32, 
     line:&Vec<Note>, 
     level_macro:&LevelMacro, 

@@ -24,22 +24,12 @@ fn gain(arf:&Arf) -> f32 {
 
 
 /// Supporting feature
-pub fn stem_noise<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
+pub fn stem_noise<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem2<'render> {
     let soids = soid_fx::concat(&vec![
         soid_fx::noise::rank(1, NoiseColor::Pink, 1f32/5f32),
         soid_fx::noise::rank(2, NoiseColor::Equal, 1f32/9f32),
     ]);
-    let expr = (vec![gain(arf)*visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
-    let feel:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: (
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-        ),
-        clippers: (0f32, 1f32)
-    };
+    let expr = (vec![visibility_gain(Visibility::Hidden)*visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
     
     let mut knob_mods:KnobMods = KnobMods::unit();
     let mut rng:ThreadRng = thread_rng();
@@ -70,24 +60,14 @@ pub fn stem_noise<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'rend
         }, 
         ranger::amod_pluck
     ));
-    (melody, soids, expr, feel, knob_mods, vec![delay::passthrough])
+    (melody, soids, expr, (vec![MFf], vec![NFf], vec![]), knob_mods, vec![delay::passthrough])
 }
 
 
-pub fn stem_bass<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'render> {
+pub fn stem_bass<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem2<'render> {
     let soids = druidic_soids::upto(2);
 
     let expr = (vec![db_to_amp(-4.5f32)*gain(arf)], vec![1f32], vec![0f32]); 
-    let feel:Feel = Feel {
-        bp: (vec![MFf], vec![NFf]),
-        modifiers: (
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-        ),
-        clippers: (0f32, 1f32)
-    };
     
     let mut knob_mods:KnobMods = KnobMods::unit();
     let mut rng:ThreadRng = thread_rng();
@@ -140,7 +120,7 @@ pub fn stem_bass<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'rende
         ranger::fmod_sweepdown
     ));
 
-    (melody, soids, expr, feel, knob_mods, vec![delay::passthrough])
+    (melody, soids, expr, (vec![MFf], vec![NFf], vec![]), knob_mods, vec![delay::passthrough])
 }
 
 
@@ -165,10 +145,10 @@ pub fn stem_bass<'render>(arf:&Arf, melody:&'render Melody<Note>) -> Stem<'rende
  needs
  to have punch, decay, and body as primary facets
  */   
-pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+pub fn renderable<'render>(cps:f32, melody:&'render Melody<Note>, arf:&Arf) -> Renderable2<'render> {
     
-    Renderable::Group(vec![
+    Renderable2::Group(vec![
         stem_noise(arf, melody),
-        stem_bass(arf, melody),
+        // stem_bass(arf, melody),
     ])
 }

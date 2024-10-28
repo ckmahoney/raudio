@@ -12,7 +12,7 @@ use crate::presets::Instrument;
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::volume::db_to_amp;
 
-use presets::hop::bass;
+use presets::urbuntu::bass;
 
 fn bass_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![

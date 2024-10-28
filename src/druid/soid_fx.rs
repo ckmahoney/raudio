@@ -120,24 +120,23 @@ pub mod noise {
 
     pub fn resof(focal:f32) -> Soids {
         let mut rng = thread_rng();
-        let mut soids:Soids = (vec![1f32], vec![focal], vec![0f32]);
+        let mut soids:Soids = (vec![0.5f32], vec![focal], vec![0f32]);
 
         concat(&vec![
             soids.clone(),
-            ratio::constant(&soids.clone(), 2f32, 0.33f32),
-            ratio::constant(&soids.clone(), 0.66f32, 0.11f32),
-            ratio::constant(&soids.clone(), 0.2f32, 0.1f32),
+            ratio::constant(&soids.clone(), 2f32, 0.133f32),
+            ratio::constant(&soids.clone(), 0.66f32, 0.011f32),
+            ratio::constant(&soids.clone(), 0.2f32, 0.0132),
             ratio::constant(&soids.clone(), 3f32, 0.001f32),
         ])
     }
 
     pub fn rank(register:usize, color:NoiseColor, gain:f32) -> Soids {
-        let n = 13 * (register+1);
+        let n = 13 * 2i32.pow(register as u32) as usize;
         let mut rng = thread_rng();
         let mut soids:Soids = (vec![], vec![], vec![]);
         for u in 0..n {
-            let m = rng.gen::<f32>();
-            let r = register as f32 +m;
+            let r = rng.gen_range(1..n) as f32;
             let a = gain * match color {
                 NoiseColor::Pink => (r/MAX_REGISTER as f32).sqrt(),
                 NoiseColor::Violet => (r/MAX_REGISTER as f32).powi(2i32),

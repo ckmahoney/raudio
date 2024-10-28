@@ -76,23 +76,11 @@ fn amp_knob_attenuation(rng:&mut ThreadRng, arf:&Arf)  -> (Knob, fn(&Knob, f32, 
 
 
 
-pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+pub fn renderable<'render>(cps:f32, melody:&'render Melody<Note>, arf:&Arf) -> Renderable2<'render> {
     let mut rng = thread_rng();
     let len_cycles:f32 = time::count_cycles(&melody[0]);
     let n_samples=(SRf*len_cycles/2f32) as usize; 
 
-    //# id component
-
-    let feel:Feel = Feel {
-        bp: bp(melody, arf, len_cycles),
-        modifiers: (
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-        ),
-        clippers: (0f32, 1f32)
-    };
     
     let mut knob_mods:KnobMods = KnobMods::unit();
     knob_mods.0.push(amp_microtransient(arf.visibility, arf.energy, arf.presence));
@@ -101,9 +89,9 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     let soids = druidic_soids::overs_square(2f32.powi(7i32));
 
     // let soids = soid_fx::amod::reece(&soids, 2);
-    let stem = (melody, soids, expr(arf, n_samples), feel, knob_mods, vec![delay::passthrough]);
+    let stem = (melody, soids, expr(arf, n_samples), get_bp(cps, melody, arf, len_cycles), knob_mods, vec![delay::passthrough]);
 
-    Renderable::Group(vec![
+    Renderable2::Group(vec![
         stem,
     ])
 }

@@ -80,7 +80,7 @@ fn bp<'render>(melody:&'render Melody<Note>, arf:&Arf, len_cycles:f32) -> (Sampl
 } 
 
 
-pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable<'render> {
+pub fn renderable<'render>(cps:f32, melody:&'render Melody<Note>, arf:&Arf) -> Renderable2<'render> {
     let mullet = match arf.energy {
         Energy::Low => 256f32,
         Energy::Medium => 64f32,
@@ -94,25 +94,16 @@ pub fn renderable<'render>(melody:&'render Melody<Note>, arf:&Arf) -> Renderable
     };
     let mut knob_mods:KnobMods = KnobMods::unit();
 
-    knob_mods.0.push(amp_knob_experiement(arf.visibility, arf.energy, arf.presence));
-    knob_mods.0.push(amp_knob_breath(arf.visibility, arf.energy, arf.presence));
+    // knob_mods.0.push(amp_knob_experiement(arf.visibility, arf.energy, arf.presence));
+    // knob_mods.0.push(amp_knob_breath(arf.visibility, arf.energy, arf.presence));
+    knob_mods.0.push(amp_microtransient(arf.visibility, arf.energy, arf.presence));
     knob_mods.1.push(freq_knob_tonal(arf.visibility, arf.energy, arf.presence));
     let len_cycles:f32 = time::count_cycles(&melody[0]);
 
-    let feel:Feel = Feel {
-        bp: bp(melody, arf, len_cycles),
-        modifiers: (
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-        ),
-        clippers: (0f32, 1f32)
-    };
     let n_samples=(SRf*len_cycles/2f32) as usize; 
 
     let dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
     let expr = (dynamics, vec![1f32], vec![0f32]);
-    let stem = (melody, soids, expr, feel, knob_mods, vec![delay::passthrough]);
-    Renderable::Instance(stem)
+    let stem = (melody, soids, expr,  get_bp(cps, melody, arf, len_cycles), knob_mods, vec![delay::passthrough]);
+    Renderable2::Instance(stem)
 }
