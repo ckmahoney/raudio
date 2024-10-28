@@ -22,7 +22,17 @@ pub fn samples_of_duration(cps:f32, d:&Ratio) -> usize {
 
 /// Given a duration in seconds, return the number of samples representing this length
 pub fn samples_of_dur(cps:f32, dur:f32) -> usize {
+    samples_of_seconds(cps, dur)
+} 
+
+/// Given a duration in seconds, return the number of samples representing this length
+pub fn samples_of_seconds(cps:f32, dur:f32) -> usize {
     samples_from_dur(cps, dur)
+} 
+
+/// Given a duration in milliseconds, return the number of samples representing this length
+pub fn samples_of_milliseconds(cps:f32, dur_ms:f32) -> usize {
+    samples_from_dur(cps, dur_ms/1000f32)
 } 
 
 /// Given a duration in seconds, return the number of samples representing this length
@@ -49,6 +59,15 @@ pub fn duration_to_cycles((numerator, denominator):Ratio) -> f32 {
 /// Given a sequence of notes, determine the total number of cycles it requests.
 pub fn count_cycles(line:&Vec<Note>) -> f32 {
     line.iter().fold(0f32, |acc, (duration,_,_)| acc + duration_to_cycles(*duration))
+}
+
+/// Given a note, determine the total number of samples it requests.
+pub fn samples_of_note(cps:f32, (duration, _, _):&Note) -> usize {
+    samples_of_cycles(cps, duration_to_cycles(*duration))
+}
+
+pub fn samples_of_line(cps:f32, line:&Vec<Note>) -> usize {
+    samples_of_cycles(cps, count_cycles(line))
 }
 
 

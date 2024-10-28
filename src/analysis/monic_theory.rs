@@ -82,6 +82,10 @@ pub fn tone_to_freq(tone:&Tone) -> f32 {
     fit(2f32.powi(*register as i32), monae_to_freq(m))
 }
 
+pub fn note_to_freq((_,tone,_):&Note) -> f32 {
+    tone_to_freq(tone)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
