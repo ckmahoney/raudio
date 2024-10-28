@@ -24,7 +24,7 @@ use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::{volume::db_to_amp, self, delay::{self, DelayParams}};
 use crate::synth::{MFf,NFf, SR, SampleBuffer};
-use crate::render::Renderable;
+use crate::render::{Renderable,Renderable2};
 use rand::Rng;
 pub fn location(name:&str) -> String {
     format!("{}/{}", out_dir, name)

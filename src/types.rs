@@ -64,6 +64,33 @@ pub mod synthesis {
     /// Can have any number of entries and the highpass/lowpass vecs can have different lenghts. Gentime filter will interpolate
     pub type Bp = (Vec<f32>, Vec<f32>);
 
+    // region of frequencies that are amplified more than other regions
+    // applied as a gain reduction to out-of-range frequencies
+    #[derive(Clone,Debug)]
+    pub struct BoostGroup {
+        bp: Bp, 
+        // amount to increase this signal by 
+        // (applied as a decrease to all out of range values by inverse)
+        db_gain: f32,
+        // db per octave
+        rolloff: f32,
+        // intensity of rolloff
+        q:f32
+    }
+
+    impl BoostGroup {
+        pub fn static_width(min_freq:f32, max_freq:f32, db_gain:f32, rolloff:f32, q:f32) -> Self {
+            Self {
+                bp: (vec![min_freq], vec![max_freq]),
+                db_gain,
+                rolloff,
+                q
+            }
+        }
+    }
+
+    pub type Bp2 = (Vec<f32>, Vec<f32>, Vec<BoostGroup>);
+
 
     #[derive(Clone,Copy)]
     pub enum GlideLen {
@@ -286,6 +313,7 @@ pub mod render {
         pub modifiers: ModifiersHolder, 
         pub clippers: Clippers
     }
+
     use rand::seq::SliceRandom;
     use rand::{thread_rng, Rng};
 
@@ -374,6 +402,16 @@ pub mod render {
         Soids, 
         Expr,
         Feel, 
+        KnobMods,
+        Vec<crate::analysis::delay::DelayParams>
+    );
+
+    /// Applied parameters to create a SampleBuffer
+    pub type Stem2<'render> = (
+        &'render Melody<synthesis::Note>, 
+        Soids, 
+        Expr,
+        Bp2, 
         KnobMods,
         Vec<crate::analysis::delay::DelayParams>
     );

@@ -8,6 +8,7 @@ pub mod transient;
 pub mod trig;
 pub mod volume;
 pub mod xform_freq;
+use rand::{rngs::ThreadRng,Rng,prelude::SliceRandom};
 
 use crate::synth::{pi,pi2};
 
@@ -101,6 +102,11 @@ pub fn is_fmod_range(f: f32, v: f32) -> bool {
 /// Returns `false` if the value is NaN.
 pub fn is_sinu_range(v: f32) -> bool {
     v.is_finite() && v >= -1f32 && v <= 1f32
+}
+
+
+pub fn in_range(rng:&mut ThreadRng, min:f32,max:f32) ->  f32{ 
+    min + (max - min) * rng.gen::<f32>()
 }
 
 #[cfg(test)]

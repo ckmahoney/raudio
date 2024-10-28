@@ -18,8 +18,8 @@ use crate::render;
 use crate::reverb::convolution;
 use crate::time::{self, samples_per_cycle};
 use crate::types::timbre::{AmpContour, Arf, AmpLifespan};
-use crate::types::synthesis::{GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Soids};
-use crate::types::render::{Melody,Span, Stem, Feel};
+use crate::types::synthesis::{Bp2,GlideLen, Modifiers, ModifiersHolder, Note, Range, Bp, Clippers, Soids};
+use crate::types::render::{Stem2, Melody,Span, Stem, Feel};
 use rand;
 use rand::{Rng, thread_rng};
 use rand::rngs::ThreadRng;
@@ -28,6 +28,12 @@ use rand::rngs::ThreadRng;
 pub enum Renderable<'render> {
     Instance(Stem<'render>),
     Group(Vec<Stem<'render>>),
+}
+
+#[derive(Clone,Debug)]
+pub enum Renderable2<'render> {
+    Instance(Stem2<'render>),
+    Group(Vec<Stem2<'render>>),
 }
 
 
@@ -178,6 +184,36 @@ fn channel(cps:f32, root:f32, (melody, soids, expr, feel, knob_mods, delays):&St
         line.iter().enumerate().for_each(|(i, (_, tone, amp))| {
             let freq = root * tone_to_freq(tone);
             let moment = summer(p, len_cycles, cps, root, *amp, freq, durs[i], soids, &expr, feel, knob_mods, &delays);
+            channel_samples.push(moment);
+            p += durs[i]/len_cycles;
+        });
+        let mut mixed = overlapping(signal_len, cps, durs, &channel_samples);
+        // trim_zeros(&mut mixed);
+        mixed
+    }).collect();
+
+    match pad_and_mix_buffers(line_buffs) {
+        Ok(sig) => sig,
+        Err(msg) => panic!("Failed to mix and render channel: {}", msg)
+    }
+}
+
+#[inline]
+/// Render an audio sample for an applied polyphonic or monophonic melody.
+fn channel_with_reso(cps:f32, root:f32, (melody, soids, expr, bp, knob_mods, delays):&Stem2) -> SampleBuffer {
+    let line_buffs:Vec<SampleBuffer> = melody.iter().map(|line| {
+        let mut channel_samples:Vec<SampleBuffer> = Vec::new();
+
+        let len_cycles:f32 = time::count_cycles(line);
+        let rounding_offset = 0; // since usize rounding might cutoff some sample
+        let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(&delays));
+
+        let signal_len = time::samples_of_cycles(cps, len_cycles) + append_delay;
+        let durs:Vec<f32> = line.iter().map(|(d,_,_)| time::duration_to_cycles(*d)).collect();
+        let mut p:f32 =0f32;
+        line.iter().enumerate().for_each(|(i, (_, tone, amp))| {
+            let freq = root * tone_to_freq(tone);
+            let moment = summer_with_reso(p, len_cycles, cps, root, *amp, freq, durs[i], soids, &expr, bp, knob_mods, &delays);
             channel_samples.push(moment);
             p += durs[i]/len_cycles;
         });
@@ -379,6 +415,139 @@ pub fn summer<'render>(
 }
 
 
+
+/// Render a signal from contextual and decorative parameters.  
+/// Returns a SampleBuffer representing the moment produced from this request.  
+/// 
+/// This model offers three methods of modulation:  
+/// The Feel.expr tuple is the simplest, offering ADSR like envelope contours for (amp, freq, phase).  
+/// The next simplest is the Feel.modifiers tuple. It is analogous to a guitar pedal: a static set of parameters that are continuously modulationg the signal.  
+/// The most complex option are the rangers. These are functions of (fundamental, k, p, duration) that are applied on a per-multiplier basis. This offers the most granular control at higher  copmute cost as each function is called per-multipler per-sample.  
+/// 
+/// ## Arguments  
+///     `p` Position in the phrase in [0, 1] as defined by render context  
+///     `len_cycles` The duration of the phrase this note event lives in
+///     `cps` Cycles Per Second, The sample rate scaling factor (aka playback rate or BPM)  
+///     `root` The fundamental frequency of the composition  
+///     `vel` Velocity, a constant scalar for output amplitude  
+///     `fundamental` The fundamental frequency of the note event  
+///     `n_cycles` The length in cycles of the note event  
+///     `soids` The sinusoidal arguments for a Fourier series  
+///     `expr` Note-length tuple of ADSR envelopes to apply to (amplitude, frequency, phase offset)  
+///     `Feel` Phrase-length effects to apply to current note event  
+///     `KnobMods` Modulation effects to apply to current note event  
+///     `delays` Stack of delay effects to apply to output sample  
+#[inline]
+pub fn summer_with_reso<'render>(
+    curr_progress:f32,
+    len_cycles:f32,
+    cps:f32, 
+    root: f32, 
+    vel: f32,  // call it vel for velicty (name amp is taken)
+    fundamental:f32,
+    n_cycles:f32,
+    soids:&Soids,
+    expr:&Expr,
+    bp: &'render Bp2,
+    KnobMods (knobsAmp, knobsFreq, knobsPhase):&KnobMods,
+    delays: &Vec::<delay::DelayParams>
+) -> Vec<f32> {
+    let headroom_factor:f32 = db_to_amp(DB_HEADROOM); // would be good to lazy::static this
+    let rounding_offset:usize = 10;
+    let rounding_offset:usize = 0;
+    let append_delay = rounding_offset + time::samples_of_dur(1f32, longest_delay_length(delays));
+    let sig_samples = time::samples_of_cycles(cps, n_cycles);
+    let mut sig = vec![0f32;  sig_samples + append_delay];
+    
+
+    // slice the overall bandpass filter for this note's cutoff range
+    let end_p:f32 = curr_progress + (n_cycles/len_cycles);
+    let bp_slice_highpass:Vec<f32> = slice_signal(&bp.0, curr_progress, end_p, sig_samples);
+    let bp_slice_lowpass:Vec<f32> = slice_signal(&bp.1, curr_progress, end_p, sig_samples);
+
+    // Use exact-length buffers to prevent index interpolation during render
+    let resampled_aenv = slice_signal(&expr.0, curr_progress, end_p, sig_samples);
+    let resampled_fenv = slice_signal(&expr.1, 0f32, 1f32, sig_samples);
+    let resampled_penv = slice_signal(&expr.2, 0f32, 1f32, sig_samples);
+
+    // seems that we want DB_PER_OCTAVE and DB_DISTANCE to have a product of 48. 
+    // (for lowpass filter)
+    const DB_PER_OCTAVE:f32 = 48f32; // vertical compression of energy (instantaneous  compression)
+    const DB_DISTANCE:f32 = 1f32; // temporal spread of energy (spread over time)
+
+    // render the sample with the provided effects and context
+    for delay_params in delays {
+        let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
+        for j in 0..sig_samples {
+            // setup position and progress 
+            // let inner_p: f32 = j as f32 / sig_samples as f32;
+            
+            // sample the amp, freq, and phase offset envelopes
+            let mut am = resampled_aenv[j];
+            let mut fm = resampled_fenv[j];
+            let mut pm = resampled_penv[j];
+            let hp = bp_slice_highpass[j];
+            let lp = bp_slice_lowpass[j];
+
+            let t0:f32 = (j as f32 ) / SRf;
+            let pos_cycles: f32 =t0; 
+            let mut v: f32 = 0f32;
+
+            let amplifiers = &soids.0;
+            let multipliers = &soids.1;
+            let phases = &soids.2;
+
+            // let pp = p + (inner_p * len_cycles);
+            for (i, &m) in multipliers.iter().enumerate() {
+                let a0 = am * amplifiers[i];
+                
+                let a1:f32 = knobsAmp.iter().fold(a0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                let mut amp = vel * a1; 
+
+                let f0:f32 = fm * m * fundamental; 
+                let f1:f32 = knobsFreq.iter().fold(f0, |acc, (knob,func)| acc*func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                
+                let frequency = f1;
+
+                // pre-filter fast check. These are application-wide hard limits.
+                if frequency > NFf || frequency < MFf  {
+                    continue
+                }
+
+                amp *= apply_filter(frequency, hp, lp, DB_PER_OCTAVE, DB_DISTANCE);
+                
+                let p0 = pm + frequency * pi2 * pos_cycles;
+                let p1:f32 = knobsPhase.iter().fold(p0, |acc, (knob,func)| acc+func(knob, cps, fundamental, m, n_cycles, pos_cycles));
+                let phase = p1; 
+                
+                v += amp * phase.sin();
+            };
+
+            for replica_n in 0..=(delay_params.n_echoes.max(1)) {
+                let offset_j = samples_per_echo * replica_n;
+                let gain =  delay::gain(j, replica_n, delay_params);
+                let clip_thresh=1f32;
+                let gate_thresh=0f32;
+
+                // apply gating and clipping 
+                if gain * v.abs() >  clip_thresh {
+                    sig[j+offset_j] += gain *  v.signum() * (clip_thresh);
+                } else if gain * v.abs() >= gate_thresh {
+                    sig[j+offset_j] += gain * v;
+                } else {
+                    // don't mix this too-quiet sample!
+                }
+            }
+
+            // post-gen filter: 
+            // apply global headroom scaling
+            sig[j] *= headroom_factor;
+        }
+    }
+    sig
+}
+
+
 /// Given a list of renderables (either instances or groups) and how to represent them in space,
 /// Generate the signals and apply reverberation. Return the new signal.
 /// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
@@ -399,6 +568,73 @@ pub fn combiner<'render>(
             Renderable::Group(stems) => {
                 // Process each stem in the group
                 stems.iter().map(|stem| channel(cps, root, stem)).collect::<Vec<_>>()
+            }
+        }; 
+        if let Some(stem_dir) = keep_stems {
+            // keep the substems
+            ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+                let filename = format!("{}/part-{}-twig-{}.wav", stem_dir, j, stem_num);
+                render::engrave::samples(SR, &channel_samples, &filename);
+            });
+        }
+        let rendered_channel = pad_and_mix_buffers(ch);
+
+        match rendered_channel {
+            Ok(signal) => signal,
+            Err(msg)=> panic!("Unexpected error while mixing channels {}",msg)
+        }
+    }).collect();
+    
+    // Optionally save stems if `keep_stems` is provided
+    if let Some(stem_dir) = keep_stems {
+        channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+            let filename = format!("{}/stem-{}.wav", stem_dir, stem_num);
+            render::engrave::samples(SR, &channel_samples, &filename);
+        });
+    }
+
+    // Pad and mix the collected channels into a final signal
+    match pad_and_mix_buffers(channels) {
+        Ok(signal) => {
+            // Apply reverbs if provided
+            if reverbs.is_empty() {
+                signal
+            } else {
+                reverbs.iter().fold(signal, |sig, params| {
+                    let mut sig = convolution::of(&sig, &params);
+                    trim_zeros(&mut sig);
+                    sig
+                })
+            }
+        },
+        Err(msg) => {
+            panic!("Failed to mix and render audio: {}", msg)
+        }
+    }
+}
+
+
+
+/// Given a list of renderables (either instances or groups) and how to represent them in space,
+/// Generate the signals and apply reverberation. Return the new signal.
+/// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
+pub fn combiner_with_reso<'render>(
+    cps: f32, 
+    root: f32, 
+    renderables: &Vec<Renderable2<'render>>, 
+    reverbs: &Vec<convolution::ReverbParams>, 
+    keep_stems: Option<&str>
+) -> SampleBuffer {
+    // Collect channels by processing each renderable
+    let mut channels: Vec<SampleBuffer> = renderables.iter().enumerate().map(|(j, renderable)| {
+        let ch = match renderable {
+            Renderable2::Instance(stem) => {
+                // Process a single stem
+                vec![channel_with_reso(cps, root, stem)]
+            },
+            Renderable2::Group(stems) => {
+                // Process each stem in the group
+                stems.iter().map(|stem| channel_with_reso(cps, root, stem)).collect::<Vec<_>>()
             }
         }; 
         if let Some(stem_dir) = keep_stems {

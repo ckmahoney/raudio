@@ -1,3 +1,4 @@
+use super::in_range;
 use crate::types::render::{Stem, Melody, Feel};
 use crate::types::synthesis::{ Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::synth::{SRf, SampleBuffer, MAX_REGISTER, MIN_REGISTER, SR}; 
@@ -56,6 +57,37 @@ pub struct Levels {
     pub sustain: f32,
 }
 
+pub struct LevelMacro {
+    pub stable: [f32;2],
+    pub peak: [f32;2],
+    pub sustain: [f32;2],
+}
+
+impl LevelMacro {
+    pub fn gen(&self) -> Levels {
+        let mut rng = rand::thread_rng();
+        Levels {
+            stable: in_range(&mut rng, self.stable[0], self.stable[1]),
+            peak: in_range(&mut rng, self.peak[0], self.peak[1]),
+            sustain: in_range(&mut rng, self.sustain[0], self.sustain[1]),
+        }
+    }
+}
+
+impl Levels {
+    pub fn new(stable:f32, peak:f32, sustain:f32) -> Self {
+        if sustain > 1f32 || sustain < 0f32 {
+            panic!("Sustain value in Levels represents a percentage of peak, and must be given in range of [0, 1]. You provided {}", sustain)
+        }
+
+        Self {
+            stable,
+            peak,
+            sustain
+        }
+    }
+}
+
 /// Absolute measurements of time 
 /// to be applied in-context.
 #[derive(Clone, Copy, Debug)]
@@ -67,6 +99,32 @@ pub struct ODR {
     /// time in ms to drop to stable value
     pub release: f32
 }
+
+
+/// Min/max values for generating an ODR
+/// to be applied in-context.
+#[derive(Clone, Copy, Debug)]
+pub struct ODRMacro {
+    /// in milliseconds
+    pub onset: [f32;2],
+    /// time in ms to get to sustain
+    pub decay: [f32;2],
+    /// time in ms to drop to stable value
+    pub release: [f32;2]
+}
+
+
+impl ODRMacro {
+    pub fn gen(&self) -> ODR {
+        let mut rng = rand::thread_rng();
+        ODR {
+            onset: in_range(&mut rng, self.onset[0], self.onset[1]),
+            decay: in_range(&mut rng, self.decay[0], self.decay[1]),
+            release: in_range(&mut rng, self.release[0], self.release[1]),
+        }
+    }
+}
+
 impl ODR {
     /// Calculate the total number of samples required to satisfy the minimum possible ODR
     /// given the onset, decay, and release times in milliseconds and the sample rate (cps).
@@ -85,19 +143,140 @@ impl ODR {
     pub fn fit_in_samples(&self, cps: f32, n_seconds: f32) -> Self {
         let curr_length_samples:usize = self.total_samples(cps);
         let requested_length_samples:usize = time::samples_of_seconds(cps, n_seconds);
-
-        if curr_length_samples > requested_length_samples {
-            let scale_factor:f32 =  requested_length_samples as f32 / curr_length_samples as f32;
-            return Self {
-                onset: self.onset * scale_factor,
-                decay: self.decay * scale_factor,
-                release: self.release * scale_factor,
-            }
+        if curr_length_samples < requested_length_samples {
+            return *self
         }
-        *self
+
+        let scale_factor:f32 =  requested_length_samples as f32 / curr_length_samples as f32;
+
+        Self {
+            onset: self.onset * scale_factor,
+            decay: self.decay * scale_factor,
+            release: self.release * scale_factor,
+        }
     }
 }
 
+
+
+
+
+/// Given a line, 
+/// define a lowpass contour behaving as a "wah wah" effect
+/// with respect to the given configuration. 
+/// Guaranteed that a complete ODR will always fit in each noteevent's duration.
+pub fn mask_wah(
+    cps:f32, 
+    line:&Vec<Note>, 
+    Levels{stable, peak, sustain}:&Levels, 
+    base_odr:&ODR
+) -> SampleBuffer {
+    let n_samples = time::samples_of_line(cps, line);
+    let mut contour:SampleBuffer = Vec::with_capacity(n_samples);
+    let applied_peak = peak.clamp(1f32, MAX_REGISTER as f32 - MIN_REGISTER as f32);
+
+
+    for (i, note) in (*line).iter().enumerate() {
+        let n_samples_note: usize = time::samples_of_note(cps, note);
+
+        let dur_seconds = time::step_to_seconds(cps, &(*note).0);
+        let odr:ODR = base_odr.fit_in_samples(cps, dur_seconds);
+
+        let n_samples_ramp:usize = time::samples_of_milliseconds(cps, odr.onset);
+        let n_samples_fall:usize = time::samples_of_milliseconds(cps, odr.decay);
+        let n_samples_kill:usize = time::samples_of_milliseconds(cps, odr.release);
+        // sustain level, boxed in by the ramp/fall/kill values
+        let n_samples_hold:usize = n_samples_note - (n_samples_fall + n_samples_ramp + n_samples_kill);
+
+        let curr_freq:f32 = note_to_freq(note);
+        let stable_freq_base = *stable * curr_freq.log2();
+        for j in 0..n_samples_note {
+            let cutoff_freq:f32 = if j < n_samples_ramp {
+                // onset
+                let p = j as f32 / n_samples_ramp as f32;
+                2f32.powf(applied_peak * p + stable_freq_base)
+            } else if j < n_samples_ramp + n_samples_fall {
+                // decay
+                let p = (j - n_samples_ramp)  as f32/ n_samples_fall as f32;
+                let d_sustain = p * (1f32-sustain);
+                2f32.powf((applied_peak - applied_peak * d_sustain) + stable_freq_base)
+            } else if j < n_samples_ramp + n_samples_fall + n_samples_hold {
+                let p = (j - n_samples_ramp - n_samples_fall)as f32 / n_samples_hold as f32;
+                // sustain
+                2f32.powf(applied_peak * sustain + stable_freq_base)
+            } else {
+                // release
+                let p = (j - n_samples_ramp - n_samples_fall - n_samples_hold) as f32/ n_samples_kill as f32;
+                let d_sustain = (1f32-p) * (applied_peak * sustain);
+                2f32.powf(d_sustain + stable_freq_base)
+            };
+
+            contour.push(cutoff_freq);
+        }
+    };
+    contour
+}
+
+
+
+
+/// Given a line, 
+/// define a lowpass contour behaving as an "epic brakcore emotional pad" effect
+/// with a unique ODSR per-note
+/// bound by the Level and ODR macros provided.
+/// Guaranteed that a complete ODR will always fit in each noteevent's duration.
+pub fn mask_sighwah(
+    cps:f32, 
+    line:&Vec<Note>, 
+    level_macro:&LevelMacro, 
+    odr_macro:&ODRMacro
+) -> SampleBuffer {
+    let n_samples = time::samples_of_line(cps, line);
+    let mut contour:SampleBuffer = Vec::with_capacity(n_samples);
+
+    for (i, note) in (*line).iter().enumerate() {
+        let Levels {peak, sustain, stable} = level_macro.gen();
+        let applied_peak = peak.clamp(1f32, MAX_REGISTER as f32 - MIN_REGISTER as f32);
+
+        let n_samples_note: usize = time::samples_of_note(cps, note);
+
+        let dur_seconds = time::step_to_seconds(cps, &(*note).0);
+        let odr:ODR = (odr_macro.gen()).fit_in_samples(cps, dur_seconds);
+
+        let n_samples_ramp:usize = time::samples_of_milliseconds(cps, odr.onset);
+        let n_samples_fall:usize = time::samples_of_milliseconds(cps, odr.decay);
+        let n_samples_kill:usize = time::samples_of_milliseconds(cps, odr.release);
+        // sustain level, boxed in by the ramp/fall/kill values
+        let n_samples_hold:usize = n_samples_note - (n_samples_fall + n_samples_ramp + n_samples_kill);
+
+        let curr_freq:f32 = note_to_freq(note);
+        let stable_freq_base = stable * curr_freq.log2();
+        for j in 0..n_samples_note {
+            let cutoff_freq:f32 = if j < n_samples_ramp {
+                // onset
+                let p = j as f32 / n_samples_ramp as f32;
+                2f32.powf(applied_peak * p + stable_freq_base)
+            } else if j < n_samples_ramp + n_samples_fall {
+                // decay
+                let p = (j - n_samples_ramp)  as f32/ n_samples_fall as f32;
+                let d_sustain = p * (1f32-sustain);
+                2f32.powf((applied_peak - applied_peak * d_sustain) + stable_freq_base)
+            } else if j < n_samples_ramp + n_samples_fall + n_samples_hold {
+                let p = (j - n_samples_ramp - n_samples_fall)as f32 / n_samples_hold as f32;
+                // sustain
+                2f32.powf(applied_peak * sustain + stable_freq_base)
+            } else {
+                // release
+                let p = (j - n_samples_ramp - n_samples_fall - n_samples_hold) as f32/ n_samples_kill as f32;
+                let d_sustain = (1f32-p) * (applied_peak * sustain);
+                2f32.powf(d_sustain + stable_freq_base)
+            };
+
+            contour.push(cutoff_freq);
+        }
+    };
+    contour
+}
 
 
 #[cfg(test)]
@@ -106,8 +285,7 @@ mod tests_odr {
 
     #[test]
     fn test_total_samples() {
-        // Assuming a sample rate of 44100 Hz
-        let cps = 44100.0;
+        let cps = 2.1;
 
         // Create an ODR with specific onset, decay, and release times
         let odr = ODR {
@@ -128,8 +306,8 @@ mod tests_odr {
 
     #[test]
     fn test_fit_in_samples_no_scaling_needed() {
-        let cps = 44100.0;
-        let n_seconds = 0.001; // 1 ms
+        let cps = 2.1;
+        let n_seconds = 0.1; // 1 ms
 
         // Create an ODR that already fits within 1 ms
         let odr = ODR {
@@ -179,63 +357,3 @@ mod tests_odr {
     }
     
 }
-
-
-
-/// Given a line, 
-/// define a lowpass contour behaving as a "wah wah" effect
-/// with respect to the given configuration. 
-/// Guaranteed that a complete ODR will always fit in each noteevent's duration.
-pub fn mask_wah(
-    cps:f32, 
-    line:&Vec<Note>, 
-    Levels{stable, peak, sustain}:&Levels, 
-    base_odr:&ODR
-) -> SampleBuffer {
-    let n_samples = time::samples_of_line(cps, line);
-    let mut contour:SampleBuffer = Vec::with_capacity(n_samples);
-    let applied_peak = peak.clamp(1f32, MAX_REGISTER as f32 - MIN_REGISTER as f32);
-
-
-    for (i, note) in (*line).iter().enumerate() {
-        let n_samples_note: usize = time::samples_of_note(cps, note);
-
-        let dur_seconds = time::step_to_seconds(cps, &(*note).0);
-        let odr:ODR = base_odr.fit_in_samples(cps, dur_seconds);
-
-        let n_samples_ramp:usize = time::samples_of_milliseconds(cps, odr.onset);
-        let n_samples_fall:usize = time::samples_of_milliseconds(cps, odr.decay);
-        let n_samples_kill:usize = time::samples_of_milliseconds(cps, odr.release);
-        // sustain level, boxed in by the ramp/fall/kill values
-        let n_samples_hold:usize = n_samples_note - (n_samples_fall + n_samples_ramp + n_samples_kill);
-
-        let curr_freq:f32 = note_to_freq(note);
-        let stable_freq= curr_freq+ 2f32.powf(*stable);
-        for j in 0..n_samples_note {
-            let cutoff_freq:f32 = if j < n_samples_ramp {
-                // onset
-                let p = j as f32 / n_samples_ramp as f32;
-                2f32.powf(applied_peak * p + stable_freq.log2())
-            } else if j < n_samples_ramp + n_samples_fall {
-                // decay
-                let p = (j - n_samples_ramp)  as f32/ n_samples_fall as f32;
-                let d_sustain = (p * (1f32-sustain));
-                2f32.powf((applied_peak - applied_peak * d_sustain) + stable_freq.log2())
-            } else if j < n_samples_ramp + n_samples_fall + n_samples_hold {
-                let p = (j - n_samples_ramp - n_samples_fall)as f32 / n_samples_hold as f32;
-                // sustain
-                2f32.powf(applied_peak * sustain + stable_freq.log2())
-            } else {
-                // release
-                let p = (j - n_samples_ramp - n_samples_fall - n_samples_hold) as f32/ n_samples_kill as f32;
-                let d_sustain = (1f32-p) * sustain;
-                2f32.powf(d_sustain + stable_freq.log2())
-            };
-
-            contour.push(cutoff_freq);
-        }
-    };
-    contour
-}
-
-

@@ -21,17 +21,17 @@ use crate::synth::{MIN_REGISTER,MAX_REGISTER, MFf, NFf, SampleBuffer, pi, pi2, S
 use crate::phrasing::older_ranger::{Modders,OldRangerDeprecated,WOldRangerDeprecateds};
 use crate::phrasing::{micro,lifespan, dynamics};
 use crate::{render, AmpLifespan};
-use crate::analysis::{trig,volume::db_to_amp};
+use crate::analysis::{trig,volume::db_to_amp, in_range};
 
 use crate::time;
 use crate::types::render::{Feel, Melody, Stem};
-use crate::types::synthesis::{Freq, Note, Direction, Ely, PhaseModParams, ModulationEffect};
+use crate::types::synthesis::{Bp2,BoostGroup,Freq, Note, Direction, Ely, PhaseModParams, ModulationEffect};
 use crate::types::timbre::{Arf, Role, Mode, Visibility, Sound, Sound2, Energy, Presence, Phrasing};
 use crate::types::{Range, Radian};
 use crate::druid::{Element, Elementor, melodic, bell, noise};
 use crate::phrasing::contour::expr_none;
 use crate::phrasing::ranger::{self, Knob,KnobMods};
-use crate::render::Renderable;
+use crate::render::{Renderable,Renderable2,};
 use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::contour::Expr;
 use crate::druid::{self, soids as druidic_soids, soid_fx, noise::NoiseColor};
@@ -149,8 +149,9 @@ impl Instrument {
             Perc => hop::perc::renderable(melody, arf),
             Hats => hop::hats::renderable(melody, arf),
             Lead => hop::lead::renderable(melody, arf),
-            Bass => hop::bass::renderable(melody, arf),
-            Chords => hop::chords::renderable(cps, melody, arf),
+            _ => hop::bass::renderable(melody, arf),
+            // Bass => hop::bass::renderable(melody, arf),
+            // Chords => hop::chords::renderable(cps, melody, arf),
         };
     
         // match arf.role {
@@ -314,8 +315,4 @@ pub fn visibility_gain(v:Visibility) -> f32 {
         Visibility::Foreground => db_to_amp(-9f32),
         Visibility::Visible => db_to_amp(-6f32)
     }
-}
-
-pub fn in_range(rng:&mut ThreadRng, min:f32,max:f32) ->  f32{ 
-    min + (max - min) * rng.gen::<f32>()
 }

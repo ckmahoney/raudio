@@ -184,7 +184,7 @@ fn demonstrate() {
     use Renderable::{Instance,Group};
     let renderables:Vec<Renderable> = vec![
         stem_bass,
-        stem_chords,
+        // stem_chords,
         stem_lead,
     ];
 
