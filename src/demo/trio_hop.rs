@@ -178,7 +178,7 @@ fn demonstrate() {
     let bass_melody = bass_melody();
 
     let stem_lead = lead::renderable(&lead_melody, &lead_arf());
-    let stem_chords =chords::renderable(&chords_melody, &chords_arf());
+    let stem_chords =chords::renderable(cps, &chords_melody, &chords_arf());
     let stem_bass = bass::renderable(&bass_melody, &bass_arf());
 
     use Renderable::{Instance,Group};
@@ -197,6 +197,7 @@ fn demonstrate() {
     let group_reverbs = vec![];
     let mix = render::combiner(cps, root, &renderables, &group_reverbs, keep_stems);
     let filename = format!("{}/{}.wav",location(demo_name), demo_name);
+    println!("REndered to {}", filename);
     render::engrave::samples(SR, &mix, &filename);
 }
 

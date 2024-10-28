@@ -327,9 +327,9 @@ fn demonstrate() {
 
     let stem_lead = lead::renderable(&lead_melody, &lead_arf());
     let stem_hats = hats::renderable(&hats_melody, &hats_arf());
-    let stem_chords1 = hop::chords::renderable(&chords_melody, &chords_arf(Visibility::Foreground, Energy::Medium, Presence::Legato));
-    let stem_chords2 = hop::chords::renderable(&chords_melody, &chords_arf(Visibility::Background, Energy::Medium,  Presence::Staccatto));
-    let stem_chords3 = hop::chords::renderable(&chords_melody, &chords_arf(Visibility::Hidden, Energy::Medium,  Presence::Tenuto));
+    let stem_chords1 = hop::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Foreground, Energy::Medium, Presence::Legato));
+    let stem_chords2 = hop::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Background, Energy::Medium,  Presence::Staccatto));
+    let stem_chords3 = hop::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Hidden, Energy::Medium,  Presence::Tenuto));
     let stem_bass = bass::renderable(&bass_melody, &bass_arf());
     let stem_perc = perc::renderable(&perc_melody, &perc_arf());
     let stem_kick = kick::renderable(&kick_mel, &kick_arf());

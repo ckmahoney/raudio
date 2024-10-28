@@ -258,9 +258,9 @@ fn demonstrate(selection:Option<usize>) {
     let arfs = get_arfs();
 
     let stems:[Renderable;3] = [
-        Instrument::select(&melodies[0], &arfs[0], vec![delay::passthrough]),
-        Instrument::select(&melodies[1], &arfs[1], vec![delay::passthrough]),
-        Instrument::select(&melodies[2], &arfs[2], vec![delay::passthrough]),
+        Instrument::select(cps, &melodies[0], &arfs[0], vec![delay::passthrough]),
+        Instrument::select(cps, &melodies[1], &arfs[1], vec![delay::passthrough]),
+        Instrument::select(cps, &melodies[2], &arfs[2], vec![delay::passthrough]),
     ];
     let group_reverbs:Vec<reverb::convolution::ReverbParams> = vec![];
 
