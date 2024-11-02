@@ -24,6 +24,7 @@ mod demo;
 mod druid;
 mod files;
 mod inp;
+mod macros;
 mod music;
 mod phrasing;
 mod presets;

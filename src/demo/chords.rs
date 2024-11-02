@@ -3,7 +3,7 @@ use crate::analysis::delay;
 use crate::complexity;
 use crate::files;
 
-static demo_name:&str = "chord-bird";
+static demo_name:&str = "just-chords";
 
 use crate::render::{self, Renderable};
 use crate::reverb;
@@ -13,6 +13,7 @@ use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpas
 use crate::analysis::volume::db_to_amp;
 
 use presets::hop;
+use presets::hill;
 
 fn chords_melody() -> Melody<Note> {
     let tala:Vec<Duration> = vec![
@@ -81,7 +82,6 @@ fn chords_arf(visibility:Visibility, energy:Energy, presence:Presence) -> Arf {
 }
 
 
-
 fn demonstrate() {
     let path:String = location(demo_name);
     files::with_dir(&path);
@@ -96,15 +96,15 @@ fn demonstrate() {
 
     let chords_melody = chords_melody();
     
-    let stem_chords1 = hop::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Foreground, Energy::Medium, Presence::Legato));
-    let stem_chords2 = hop::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Background, Energy::Medium,  Presence::Staccatto));
-    let stem_chords3 = hop::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Hidden, Energy::Medium,  Presence::Tenuto));
+    let stem_chords2 = hill::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Background, Energy::Low,  Presence::Tenuto));
+    let stem_chords1 = hill::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Foreground, Energy::Medium, Presence::Tenuto));
+    let stem_chords3 = hill::chords::renderable(cps, &chords_melody, &chords_arf(Visibility::Hidden, Energy::High,  Presence::Tenuto));
     
 
     use Renderable2::{Instance,Group};
     let renderables:Vec<Renderable2> = vec![
-        stem_chords1,
         stem_chords2,
+        stem_chords1,
         stem_chords3,
     ];
 

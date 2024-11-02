@@ -452,7 +452,11 @@ pub mod render {
     
 }
 
+
+
+
 pub mod timbre {
+    use std::fmt;
     use super::render;
     use super::synthesis;
     use serde::{Deserialize, Serialize};
@@ -633,6 +637,18 @@ pub mod timbre {
         Hidden,
     }
 
+    impl fmt::Display for Visibility {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let output = match self {
+                Visibility::Hidden => "hidden",
+                Visibility::Foreground => "foreground",
+                Visibility::Background => "background",
+                Visibility::Visible => "visible",
+            };
+            write!(f, "{}", output)
+        }
+    }
+
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
     #[serde(rename_all = "kebab-case")] 
     pub enum Mode {
@@ -654,6 +670,20 @@ pub mod timbre {
         Lead
     }
 
+    impl fmt::Display for Role {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let output = match self {
+                Role::Kick => "kick",
+                Role::Perc => "perc",
+                Role::Hats => "hats",
+                Role::Bass => "bass",
+                Role::Chords => "chords",
+                Role::Lead => "lead",
+            };
+            write!(f, "{}", output)
+        }
+    }
+
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
     #[serde(rename_all = "kebab-case")]
     pub enum Energy {
@@ -662,11 +692,33 @@ pub mod timbre {
         High
     }
 
+    impl fmt::Display for Energy {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let output = match self {
+                Energy::Low => "Low",
+                Energy::Medium => "Medium",
+                Energy::High => "High",
+            };
+            write!(f, "{}", output)
+        }
+    }
+
     #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
     #[serde(rename_all = "kebab-case")]
     pub enum Presence {
         Staccatto,
         Legato,
         Tenuto,
+    }
+
+    impl fmt::Display for Presence {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let output = match self {
+                Presence::Staccatto => "staccatto",
+                Presence::Legato => "legato",
+                Presence::Tenuto => "tenuto",
+            };
+            write!(f, "{}", output)
+        }
     }
 }

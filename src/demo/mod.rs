@@ -7,19 +7,23 @@ mod chill_beat;
 mod convolution_reverb;
 mod effects;
 mod kuwuku;
+mod prism;
 mod trio;
 mod trio_hop;
 mod urbuntu;
 mod vagrant;
-use crate::{presets, render};
 
-use crate::phrasing::contour::Expr;
 
 // for general testing put it in this project dir
-pub static out_dir:&str = "audio/demo";
-// for local testing use my mounted drive with more space
-// pub static out_dir:&str = "/media/naltroc/engraver 2/music-gen/";
+// pub static out_dir:&str = "audio/demo";
 
+// for local testing use my mounted drive with more space
+pub static out_dir:&str = "/media/naltroc/engraver 2/music-gen/";
+
+use crate::reverb::convolution::ReverbParams;
+use crate::phrasing::contour::Expr;
+use crate::{presets, render};
+use crate::types::render::{Stem, Melody, Feel};
 use crate::types::timbre::{Visibility, Mode, Role, Arf, FilterMode, Sound, Sound2, Energy, Presence, Timeframe, Phrasing,AmpLifespan, AmpContour};
 use crate::types::synthesis::{Ely, Soids, Ampl,Frex, GlideLen, Register, Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 use crate::analysis::{volume::db_to_amp, self, delay::{self, DelayParams}};

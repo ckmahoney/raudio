@@ -195,31 +195,6 @@ fn get_arfs() -> [Arf;3] {
 }
 
 
-// fn enumerate() {
-//     let cps:f32 = 1.15;
-//     let labels:Vec<&str> = vec!["kick", "perc", "hat"];
-//     let melodies = make_melodies();
-//     let arfs = get_stems();
-//     let synths = make_synths(&arfs);
-//     let specs = make_specs();
-//     files::with_dir(out_dir);
-
-//     for (i, spec) in specs.iter().enumerate() {
-        
-//         let labelled_arfs = gen_arfs(&spec);
-//         for (label, arf) in labelled_arfs {
-//             let mut channels:Vec<SampleBuffer> = render_arf(cps, &melodies[i], &synths[i], arf);
-//             match render::realize::mix_buffers(&mut channels.clone()) {
-//                 Ok(mixdown) => {
-//                     let filename = format!("{}/{}-{}.wav", out_dir, demo_name, label);
-//                     render::engrave::samples(SR, &mixdown, &filename);
-//                     println!("Rendered stem {}", filename);
-//                 },
-//                 Err(msg) => panic!("Error while preparing mixdown: {}", msg)
-//             }
-//         }
-//     }
-// }
 
 fn render_arf(cps:f32, melody:&Melody<Note>, synth:&Elementor, arf:Arf) -> Vec<SampleBuffer> {
     let melody_frexd = melody_frexer(&melody, GlideLen::None, GlideLen::None);

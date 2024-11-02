@@ -1,6 +1,8 @@
 pub mod basic;
 pub mod hard;
 pub mod ambien;
+pub mod hill;
+use hill::HillPack;
 pub mod hop;
 pub mod bird;
 pub mod kuwuku;
@@ -98,12 +100,25 @@ fn bp_wah<'render>(cps:f32, mel:&'render Melody<Note>, arf:&Arf, len_cycles:f32)
     let n_samples:usize = ((len_cycles/2f32) as usize).max(1) * SR;
 
     let levels = Levels::new(0.7f32, 4f32, 0.5f32);
-   
+    
 
     let level_macro:LevelMacro = LevelMacro {
-        stable: [1f32, 2f32],
-        peak: [3.5f32, 4f32],
-        sustain: [0.2f32, 0.4f32],
+        stable: match arf.energy {
+            Energy::Low => [1f32,3f32],
+            Energy::Medium => [2f32,3f32],  
+            Energy::High => [2f32,3f32],
+        },
+        peak: match arf.energy {
+            Energy::Low => [2.0f32, 3.0f32],
+            Energy::Medium => [3.75f32,5f32],
+            Energy::High => [4f32,8f32],
+        },
+        sustain: match arf.visibility {
+            Visibility::Visible => [0.85f32,1f32],
+            Visibility::Foreground => [0.5f32,1.0f32],
+            Visibility::Background => [0.2f32, 0.5f32],
+            Visibility::Hidden => [0.0132,0.1f32],
+        },
     };
     
     let odr_macro = ODRMacro {
@@ -258,16 +273,50 @@ pub fn filter_contour_triangle_shape_highpass<'render>(
     vec![MFf]
 }
 
-#[derive(Debug)]
-pub struct Dressing {
-    pub len: usize,
-    pub multipliers: Vec<f32>,
-    pub amplitudes: Vec<f32>,
-    pub offsets: Vec<f32>,
-}
-pub type Dressor = fn (f32) -> Dressing;
+// #[derive(Debug)]
+// pub struct Dressing {
+//     pub len: usize,
+//     pub multipliers: Vec<f32>,
+//     pub amplitudes: Vec<f32>,
+//     pub offsets: Vec<f32>,
+// }
+// pub type Dressor = fn (f32) -> Dressing;
 
-pub struct Instrument;
+use super::*; // Import your necessary dependencies
+
+/// Interface for describing synthesizers grouped by role.
+pub struct RolePreset<'render> {
+    label: &'render str,
+    pub bass: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render> ,
+    pub chords: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render> ,
+    pub lead: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render> ,
+    pub kick: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render> ,
+    pub perc: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render> ,
+    pub hats: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render> ,
+}
+impl<'render> RolePreset<'render> {
+    /// Constructs a new `RolePreset` with the given label and function pointers for each role.
+    pub fn new(
+        label: &'render str,
+        bass: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render>,
+        chords: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render>,
+        lead: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render>,
+        kick: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render>,
+        perc: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render>,
+        hats: fn(f32, &Melody<Note>, &Arf) -> Renderable2<'render>,
+    ) -> Self {
+        RolePreset {
+            label,
+            bass,
+            chords,
+            lead,
+            kick,
+            perc,
+            hats,
+        }
+    }
+}
+pub struct Instrument {}
 
 impl Instrument {
     
@@ -285,7 +334,7 @@ impl Instrument {
             Hats => hop::hats::renderable(cps, melody, arf),
             Lead => hop::lead::renderable(cps, melody, arf),
             Bass => hop::bass::renderable(cps, melody, arf),
-            Chords => hop::chords::renderable(cps, melody, arf),
+            Chords => hill::chords::renderable(cps, melody, arf),
         };
     
         // match arf.role {

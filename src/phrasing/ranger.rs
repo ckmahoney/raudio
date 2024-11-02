@@ -460,8 +460,8 @@ pub fn amod_microbreath_20_100(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cyc
 /// ## Knob Params
 /// 
 /// `a`: The total length of the amplitude contour. 0 is off (passthrough) and 1 is half the duration of the noteevent. 
-/// `b`: The dynamic range of the contour. 0 is no change (passthrough), 1 is full decibel scale (-90 to 0).    
-/// `c`: Multipler delay. 0 is no delay, 0.5 scales time by pow2, 1 scales time by pow4  
+/// `b`: The dynamic range of the contour. 0 is no change (passthrough), 1 is full decibel scale (MIN_DB to MAX_DB).    
+/// `c`: Multipler delay. 0 is no dilation, 0.5 scales time by pow2, 1 scales time by pow4  
 pub fn amod_fadein(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
     // Prevent division by zero if pos_cycles is 0
     if pos_cycles == 0.0 {
@@ -480,7 +480,7 @@ pub fn amod_fadein(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
     let s_t = t * mul.powf(1f32/3f32);
 
     // Dynamic range in decibels
-    let dynamic_range_db = -60.0 * knob.b; // Full fade-in is -60dB to 0dB
+    let dynamic_range_db = MIN_DB * knob.b; // Full fade-in is -60dB to 0dB
 
     // Delay scale based on time and knob.c
     let delay_scale = s_t.powf(1.0 + 3.0 * knob.c); 
@@ -488,6 +488,47 @@ pub fn amod_fadein(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, po
     // Calculate amplitude in decibels and convert to linear
     let amplitude_db = dynamic_range_db * delay_scale;
     1f32 - db_to_amp(amplitude_db)
+}
+
+/// A oneshot amplitude contouring adding a linear fall in amplitude (decibel scaled)
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: The total length of the amplitude contour. 0 is off (passthrough) and 1 is half the duration of the noteevent.  
+/// `b`: The dynamic range of the contour. 0 is no change (passthrough), 1 is full decibel scale (MIN_DB to MAX_DB).  
+/// `c`: Multipler delay. 0 is no dilation, 0.33 scales time by pow2, 1 scales time by pow4  
+pub fn amod_fadeout(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    // Prevent division by zero if pos_cycles is 0
+    if pos_cycles <= 0.0 {
+        return 1.0;
+    }
+
+    let env_length = n_cycles * knob.a;
+    let t = pos_cycles / env_length;
+
+    // If the position exceeds the envelope length, return full amplitude
+    if t >= 1.0 {
+        return 0.0;
+    }
+
+    // Use multiplier to scale the time response
+
+    // Dynamic range in decibels
+    let dynamic_range_db = MIN_DB * knob.b; // Full fade-in is -60dB to 0dB
+
+    // Delay scale based on time and knob.c
+    let scaled_t = t.powf(2f32.powf(-3.0 * knob.c)); 
+
+    // Calculate amplitude in decibels and convert to linear
+    let amplitude_db = scaled_t * dynamic_range_db;
+    db_to_amp(amplitude_db)
 }
 
 #[test]
@@ -596,9 +637,42 @@ pub fn amod_pluck(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos
     let max_mul: f32 = NFf / (mul * fund); 
     let t:f32 = pos_cycles/n_cycles;
     let base_decay_rate:f32 = 5f32 + 20f32 * (1f32 - knob.a);
-    let decay_mod_add:f32 = 120f32 * (knob.b).powi(2i32) * mul/max_mul;
+    let decay_mod_add:f32 = 120f32 * (knob.b).powi(2i32) * fund;
     let decay_rate:f32 = base_decay_rate + decay_mod_add;
     1f32/(decay_rate*t).exp()
+}
+
+
+
+/// A oneshot amplitdue modulation for snappy jabby decay.
+///
+/// ## Arguments
+/// `cps` Instantaneous playback rate as cycles per second  
+/// `fund` The reference fundamental frequency  
+/// `mul` The current multiplier with respect to the fundamental  
+/// `n_cycles` Total duration of this event in cycles  
+/// `pos_cycles` The current position in the event (in cycles)  
+/// 
+/// ## Knob Params
+/// 
+/// `a`: Base decay rate. Value of 0 is the shortest possible base decay, and 1 is the longest.  
+/// `b`: Upper harmonic decay sensitivity. Value of 0 means all harmonics have same decay. Value of 1 means later harmonics decay much more rapidly than early harmonics.  
+/// `c`: sustain level.  
+/// 
+/// ## Desmos 
+/// https://www.desmos.com/calculator/jw8vzd2ie1
+/// 
+/// ## Returns
+pub fn amod_stab(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+    let max_mul: f32 = NFf / (mul * fund); 
+    let t:f32 = pos_cycles/n_cycles;
+
+    let sus_target = MIN_DB * (1f32-knob.c);
+    let y:f32 = 4f32 - 4f32 * (1f32-knob.a);
+    let p= t.powf(y);
+    
+
+    db_to_amp(p * sus_target)
 }
 
 
