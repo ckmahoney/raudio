@@ -1,4 +1,4 @@
-use super::super::*;
+use super::*;
 
 fn knob_amp() -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
     (Knob { a: 1f32, b: 1f32, c: 0f32 }, ranger::amod_pluck)

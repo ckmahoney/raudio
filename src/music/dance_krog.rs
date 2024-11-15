@@ -4,12 +4,12 @@
 // use crate::types::timbre::{AmpContour,AmpLifespan,BandpassFilter, Energy, Presence, BaseOsc, Sound, FilterMode, Timeframe, Phrasing};
 // use crate::types::synthesis::{Bandpass, Direction, Duration, FilterPoint, Freq, Monae, Mote, Note, Tone};
 
-// use crate::engrave; 
-// use crate::phrasing::contour; 
-// use crate::phrasing::lifespan; 
-// use crate::preset; 
-// use crate::presets; 
-// use crate::render; 
+// use crate::engrave;
+// use crate::phrasing::contour;
+// use crate::phrasing::lifespan;
+// use crate::preset;
+// use crate::presets;
+// use crate::render;
 // use crate::files;
 // use rand;
 // use rand::Rng;
@@ -23,11 +23,8 @@
 //     let mut lifespan_opts:Vec<usize> = (0..ls.len()).collect();
 //     lifespan_opts.shuffle(&mut rng);
 
-
 //     let n_buckets = 2usize;
 //     let lifespans:Vec<&AmpLifespan> = lifespan_opts.iter().take(n_buckets).map(|i| &ls[*i]).collect();
-
-    
 
 //     let o = (rng.gen::<f32>() * 4f32) as i32 - 2;
 //     let d = (rng.gen::<f32>() * 2f32) as i32 - 1;
@@ -67,7 +64,7 @@
 //     // this test has one arc containing one line
 //     // so use the same duration for each of form/arc/line
 //     let mut phr = Phrasing {
-//         cps, 
+//         cps,
 //         form: Timeframe {
 //             cycles: n_cycles,
 //             p: 0f32,
@@ -89,7 +86,6 @@
 //             instance: 0
 //         }
 //     };
-    
 
 //     let sound = Sound {
 //         bandpass: (FilterMode::Logarithmic, FilterPoint::Constant, (MF as f32, NF as f32)),
@@ -116,7 +112,6 @@
 //         }
 //     }
 // }
-
 
 // #[test]
 // fn main() {
@@ -154,10 +149,10 @@
 //         prev_fundamental = engrave::fit(1f32, prev_fundamental * harmonic_basis);
 //         let cycles = 3f32 + rng.gen::<f32>() * 4f32;
 //         let n_cycles = 2f32.powi(cycles as i32);
-    
+
 //         files::with_dir(&out_dir);
 //         let filename = format!("{}/nother-dance-{}.wav",out_dir, i);
-    
+
 //         let f_kick = engrave::fit(64f32, prev_fundamental);
 //         let f_pad = engrave::fit(200f32, prev_fundamental);
 //         let a_pad = 0.05;
@@ -167,7 +162,7 @@
 //             pad_a,
 //             kick_a
 //         ];
-    
+
 //         let sig = render::pad_and_mix_buffers(buffs).unwrap();
 //         let mut buf = sig.clone();
 //         for i in  0..4 {
@@ -176,5 +171,5 @@
 //         let ok = render::samples_f32(SR, &buf, &filename);
 //         println!("Completed writing track to {}", filename);
 //     }
-   
+
 // }

@@ -1,7 +1,7 @@
 use super::*;
-pub mod kick;
-pub mod snare;
-pub mod hats;
 pub mod bass;
 pub mod chords;
+pub mod hats;
+pub mod kick;
 pub mod lead;
+pub mod snare;

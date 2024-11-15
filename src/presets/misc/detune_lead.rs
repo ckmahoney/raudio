@@ -1,4 +1,4 @@
-use super::super::*;
+use super::*;
 use crate::types::synthesis::{ModifiersHolder,Soids};
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::druid::{self, soids as druidic_soids, soid_fx, noise::NoiseColor};

@@ -1,0 +1,22 @@
+# rustfmt.toml
+
+# Indentation and line width
+max_width = 120               # Increase line width to allow more room for chained calls
+tab_spaces = 2                # Use 2 spaces for indentation for compactness
+hard_tabs = false             # Consistent use of spaces over tabs
+
+# Chaining style
+chain_width = 100             # Allow chains to remain on one line if they fit within the `max_width`
+
+# Function arguments and items layout
+fn_params_layout = "Compressed" # Compact layout for function parameters to keep lines short
+
+# Try shorthand
+use_try_shorthand = true      # Use '?' operator where applicable for error handling
+
+# Imports
+reorder_imports = true        # Alphabetical order for imports
+
+# Miscellaneous
+newline_style = "Unix"        # Unix-style newlines for consistency
+match_arm_leading_pipes = "Never" # Avoid pipes at the beginning of match arms
