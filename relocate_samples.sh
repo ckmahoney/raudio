@@ -13,34 +13,40 @@ declare -A SETTINGS=(
 
 # Process each category
 for category in "${!SETTINGS[@]}"; do
-  # Parse loudness settings
-  IFS=':' read -r LUFS TP LRA <<< "${SETTINGS[$category]}"
-
-  # Define the directory and label
+  # Define input and output directories
   DIR="$BASE_DIR/$category"
-  IN_DIR="$DIR/trimmed"
-  LABEL="$category" # Replace dashes with underscores for filenames
+  IN_DIR="$DIR/normalized"
+  OUT_DIR="$BASE_DIR/$category"
+  LABEL="${category//\//_}" # Replace slashes with underscores for labels
 
-  OUTPUT_DIR="$DIR/normalized"
-  mkdir -p "$OUTPUT_DIR"
+  # Create the output directory if it doesn't exist
+  mkdir -p "$OUT_DIR"
 
   # Initialize counter
   i=1
 
   echo "Processing $category samples..."
 
-  for file in "$IN_DIR"/*; do 
+  for file in "$IN_DIR"/*.wav; do
     if [[ -f "$file" ]]; then
+      # Get file details
       base_name=$(basename "$file")
       ext="${base_name##*.}" # File extension
-      name="${base_name%.*}" # File name without extension
 
       # Generate new file name
-      new_name="${name}-${i}.${ext}"
-      ffmpeg -i "$file" -af "loudnorm=I=$LUFS:TP=$TP:LRA=$LRA" -y "$OUTPUT_DIR/$new_name"
+      new_name="${LABEL}-${i}.${ext}"
+
+      # Move the file to the output directory with the new name
+      mv "$file" "$OUT_DIR/$new_name"
+
       ((i++))
     fi
   done
+
+  rm -rf "$DIR/trimmed"
+  rmdir "$DIR/normalized"
+  rmdir "$DIR/trimmed"
+
 
   # Adjust the count for accurate reporting
   ((i--))
