@@ -3,6 +3,7 @@ pub mod freq;
 pub mod melody;
 pub mod monic_theory;
 pub mod sine_cache;
+pub mod sampler;
 pub mod time;
 pub mod transient;
 pub mod trig;
