@@ -9,6 +9,7 @@ use crate::analysis::volume::db_to_amp;
 use crate::presets::Instrument;
 use crate::render::{self, Renderable};
 use crate::reverb;
+use crate::time;
 use crate::types::render::{Feel, Melody, Stem};
 use crate::types::synthesis::{
   Ampl, Bandpass, Direction, Duration, Ely, FilterPoint, Freq, Frex, GlideLen, Monae, Mote, Note, Register, Soids, Tone,
@@ -214,6 +215,9 @@ fn samp(cps: f32, root: f32) -> SampleBuffer {
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
 
+  let len_cycles = time::count_cycles(&hats_melody[0]);
+  let len_seconds = len_cycles / cps;
+
   let conf:Conf = Conf { cps, root};
 
   let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf(Presence::Legato));
@@ -227,7 +231,10 @@ fn samp(cps: f32, root: f32) -> SampleBuffer {
   use crate::Distance;
 
   let complexity: f32 = rng.gen::<f32>();
-  let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Spring, complexity);
+  let group_reverbs = vec![
+    // crate::inp::arg_xform::reverb_params(&mut rng, len_seconds, cps, &Distance::Near, &Enclosure::Spring, complexity)
+  ];
+  // let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Spring, complexity);
 
   render::combiner_with_reso(&Conf { cps, root }, &renderables, &group_reverbs, None)
 }

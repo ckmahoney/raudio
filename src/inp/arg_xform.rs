@@ -87,6 +87,55 @@ pub fn gen_delays(rng: &mut ThreadRng, cps: f32, echo: &Echo, complexity: f32) -
   }
 }
 
+
+/// reverb_params
+pub fn reverb_params_ultra_safe(
+  rng: &mut ThreadRng, total_len_seconds: f32, cps: f32, distance: &Distance, enclosure: &Enclosure, complexity: f32,
+) -> ReverbParams {
+  let reverb_signal_base_length = total_len_seconds / 4f32;
+  // amp correlates to size of reverb/space
+  let mut amp: f32 = match enclosure {
+    Enclosure::Spring => 0.05 * rng.gen::<f32>() / 5f32,
+    Enclosure::Room => 0.05 + rng.gen::<f32>() / 5f32,
+    Enclosure::Hall => 0.1 + rng.gen::<f32>() / 5f32,
+    Enclosure::Vast => 0.3 + rng.gen::<f32>() / 6f32,
+  };
+
+  // decay correlates to transient preservation (blur)
+  let decay = match distance {
+    Distance::Far => 0.7 + rng.gen::<f32>() * 0.3f32,
+    Distance::Adjacent => 0.1 + rng.gen::<f32>() / 4f32,
+    Distance::Near => 0.05 + rng.gen::<f32>() / 8f32,
+  };
+
+  // duration translate to intensity of effect
+  // this also scales with the signal! Really needs to have scale factor as input.
+  let dur: f32 = reverb_signal_base_length
+    * 2f32.powf(2f32 * complexity)
+    * match enclosure {
+      Enclosure::Spring => rng.gen::<f32>().powi(5i32).min(0.05),
+      Enclosure::Room => rng.gen::<f32>().powi(2i32).min(0.5).max(0.1),
+      Enclosure::Hall => rng.gen::<f32>() * 0.8f32,
+      Enclosure::Vast => rng.gen::<f32>().powf(0.25f32).max(0.5),
+    }
+    / cps;
+
+  // corrections to amp when to prevent blowing up the signal
+  if decay >= 0.6f32 {
+    amp /= 2f32;
+    if decay >= 0.8f32 {
+      amp /= 2f32;
+    }
+  }
+
+  ReverbParams {
+    mix: complexity * 0.8f32,
+    amp,
+    dur,
+    rate: decay,
+  }
+}
+
 /// reverb_params
 pub fn reverb_params(
   rng: &mut ThreadRng, total_len_seconds: f32, cps: f32, distance: &Distance, enclosure: &Enclosure, complexity: f32,
