@@ -474,7 +474,6 @@ fn finalize_signal(
   if !reverbs.is_empty() {
       signal = reverbs.iter().fold(signal, |mut sig, params| {
           let mut sig = convolution::of(&sig, params);
-          trim_zeros(&mut sig);
           sig
       });
   }
@@ -1068,46 +1067,65 @@ fn channel_with_samples(
     }
 }
 
-
 /// Render a single sample using the given parameters and reference samples
+/// ## Arguments
+///     `p` Position in the phrase in [0, 1] as defined by render context
+///     `len_cycles` The duration of the phrase this note event lives in
+///     `cps` Cycles Per Second, The sample rate scaling factor (aka playback rate or BPM)
+///     `root` The fundamental frequency of the composition in [1, 2]
+///     `vel` Velocity, a constant scalar for output amplitude
+///     `fundamental` The fundamental frequency of the note event in [MFf, NFf]
+///     `n_cycles` The length in cycles of the note event
+///     `amp_expr` Note-length tuple of ADSR envelopes to apply to amplitude
+///     `delays` Stack of delay effects to apply to output sample
 #[inline]
 fn render_sample(
-    p: f32,
-    len_cycles: f32,
-    cps: f32,
-    root: f32,
-    amp: f32,
-    freq: f32,
-    duration: f32,
-    ref_samples: &SampleBuffer,
-    amp_expr: &Vec<Range>,
-    lowpass_cutoff_freq: f32,
+  p: f32,
+  len_cycles: f32,
+  cps: f32,
+  root: f32,
+  vel: f32,
+  fundamental: f32,
+  n_cycles: f32,
+  ref_samples: &SampleBuffer,
+  amp_expr: &Vec<Range>,
+  lowpass_cutoff_freq: f32,
 ) -> SampleBuffer {
-    // Calculate the desired length of the signal in samples
-    let signal_len = time::samples_of_cycles(cps, duration);
-    let mut signal = vec![0.0; signal_len];
+  // Calculate the duration of the note in seconds
+  let duration = n_cycles / cps;
 
-    let playback_rate = root;
-    let playback_rate = 1f32;
-    // Iterate through the output signal
-    for i in 0..signal_len {
-        // Calculate the corresponding index in the reference sample buffer
-        let sample_index = ((i as f32 * playback_rate) as usize).min(ref_samples.len() - 1);
+  // Calculate the desired length of the signal in samples
+  let signal_len = time::samples_of_cycles(cps, n_cycles);
+  let mut signal = vec![0.0; signal_len];
 
-        // Copy the sample value to the output signal
-        signal[i] = ref_samples[sample_index];
-    }
+  // Calculate the playback rate for pitch modulation
+  let playback_rate = fundamental / root;
 
-    // If the signal length is less than requested duration, pad with zeros
-    if ref_samples.len() < signal_len {
-        signal.resize(signal_len, 0.0);
-    }
+  // Resample the amplitude envelope to match the signal length
+  let end_p: f32 = p + (n_cycles / len_cycles);
+  let resampled_aenv = slice_signal(amp_expr, p, end_p, signal_len);
 
-    // Apply a lowpass filter to the signal
-    crate::analysis::freq::butterworth_lowpass_filter(&mut signal, SR as u32, lowpass_cutoff_freq);
+  // Iterate through the output signal
+  for i in 0..signal_len {
+      // Calculate the corresponding index in the reference sample buffer
+      let sample_index = ((i as f32 * playback_rate) as usize).min(ref_samples.len() - 1);
 
-    signal
+      // Apply the resampled amplitude envelope
+      signal[i] = ref_samples[sample_index] * resampled_aenv[i];
+  }
+
+  // If the signal length is less than requested duration, pad with zeros
+  if ref_samples.len() < signal_len {
+      signal.resize(signal_len, 0.0);
+  }
+
+  // Apply a lowpass filter to the signal
+  crate::analysis::freq::butterworth_lowpass_filter(&mut signal, SR as u32, lowpass_cutoff_freq);
+
+  signal
 }
+
+
 
 /// Add a buffer into another, starting at a specified offset
 #[inline]
