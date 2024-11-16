@@ -1099,7 +1099,7 @@ fn render_sample(
   let mut signal = vec![0.0; signal_len];
 
   // Calculate the playback rate for pitch modulation
-  let playback_rate = fundamental / root;
+  let playback_rate = crate::analysis::fit(0.66f32, root);
 
   // Resample the amplitude envelope to match the signal length
   let end_p: f32 = p + (n_cycles / len_cycles);
