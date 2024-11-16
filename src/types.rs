@@ -492,6 +492,21 @@ pub mod render {
     Vec<crate::reverb::convolution::ReverbParams>,
   );
 
+
+  /// SampleBuffer from input samples (like perc)
+  /// Tuple represents
+  /// (melody, reference sample buffer, amplitude contour, lowpass_cutoff_freq, delay1 (per noteevent), delay2 (total line)), reverb1 (per noteevent), reverb2 (total line))
+  pub type Stem3<'render> = (
+    &'render Melody<synthesis::Note>,
+    &'render SampleBuffer,
+    &'render Vec<Range>, 
+    f32,
+    Vec<crate::analysis::delay::DelayParams>,
+    Vec<crate::analysis::delay::DelayParams>,
+    Vec<crate::reverb::convolution::ReverbParams>,
+    Vec<crate::reverb::convolution::ReverbParams>,
+  );
+
   use crate::{presets, AmpContour};
 }
 

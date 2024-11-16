@@ -37,6 +37,7 @@ pub enum Renderable<'render> {
 pub enum Renderable2<'render> {
   Instance(Stem2<'render>),
   Group(Vec<Stem2<'render>>),
+  Sample(Stem3<'render>),
 }
 
 pub fn rescale(samples: &[f32], original_freq: f32, target_freq: f32) -> Vec<f32> {
