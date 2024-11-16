@@ -15,9 +15,8 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
     // Read the audio sample from the retrieved path
     let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read hats sample");
-
     // Set amplitude expression dynamically based on visibility
-    let amp_expr = vec![visibility_gain(arf.visibility)];
+    let amp_expr = vec![visibility_gain_sample(arf.visibility)];
 
     // Initialize effect parameters
     let mut delays_note = vec![];

@@ -17,7 +17,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
 
     // Set amplitude expression dynamically based on visibility
-    let amp_expr = vec![visibility_gain(arf.visibility)];
+    let amp_expr = vec![visibility_gain_sample(arf.visibility)];
 
     // Initialize effect parameters
     let mut delays_note = vec![];
@@ -43,11 +43,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     }
 
     // Set lowpass cutoff frequency based on energy level
-    let lowpass_cutoff = match arf.energy {
-        Energy::Low => NFf / 8f32,
-        Energy::Medium => NFf / 6f32,
-        Energy::High => NFf / 4f32,
-    };
+    let lowpass_cutoff = NFf;
     let ref_sample = ref_samples[0].to_owned();
 
     // Return the renderable sample

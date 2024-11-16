@@ -48,7 +48,10 @@ use std::collections::HashMap;
 /// Base directory for audio samples.
 const SAMPLE_SOURCE_DIR: &str = "audio-samples";
 /// Cache for sample paths to avoid repeated directory scans.
-static mut SAMPLE_CACHE: Option<HashMap<String, Vec<String>>> = None;
+static SAMPLE_CACHE: Lazy<RwLock<HashMap<String, Vec<String>>>> = Lazy::new(|| {
+  RwLock::new(initialize_sample_cache())
+});
+
 // user configurable headroom value. defaults to -15Db
 pub const DB_HEADROOM: f32 = -15f32;
 
@@ -559,6 +562,52 @@ pub fn visibility_gain(v: Visibility) -> f32 {
   }
 }
 
+pub fn visibility_gain_sample(v: Visibility) -> f32 {
+  return 1f32;
+  match v {
+    Visibility::Hidden => db_to_amp(-24f32),
+    Visibility::Background => db_to_amp(-18f32),
+    Visibility::Foreground => db_to_amp(-12f32),
+    Visibility::Visible => db_to_amp(-6f32),
+  }
+}
+
+
+use once_cell::sync::Lazy;
+use std::sync::RwLock;
+/// Retrieves a sample file path based on the given `Arf` configuration.
+///
+/// # Parameters
+/// - `arf`: The amplitude and visibility configuration.
+///
+/// # Returns
+/// A randomly selected file path from the appropriate category.
+pub fn get_sample_path(arf: &Arf) -> String {
+  let key = match arf.role {
+      Role::Hats => match arf.presence {
+          Presence::Staccatto | Presence::Legato => format!("{}/hats/short", SAMPLE_SOURCE_DIR),
+          Presence::Tenuto => format!("{}/hats/long", SAMPLE_SOURCE_DIR),
+      },
+      Role::Kick => format!("{}/kick", SAMPLE_SOURCE_DIR),
+      Role::Perc => format!("{}/perc", SAMPLE_SOURCE_DIR),
+      _ => panic!("No samples provided for role: {}", arf.role),
+  };
+
+  // Access the cache
+  let cache = SAMPLE_CACHE.read().expect("Failed to read SAMPLE_CACHE");
+
+  // Retrieve the list of paths for the category
+  if let Some(paths) = cache.get(&key) {
+      paths[0].clone() // Select the first path for now
+      // paths
+      //     .choose(&mut rand::thread_rng())
+      //     .expect("No samples available in category")
+      //     .clone()
+  } else {
+      panic!("Role not found in cache: {}", arf.role);
+  }
+}
+
 /// Initializes the sample cache by scanning the audio-sample directories.
 ///
 /// # Returns
@@ -583,42 +632,4 @@ fn initialize_sample_cache() -> HashMap<String, Vec<String>> {
     }
 
     cache
-}
-
-/// Retrieves a sample file path based on the given category and `Arf` configuration.
-///
-/// # Parameters
-/// - `category`: The sample category (e.g., "kick", "perc", "hats").
-/// - `arf`: The amplitude and visibility configuration.
-///
-/// # Returns
-/// A randomly selected file path from the appropriate category.
-pub fn get_sample_path(arf: &Arf) -> String {
-    unsafe {
-        // Initialize cache if not already done
-        if SAMPLE_CACHE.is_none() {
-            SAMPLE_CACHE = Some(initialize_sample_cache());
-        }
-
-        let cache = SAMPLE_CACHE.as_ref().unwrap();
-        let key = match arf.role {
-            Role::Hats => match arf.presence {
-                Presence::Staccatto | Presence::Legato => format!("{}/hats/short", SAMPLE_SOURCE_DIR),
-                Presence::Tenuto => format!("{}/hats/long", SAMPLE_SOURCE_DIR),
-            },
-            Role::Kick => format!("{}/kick", SAMPLE_SOURCE_DIR),
-            Role::Perc => format!("{}/perc", SAMPLE_SOURCE_DIR),
-            _ => panic!("No samples provided for role: {}", arf.role),
-        };
-
-        // Retrieve the list of paths for the category and randomly select one
-        if let Some(paths) = cache.get(&key) {
-            paths
-                .choose(&mut rand::thread_rng())
-                .expect("No samples available in category")
-                .clone()
-        } else {
-            panic!("Role not found in cache: {}",  arf.role);
-        }
-    }
 }

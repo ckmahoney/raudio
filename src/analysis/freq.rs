@@ -1,4 +1,4 @@
-use crate::synth::{pi, pi_4};
+use crate::synth::{pi, pi_4, NFf};
 
 /// Interpolates between two frequency values `f1` and `f2` based on time `t` and contour `contour_factor`.
 /// The interpolation is done in the logarithmic domain (base 2) to provide a smooth interpolation
@@ -248,7 +248,9 @@ pub fn apply_resonance(curr_freq: f32, resonance_f: f32, resonance_distance: f32
 /// let filtered_samples = butterworth_lowpass_filter(&samples, sample_rate, cutoff_freq);
 /// println!("{:?}", filtered_samples);
 /// ```
-pub fn butterworth_lowpass_filter(samples: &[f32], sample_rate: u32, cutoff_freq: f32) -> Vec<f32> {
+pub fn butterworth_lowpass_filter(samples: &[f32], sample_rate: u32, cutoff_freq_max: f32) -> Vec<f32> {
+  // Prevent unexpected behavior at the boundary of sample rate
+  let cutoff_freq = cutoff_freq_max.min(NFf - 100f32);
   // Precompute constants for the filter
   let omega = 2.0 * std::f32::consts::PI * cutoff_freq / sample_rate as f32;
   let cos_omega = omega.cos();

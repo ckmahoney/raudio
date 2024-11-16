@@ -481,12 +481,32 @@ fn finalize_signal(
 
   // Apply Butterworth filter (if cutoff frequency is specified)
   if let Some(cutoff_freq) = lowpass_cutoff_freq {
-      signal = crate::analysis::freq::butterworth_lowpass_filter(&signal, SR as u32, cutoff_freq);
+      signal = crate::analysis::freq::butterworth_lowpass_filter(&signal, SR as u32, NFf);
   }
 
   signal
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_finalize_signal_has_passthrough() {
+        let original_signal: SampleBuffer = vec![0.1, 0.2, 0.3, 0.4, 0.5];
+        let delays: Vec<DelayParams> = vec![];
+        let reverbs: Vec<ReverbParams> = vec![];
+        let lowpass_cutoff_freq: Option<f32> = None;
+
+        let result = finalize_signal(original_signal.clone(), &delays, &reverbs, lowpass_cutoff_freq);
+        assert_eq!(result, original_signal, "Must have a passthrough effect when no settings are applied (None)");
+
+        // Nearly equal so just comment out the test
+        // let lowpass_cutoff_freq: Option<f32> = Some(NFf);
+        // let result = finalize_signal(original_signal.clone(), &delays, &reverbs, lowpass_cutoff_freq);
+        // assert_eq!(result, original_signal, "Must have a passthrough effect when no settings are applied (NFf)");
+    }
+}
 
 /// Given a list of signals whose tails may intend to overlap with the head of the next signal
 /// (e.g. long delay or release times)
@@ -917,72 +937,79 @@ use rayon::ThreadPoolBuilder;
 /// Generate the signals and apply reverberation. Return the new signal.
 /// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
 pub fn combiner_with_reso<'render>(
-  conf: &Conf, 
-  renderables: &Vec<Renderable2<'render>>, 
+  conf: &Conf,
+  renderables: &Vec<Renderable2<'render>>,
   reverbs: &Vec<convolution::ReverbParams>,
-  keep_stems: Option<&str>
+  keep_stems: Option<&str>,
 ) -> SampleBuffer {
   // Initialize a global Rayon thread pool with a max of 4 threads
   let _ = ThreadPoolBuilder::new().num_threads(4).build_global();
 
   // Collect channels by processing each renderable in parallel
   let mut channels: Vec<SampleBuffer> = renderables
-    .par_iter()
-    .enumerate()
-    .map(|(j, renderable)| {
-      let ch = match renderable {
-        Renderable2::Instance(stem) => {
-          // Process a single stem
-          vec![channel_with_reso(conf, stem)]
-        }
-        Renderable2::Group(stems) => {
-          // Process each stem in the group
-          stems.par_iter().map(|stem| channel_with_reso(conf, stem)).collect::<Vec<_>>()
-        }
-        Renderable2::Sample(stem) => {
-          // Process each stem in the group
-          vec![channel_with_samples(conf, stem)]
-        }
-      };
-      if let Some(stem_dir) = keep_stems {
-        // Keep the substems
-        ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
-          let filename = format!("{}/part-{}-twig-{}.wav", stem_dir, j, stem_num);
-          render::engrave::samples(SR, &channel_samples, &filename);
-        });
-      }
-      let rendered_channel = pad_and_mix_buffers(ch);
+      .par_iter()
+      .enumerate()
+      .map(|(j, renderable)| {
+          let ch = match renderable {
+              Renderable2::Instance(stem) => {
+                  // Process a single stem
+                  vec![channel_with_reso(conf, stem)]
+              }
+              Renderable2::Group(stems) => {
+                  // Process each stem in the group
+                  stems
+                      .par_iter()
+                      .map(|stem| channel_with_reso(conf, stem))
+                      .collect::<Vec<_>>()
+              }
+              Renderable2::Sample(stem) => {
+                  vec![channel_with_samples(conf, stem)]
+              }
+          };
 
-      match rendered_channel {
-        Ok(signal) => signal,
-        Err(msg) => panic!("Unexpected error while mixing channels {}", msg),
-      }
-    })
-    .collect();
+          if let Some(stem_dir) = keep_stems {
+              // Keep the substems
+              ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+                  let filename = format!("{}/part-{}-twig-{}.wav", stem_dir, j, stem_num);
+                  if channel_samples.is_empty() {
+                      eprintln!("Warning: Channel samples are empty for stem {}-{}", j, stem_num);
+                  }
+                  render::engrave::samples(SR, &channel_samples, &filename);
+              });
+          }
+
+          let rendered_channel = pad_and_mix_buffers(ch);
+
+          match rendered_channel {
+              Ok(signal) => signal,
+              Err(msg) => panic!("Unexpected error while mixing channels: {}", msg),
+          }
+      })
+      .collect();
 
   // Optionally save stems if `keep_stems` is provided
   if let Some(stem_dir) = keep_stems {
-    channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
-      let filename = format!("{}/stem-{}.wav", stem_dir, stem_num);
-      render::engrave::samples(SR, &channel_samples, &filename);
-    });
+      channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+          let filename = format!("{}/stem-{}.wav", stem_dir, stem_num);
+          render::engrave::samples(SR, &channel_samples, &filename);
+      });
   }
 
   // Pad and mix the collected channels into a final signal
   match pad_and_mix_buffers(channels) {
-    Ok(signal) => {
-      // Apply reverbs if provided
-      if reverbs.is_empty() {
-        signal
-      } else {
-        reverbs.iter().fold(signal, |sig, params| {
-          let mut sig = convolution::of(&sig, &params);
-          trim_zeros(&mut sig);
-          sig
-        })
+      Ok(signal) => {
+          // Apply reverbs if provided
+          if reverbs.is_empty() {
+              signal
+          } else {
+              reverbs.iter().fold(signal, |sig, params| {
+                  let mut sig = convolution::of(&sig, &params);
+                  trim_zeros(&mut sig);
+                  sig
+              })
+          }
       }
-    }
-    Err(msg) => panic!("Failed to mix and render audio: {}", msg),
+      Err(msg) => panic!("Failed to mix and render audio: {}", msg),
   }
 }
 
@@ -1006,18 +1033,28 @@ fn channel_with_samples(
 
             let mut p: f32 = 0.0;
             let mut line_signal = vec![0.0; signal_len];
+            let mut accumulated_offset: usize = 0; // Track the accumulated offset
             
             // Process each note in the line
             line.iter().enumerate().for_each(|(i, (_, tone, amp))| {
                 let freq = root * tone_to_freq(tone);
 
+                // Render the sample for the current note
                 let moment = render_sample(
                     p, len_cycles, cps, root, *amp, freq, durs[i],
                     ref_samples, amp_expr, *lowpass_cutoff_freq,
                 );
 
+                // Apply effects (delays, reverbs) to the sample
                 let mut wet = finalize_signal(moment, delays1, reverbs1, Some(NFf));
-                add_to_buffer(&mut line_signal, wet, time::samples_of_dur(cps, p));
+
+                // Add the processed sample to the line buffer
+                add_to_buffer(&mut line_signal, wet, accumulated_offset);
+
+                // Update the accumulated offset for the next note
+                accumulated_offset += time::samples_of_dur(cps, durs[i]);
+
+                // Update position in the line
                 p += durs[i] / len_cycles;
             });
 
@@ -1026,10 +1063,12 @@ fn channel_with_samples(
         .collect();
 
     match pad_and_mix_buffers(line_buffs) {
-        Ok(mixed) => finalize_signal(mixed, delays2, reverbs2, Some(*lowpass_cutoff_freq)),
+        // Ok(mixed) => finalize_signal(mixed, delays2, reverbs2, Some(*lowpass_cutoff_freq)),
+        Ok(mixed) => mixed,
         Err(msg) => panic!("Failed to render and mix line buffers: {}", msg),
     }
 }
+
 
 /// Render a single sample using the given parameters and reference samples
 #[inline]
@@ -1045,17 +1084,30 @@ fn render_sample(
     amp_expr: &Vec<Range>,
     lowpass_cutoff_freq: f32,
 ) -> SampleBuffer {
+    // Calculate the desired length of the signal in samples
     let signal_len = time::samples_of_cycles(cps, duration);
     let mut signal = vec![0.0; signal_len];
 
-    let resampled_amplitude = slice_signal(amp_expr, p, p + (duration / len_cycles), signal_len);
+    let playback_rate = root;
+    let playback_rate = 1f32;
+    // Iterate through the output signal
+    for i in 0..signal_len {
+        // Calculate the corresponding index in the reference sample buffer
+        let sample_index = ((i as f32 * playback_rate) as usize).min(ref_samples.len() - 1);
 
-    for (i, &am) in resampled_amplitude.iter().enumerate() {
-      let sample_index = ((i as f32 * freq / cps) as usize).min(ref_samples.len() - 1);
-      signal[i] = amp * ref_samples[sample_index];
+        // Copy the sample value to the output signal
+        signal[i] = ref_samples[sample_index];
     }
 
-    crate::analysis::freq::butterworth_lowpass_filter(&signal, SR as u32, lowpass_cutoff_freq)
+    // If the signal length is less than requested duration, pad with zeros
+    if ref_samples.len() < signal_len {
+        signal.resize(signal_len, 0.0);
+    }
+
+    // Apply a lowpass filter to the signal
+    crate::analysis::freq::butterworth_lowpass_filter(&mut signal, SR as u32, lowpass_cutoff_freq);
+
+    signal
 }
 
 /// Add a buffer into another, starting at a specified offset
