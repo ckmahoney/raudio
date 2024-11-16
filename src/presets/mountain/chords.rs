@@ -253,10 +253,12 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let dynamics = dynamics::gen_organic_amplitude(100, n_samples, arf.visibility);
 
   let expr = (dynamics, vec![1f32], vec![0f32]);
+  let mut rng = thread_rng();
+  let delays_note = generate_chord_delay_macros(arf.visibility, arf.energy, arf.presence)
+    .iter()
+    .map(|mac| mac.gen(&mut rng, conf.cps))
+    .collect();
 
-  let delays_note = vec![
-    generate_chord_delay_macros(arf.visibility, arf.energy, arf.presence)
-  ];
   let delays_room = vec![];
 
   let reverbs_note: Vec<ReverbParams> = vec![
