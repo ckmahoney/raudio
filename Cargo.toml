@@ -19,6 +19,7 @@ rayon = "1.7"
 sysinfo = "0.32.0"
 dotenv = "0.15.0"
 rubato = "0.16.1"
+fs = "0.0.5"
 
 [[bin]]
 name = "raudio"
