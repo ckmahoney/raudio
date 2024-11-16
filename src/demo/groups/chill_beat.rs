@@ -114,7 +114,7 @@ fn perc_melody() -> Melody<Note> {
 fn kick_arf(p: Presence) -> Arf {
   Arf {
     mode: Mode::Enharmonic,
-    role: Role::Perc,
+    role: Role::Kick,
     register: 5,
     visibility: Visibility::Visible,
     energy: Energy::Medium,

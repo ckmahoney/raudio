@@ -598,11 +598,10 @@ pub fn get_sample_path(arf: &Arf) -> String {
 
   // Retrieve the list of paths for the category
   if let Some(paths) = cache.get(&key) {
-      paths[0].clone() // Select the first path for now
-      // paths
-      //     .choose(&mut rand::thread_rng())
-      //     .expect("No samples available in category")
-      //     .clone()
+      paths
+          .choose(&mut rand::thread_rng())
+          .expect("No samples available in category")
+          .clone()
   } else {
       panic!("Role not found in cache: {}", arf.role);
   }

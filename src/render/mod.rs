@@ -1063,8 +1063,7 @@ fn channel_with_samples(
         .collect();
 
     match pad_and_mix_buffers(line_buffs) {
-        // Ok(mixed) => finalize_signal(mixed, delays2, reverbs2, Some(*lowpass_cutoff_freq)),
-        Ok(mixed) => mixed,
+        Ok(mixed) => finalize_signal(mixed, delays2, reverbs2, Some(*lowpass_cutoff_freq)),
         Err(msg) => panic!("Failed to render and mix line buffers: {}", msg),
     }
 }
