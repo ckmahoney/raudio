@@ -1104,6 +1104,8 @@ fn render_sample(
   // Resample the amplitude envelope to match the signal length
   let end_p: f32 = p + (n_cycles / len_cycles);
   let resampled_aenv = slice_signal(amp_expr, p, end_p, signal_len);
+  let headroom_factor: f32 = db_to_amp(DB_HEADROOM); // would be good to lazy::static this
+
 
   // Iterate through the output signal
   for i in 0..signal_len {
@@ -1111,7 +1113,7 @@ fn render_sample(
       let sample_index = ((i as f32 * playback_rate) as usize).min(ref_samples.len() - 1);
 
       // Apply the resampled amplitude envelope
-      signal[i] = ref_samples[sample_index] * resampled_aenv[i];
+      signal[i] = ref_samples[sample_index] * resampled_aenv[i] * headroom_factor;
   }
 
   // If the signal length is less than requested duration, pad with zeros

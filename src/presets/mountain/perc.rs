@@ -15,9 +15,11 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
     // Read the audio sample from the retrieved path
     let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
-
-    // Set amplitude expression dynamically based on visibility
-    let amp_expr = vec![visibility_gain_sample(arf.visibility)];
+    let gain = visibility_gain_sample(arf.visibility);
+    let amp_expr = dynamics::gen_organic_amplitude(10, 2000, arf.visibility)
+    .iter()
+    .map(|v| v * gain)
+    .collect();
 
     // Initialize effect parameters
     let mut delays_note = vec![];
@@ -35,10 +37,10 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
         // Manually define reverb parameters for the percussion stem
         reverbs_room = vec![ReverbParams {
-            mix: in_range(&mut rng, 0.25, 0.35),
-            amp: db_to_amp(-15.0),
-            dur: in_range(&mut rng, 0.6, 1.0),
-            rate: in_range(&mut rng, 1.0, 1.2),
+            mix: in_range(&mut rng, 0.05, 0.2),
+            amp: in_range(&mut rng, db_to_amp(-45.0), db_to_amp(-24.0)), // Impulse amplitude
+            dur: in_range(&mut rng, 0.6, 5.0),
+            rate: in_range(&mut rng, 0.01, 0.8),
         }];
     }
 
