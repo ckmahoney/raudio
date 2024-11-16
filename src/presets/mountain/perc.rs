@@ -39,8 +39,8 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
         reverbs_room = vec![ReverbParams {
             mix: in_range(&mut rng, 0.05, 0.2),
             amp: in_range(&mut rng, db_to_amp(-45.0), db_to_amp(-24.0)), // Impulse amplitude
-            dur: in_range(&mut rng, 0.6, 5.0),
-            rate: in_range(&mut rng, 0.01, 0.8),
+            dur: in_range(&mut rng, 0.3, 2.0),
+            rate: in_range(&mut rng, 0.01, 0.5),
         }];
     }
 

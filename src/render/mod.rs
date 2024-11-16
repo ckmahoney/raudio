@@ -853,7 +853,7 @@ pub fn summer_with_reso<'render>(
 
     // post-gen filter:
     // apply global headroom scaling
-    sig[j] *= headroom_factor;
+    sig[j] += v * headroom_factor;
   }
 
   for delay_params in line_delays {

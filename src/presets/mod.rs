@@ -564,10 +564,10 @@ pub fn visibility_gain(v: Visibility) -> f32 {
 
 pub fn visibility_gain_sample(v: Visibility) -> f32 {
     db_to_amp(-12f32) *  match v {
-    Visibility::Hidden => db_to_amp(-24f32),
-    Visibility::Background => db_to_amp(-18f32),
-    Visibility::Foreground => db_to_amp(-12f32),
-    Visibility::Visible => db_to_amp(-6f32),
+    Visibility::Hidden => db_to_amp(-27f32),
+    Visibility::Background => db_to_amp(-21f32),
+    Visibility::Foreground => db_to_amp(-15f32),
+    Visibility::Visible => db_to_amp(-9f32),
   }
 }
 

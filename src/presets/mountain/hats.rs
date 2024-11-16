@@ -53,7 +53,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
             vec![ReverbParams {
                 mix: in_range(&mut rng, 0.1, 0.2), // Reverb mix ratio
                 amp: in_range(&mut rng, db_to_amp(-45.0), db_to_amp(-32.0)),
-                dur: in_range(&mut rng, 0.2, 1f32), // Reverb duration in seconds
+                dur: in_range(&mut rng, 0.05, 0.5f32), // Reverb duration in seconds
                 rate: in_range(&mut rng, 0.1, 0.5),
             }], 
         )

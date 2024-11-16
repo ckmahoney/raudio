@@ -18,11 +18,12 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   // Read the audio sample from the retrieved path
   let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read kick sample");
 
-  let gain = visibility_gain_sample(arf.visibility);
+    let gain = visibility_gain_sample(arf.visibility);
     let amp_expr = dynamics::gen_organic_amplitude(10, 2000, arf.visibility)
     .iter()
     .map(|v| v * gain)
     .collect();
+
     let mut rng = thread_rng();
     let delays_note = vec![];
     let delays_room = vec![];

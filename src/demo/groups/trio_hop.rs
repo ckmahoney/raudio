@@ -22,9 +22,9 @@ use crate::phrasing::{
   lifespan,
   ranger::{self, Knob, KnobMods},
 };
-use presets::hop::{bass, chords, lead};
+use presets::mountain::{bass, chords, lead};
 
-static demo_name: &str = "trio-hop";
+static demo_name: &str = "trio-mountain";
 
 fn bass_melody() -> Melody<Note> {
   let tala: Vec<Duration> = vec![
@@ -162,19 +162,27 @@ fn demonstrate() {
   let cps: f32 = 1.15;
   let root: f32 = 1.9;
 
-  let delays: Vec<DelayParams> = vec![delay::passthrough];
+  let delays: Vec<DelayParams> = vec![DelayParams {
+    len_seconds: 0.1f32,
+    n_echoes: 4,
+    gain: 0.5f32,
+    mix: 0.33f32,
+    pan: delay::StereoField::Mono
+  }];
 
   let lead_melody = lead_melody();
   let chords_melody = chords_melody();
   let bass_melody = bass_melody();
+  let conf: Conf  = Conf{ cps, root };
 
-  let stem_lead = lead::renderable(cps, &lead_melody, &lead_arf());
-  let stem_chords = chords::renderable(cps, &chords_melody, &chords_arf());
-  let stem_bass = bass::renderable(cps, &bass_melody, &bass_arf());
+  let stem_lead = lead::renderable(&conf, &lead_melody, &lead_arf());
+  let stem_chords = chords::renderable(&conf, &chords_melody, &chords_arf());
+  let stem_bass = bass::renderable(&conf, &bass_melody, &bass_arf());
 
   use Renderable::{Group, Instance};
   let renderables: Vec<Renderable2> = vec![
-    stem_bass, // stem_chords,
+    stem_bass, 
+    stem_chords,
     stem_lead,
   ];
 
@@ -184,7 +192,6 @@ fn demonstrate() {
   let complexity: f32 = rng.gen::<f32>().min(0.01);
   let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Room, complexity);
   let keep_stems = Some(path.as_str());
-  let group_reverbs = vec![];
   let mix = render::combiner_with_reso(&Conf { cps, root }, &renderables, &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", location(demo_name), demo_name);
   render::engrave::samples(SR, &mix, &filename);

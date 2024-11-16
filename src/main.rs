@@ -144,7 +144,7 @@ pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_s
     verb_complexity,
   )];
   let keeps = if keep_stems { Some(out_dir) } else { None };
-  let keeps = None;
+  // let keeps = None;
   let signal = render::combiner_with_reso(&score.conf, &stems, &group_reverb, keeps);
   render::engrave::samples(crate::synth::SR, &signal, &mixdown_name);
   mixdown_name
