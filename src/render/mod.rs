@@ -939,6 +939,10 @@ pub fn combiner_with_reso<'render>(
           // Process each stem in the group
           stems.par_iter().map(|stem| channel_with_reso(conf, stem)).collect::<Vec<_>>()
         }
+        Renderable2::Sample(stem) => {
+          // Process each stem in the group
+          vec![channel_with_samples(conf, stem)]
+        }
       };
       if let Some(stem_dir) = keep_stems {
         // Keep the substems

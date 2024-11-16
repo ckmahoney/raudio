@@ -8,10 +8,8 @@ use super::*;
 ///
 /// # Returns
 /// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
-pub fn stem_kick<'render>(
-  arf: &Arf,
-  melody: &'render Melody<Note>,
-) -> Stem3<'render> {
+pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
+
   // Directory and sample file configuration for the kick preset
   let sample_path = "audio-samples/kick/kick-0.wav"; // Replace with logic for selecting sample variants
   let (ref_samples, sample_rate) = read_audio_file(sample_path).expect("Failed to read kick sample");
@@ -24,14 +22,22 @@ pub fn stem_kick<'render>(
   let reverbs_note = vec![];
   let reverbs_room = vec![];
 
-  (
+  let lowpass_cutoff = match arf.energy {
+    Energy::Low => NFf/6f32,
+    Energy::Medium => NFf/4f32,
+    Energy::High => NFf,
+  };
+
+  Renderable2::Sample(
+    (
       melody,
-      &ref_samples[0],
-      &amp_expr,
-      1000.0, // Lowpass cutoff frequency
+      ref_samples[0].to_owned(),
+      amp_expr,
+      lowpass_cutoff,
       delays_note,
       delays_room,
       reverbs_note,
       reverbs_room,
+    )
   )
 }
