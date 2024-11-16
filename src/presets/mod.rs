@@ -593,7 +593,7 @@ fn initialize_sample_cache() -> HashMap<String, Vec<String>> {
 ///
 /// # Returns
 /// A randomly selected file path from the appropriate category.
-pub fn get_sample_path(category: &str, arf: &Arf) -> String {
+pub fn get_sample_path(arf: &Arf) -> String {
     unsafe {
         // Initialize cache if not already done
         if SAMPLE_CACHE.is_none() {
@@ -601,14 +601,14 @@ pub fn get_sample_path(category: &str, arf: &Arf) -> String {
         }
 
         let cache = SAMPLE_CACHE.as_ref().unwrap();
-        let key = match category {
-            "hats" => match arf.presence {
+        let key = match arf.role {
+            Role::Hats => match arf.presence {
                 Presence::Staccatto | Presence::Legato => format!("{}/hats/short", SAMPLE_SOURCE_DIR),
                 Presence::Tenuto => format!("{}/hats/long", SAMPLE_SOURCE_DIR),
             },
-            "kick" => format!("{}/kick", SAMPLE_SOURCE_DIR),
-            "perc" => format!("{}/perc", SAMPLE_SOURCE_DIR),
-            _ => panic!("Unknown category: {}", category),
+            Role::Kick => format!("{}/kick", SAMPLE_SOURCE_DIR),
+            Role::Perc => format!("{}/perc", SAMPLE_SOURCE_DIR),
+            _ => panic!("No samples provided for role: {}", arf.role),
         };
 
         // Retrieve the list of paths for the category and randomly select one
@@ -618,7 +618,7 @@ pub fn get_sample_path(category: &str, arf: &Arf) -> String {
                 .expect("No samples available in category")
                 .clone()
         } else {
-            panic!("Category not found in cache: {}", category);
+            panic!("Role not found in cache: {}",  arf.role);
         }
     }
 }
