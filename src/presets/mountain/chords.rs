@@ -23,10 +23,10 @@ use crate::types::synthesis::{BoostGroup, BoostGroupMacro, ModifiersHolder, Soid
 fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence: Presence) -> Vec<DelayParamsMacro> {
   // Determine gain level based on visibility to set chord presence in the mix
   let gain_level = match visibility {
-      Visibility::Hidden => db_to_amp(-15.0),
-      Visibility::Background => db_to_amp(-12.0),
-      Visibility::Foreground => db_to_amp(-9.0),
-      Visibility::Visible => db_to_amp(-6.0),
+      Visibility::Hidden => db_to_amp(-12.0),
+      Visibility::Background => db_to_amp(-9.0),
+      Visibility::Foreground => db_to_amp(-6.0),
+      Visibility::Visible => db_to_amp(-3.0),
   };
 
   // Adjust echo density based on energy level for layering control
@@ -39,9 +39,11 @@ fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence:
   // Set delay cycle lengths based on presence, adding variety to the spatial effect
   let dtimes_cycles = match presence {
       Presence::Staccatto => vec![0.5, 1.0, 1.5],          // Short cycles for rhythmic delay
-      Presence::Legato => vec![1.0, 2.0, 3.0],            // Medium cycles for smooth, sustained echoes
-      Presence::Tenuto => vec![2.0, 3.0, 4.0, 5.0],       // Longer cycles for a more spacious feel
+      Presence::Legato => vec![0.666,1.0, 1.5,2.0],            // Medium cycles for smooth, sustained echoes
+      Presence::Tenuto => vec![1.333,1.5,2.0, 3.0],       // Longer cycles for a more spacious feel
   };
+
+  let dtimes_cycles = vec![0.5, 1.0];
 
   // 1. Wide Stereo Pad Delay
   // Creates a wide, lush stereo spread for ambient chord textures.
@@ -253,19 +255,21 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let dynamics = dynamics::gen_organic_amplitude(100, n_samples, arf.visibility);
 
   let expr = (dynamics, vec![1f32], vec![0f32]);
+  let mut rng = thread_rng();
+  let delays_note = generate_chord_delay_macros(arf.visibility, arf.energy, arf.presence)
+    .iter()
+    .map(|mac| mac.gen(&mut rng, conf.cps))
+    .collect();
 
-  let delays_note = vec![
-    generate_chord_delay_macros(arf.visibility, arf.energy, arf.presence)
-  ];
   let delays_room = vec![];
 
   let reverbs_note: Vec<ReverbParams> = vec![
-      // ReverbParams {
-      //     mix: 0.1f32,
-      //     amp: 1f32,
-      //     dur: 0.005f32,
-      //     rate: 1f32
-      // }
+      ReverbParams {
+          mix: 0.05f32,
+          amp: 0.8f32,
+          dur: 0.005f32,
+          rate: 0.8f32
+      }
   ];
   let reverbs_room: Vec<ReverbParams> = vec![
       // ReverbParams {
@@ -275,6 +279,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
       //     rate: 1f32
       // }
   ];
+
 
   let stem = (
     melody,

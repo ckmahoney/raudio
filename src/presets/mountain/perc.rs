@@ -1,354 +1,117 @@
 use super::*;
 
-use crate::druid::{self, soids as druidic_soids};
-use crate::phrasing::{contour::Expr, ranger::KnobMods};
-use crate::types::synthesis::{ModifiersHolder, Soids};
+/// Returns a `Stem3` for the percussion preset.
+///
+/// # Parameters
+/// - `conf`: Configuration object for additional context.
+/// - `melody`: Melody structure specifying note events for the stem.
+/// - `arf`: Configuration for amplitude and visibility adjustments.
+///
+/// # Returns
+/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
+    // Dynamically retrieve a percussion sample file path
+    let sample_path = get_sample_path(arf);
 
-pub mod v1 {
-  use super::*;
+    // Read the audio sample from the retrieved path
+    let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
+    let gain = visibility_gain_sample(arf.visibility);
+    let amp_expr = dynamics::gen_organic_amplitude(10, 2000, arf.visibility)
+    .iter()
+    .map(|v| v * gain)
+    .collect();
 
-  pub fn expr(arf: &Arf) -> Expr {
-    (vec![visibility_gain(arf.visibility)], vec![1f32], vec![0f32])
-  }
+    // Initialize effect parameters
+    let mut delays_note = vec![];
+    let mut reverbs_room = vec![];
 
-  /// Selects the number of resonant nodes to add
-  fn amp_reso_gen(modders: &mut KnobMods, visibility: Visibility, energy: Energy, presence: Presence) {
-    let n = match energy {
-      Energy::Low => 2,
-      Energy::Medium => 3,
-      Energy::High => 5,
-    };
-    let mut rng = thread_rng();
-    for i in 0..n {
-      let a: f32 = match visibility {
-        Visibility::Visible => rng.gen::<f32>() / 5f32,
-        Visibility::Foreground => rng.gen::<f32>() / 3f32,
-        Visibility::Background => rng.gen::<f32>() / 2f32,
-        Visibility::Hidden => 0.5f32 + rng.gen::<f32>() / 2f32,
-      };
-      let b: f32 = match energy {
-        Energy::Low => rng.gen::<f32>() / 2f32,
-        Energy::Medium => rng.gen::<f32>() / 3f32,
-        Energy::High => rng.gen::<f32>() / 5f32,
-      };
-      modders.0.push((Knob { a: a, b: b, c: 0.0 }, ranger::amod_peak))
+    // Add delays and reverbs only when Visibility::Foreground
+    if let Visibility::Foreground = arf.visibility {
+        // Generate delay macros for the percussion stem
+        let delay_macros = generate_delay_macros(arf.visibility, arf.energy, arf.presence);
+        let mut rng = rand::thread_rng();
+        delays_note = delay_macros
+            .iter()
+            .map(|mac| mac.gen(&mut rng, conf.cps))
+            .collect();
+
+        // Manually define reverb parameters for the percussion stem
+        reverbs_room = vec![ReverbParams {
+            mix: in_range(&mut rng, 0.05, 0.1),
+            amp: in_range(&mut rng, db_to_amp(-45.0), db_to_amp(-30.0)), // Impulse amplitude
+            dur: in_range(&mut rng, 0.1, 1.0),
+            rate: in_range(&mut rng, 0.01, 0.5),
+        }];
     }
-  }
 
-  pub fn renderable<'render>(cps: f32, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-    let mut knob_mods: KnobMods2 = KnobMods2::unit();
-    let mut knob_mods2: KnobMods2 = KnobMods2::unit();
-    let mut rng: ThreadRng = thread_rng();
+    // Set lowpass cutoff frequency based on energy level
+    let lowpass_cutoff = NFf;
+    let ref_sample = ref_samples[0].to_owned();
 
-    // Principal layer
-    knob_mods.0.push((
-      KnobMacro {
-        a: match arf.energy {
-          Energy::High => [0.8f32, 1f32],
-          Energy::Medium => [0.5f32, 0.8f32],
-          Energy::Low => [0.35f32, 0.5f32],
-        },
-        b: [0.1f32, 0.2f32], // Using the arguments to in_range directly
-        c: [0f32, 0f32],     // Static value as [0, 0]
-        ma: MacroMotion::Constant,
-        mb: MacroMotion::Constant,
-        mc: MacroMotion::Random,
-      },
-      ranger::amod_burp,
-    ));
-
-    // // double
-    knob_mods2.0.push((
-      KnobMacro {
-        a: match arf.energy {
-          Energy::High => [0.7f32, 0.8f32],
-          Energy::Medium => [0.5f32, 0.7f32],
-          Energy::Low => [0.3f32, 0.5f32],
-        },
-        b: [0.75f32, 1f32],
-        c: [0f32, 0f32],
-        ma: MacroMotion::Random,
-        mb: MacroMotion::Random,
-        mc: MacroMotion::Random,
-      },
-      ranger::amod_burp,
-    ));
-
-    knob_mods2.0.push((
-      KnobMacro {
-        a: match arf.energy {
-          Energy::High => [0.7f32, 0.8f32],
-          Energy::Medium => [0.5f32, 0.7f32],
-          Energy::Low => [0.3f32, 0.5f32],
-        },
-        b: [0.75f32, 1f32],
-        c: [0f32, 0f32],
-        ma: MacroMotion::Random,
-        mb: MacroMotion::Random,
-        mc: MacroMotion::Random,
-      },
-      ranger::amod_burp,
-    ));
-
-    // Attenuation layer
-    knob_mods.0.push((
-      KnobMacro {
-        a: match arf.energy {
-          Energy::High => [0.3f32, 1f32],
-          Energy::Medium => [0.5f32, 0.8f32],
-          Energy::Low => [0.35f32, 0.5f32],
-        },
-        b: match arf.visibility {
-          Visibility::Visible => [0.15f32, 0.5f32 + 0.5f32 * rng.gen::<f32>() / 5f32],
-          Visibility::Foreground => [0.25f32, 0.25f32 + 0.5f32 * rng.gen::<f32>() / 3f32],
-          Visibility::Background => [0.35f32, 0.15f32 + 0.5f32 * rng.gen::<f32>() / 2f32],
-          Visibility::Hidden => [0.45f32, 0.05f32 + 0.5f32 * rng.gen::<f32>() / 2f32],
-        },
-        c: [0f32, 0f32],
-        ma: MacroMotion::Random,
-        mb: MacroMotion::Random,
-        mc: MacroMotion::Random,
-      },
-      ranger::amod_fadeout,
-    ));
-
-    // Attenuation layer
-    knob_mods.0.push((
-      KnobMacro {
-        a: match arf.energy {
-          Energy::High => [0.5f32, 1f32],
-          Energy::Medium => [0.5f32, 0.8f32],
-          Energy::Low => [0.5f32, 0.5f32],
-        },
-        b: match arf.visibility {
-          Visibility::Visible => [0.15f32, 0.5f32 + 0.5f32 * rng.gen::<f32>() / 5f32],
-          Visibility::Foreground => [0.25f32, 0.25f32 + 0.5f32 * rng.gen::<f32>() / 3f32],
-          Visibility::Background => [0.35f32, 0.15f32 + 0.5f32 * rng.gen::<f32>() / 2f32],
-          Visibility::Hidden => [0.45f32, 0.05f32 + 0.5f32 * rng.gen::<f32>() / 2f32],
-        },
-        c: [0f32, 0f32],
-        ma: MacroMotion::Random,
-        mb: MacroMotion::Random,
-        mc: MacroMotion::Random,
-      },
-      ranger::amod_fadeout,
-    ));
-
-    // Detail layer
-    knob_mods.0.push((
-      KnobMacro {
-        a: match arf.presence {
-          Presence::Staccatto => [0.33f32, 0.66f32], // Using the arguments to in_range directly
-          Presence::Legato => [0.53f32, 0.76f32],    // Using the arguments to in_range directly
-          Presence::Tenuto => [0.88f32, 1f32],       // Using the arguments to in_range directly
-        },
-        b: match arf.energy {
-          Energy::High => [0f32, 0.33f32],     // Using the arguments to in_range directly
-          Energy::Medium => [0.33f32, 0.5f32], // Using the arguments to in_range directly
-          Energy::Low => [0.5f32, 1f32],       // Using the arguments to in_range directly
-        },
-        c: [0f32, 0f32], // Static value as [0, 0]
-        ma: MacroMotion::Random,
-        mb: MacroMotion::Random,
-        mc: MacroMotion::Random,
-      },
-      ranger::amod_oscillation_sine,
-    ));
-
-    let len_cycles: f32 = time::count_cycles(&melody[0]);
-
-    let height = 12i32;
-    let noise_type = match arf.energy {
-      Energy::High => druidic_soids::NoiseType::Pink,
-      Energy::Medium => druidic_soids::NoiseType::Equal,
-      Energy::Low => druidic_soids::NoiseType::Violet,
-    };
-
-    let soids = druidic_soids::noise(2f32.powi(height), noise_type);
-    let soids2 = soid_fx::noise::rank(0, NoiseColor::Violet, 0.3f32);
-
-    let delays_note = vec![delay::passthrough];
-    let delays_room = vec![];
-    let reverbs_note: Vec<ReverbParams> = vec![];
-    let reverbs_room: Vec<ReverbParams> = vec![];
-
-    let stem = (
-      melody,
-      soids,
-      expr(arf),
-      get_bp(cps, melody, arf, len_cycles),
-      knob_mods,
-      delays_note.clone(),
-      delays_room.clone(),
-      reverbs_note.clone(),
-      reverbs_room.clone(),
-    );
-
-    let stem2 = (
-      melody,
-      soids2,
-      (
-        vec![visibility_gain(Visibility::Hidden) * visibility_gain(arf.visibility)],
-        vec![1f32],
-        vec![0f32],
-      ),
-      get_bp(cps, melody, arf, len_cycles),
-      knob_mods2,
-      delays_note,
-      delays_room,
-      reverbs_note,
-      reverbs_room,
-    );
-
-    Renderable2::Group(vec![stem, stem2])
-  }
+    // Return the renderable sample
+    Renderable2::Sample(
+        (
+            melody,
+            ref_sample,
+            amp_expr,
+            lowpass_cutoff,
+            delays_note,
+            vec![], // No room-level delays for percussion
+            vec![], // No note-level reverbs for percussion
+            reverbs_room, // Room-level reverb for percussion
+        )
+    )
 }
 
-// pub mod v2 {
-
-use super::*;
-
-pub fn expr(arf: &Arf) -> Expr {
-  (vec![visibility_gain(arf.visibility)], vec![1f32], vec![0f32])
-}
-
-/// Selects the number of resonant nodes to add
-fn amp_reso_gen(modders: &mut KnobMods, visibility: Visibility, energy: Energy, presence: Presence) {
-  let n = match energy {
-    Energy::Low => 2,
-    Energy::Medium => 3,
-    Energy::High => 5,
-  };
-  let mut rng = thread_rng();
-  for i in 0..n {
-    let a: f32 = match visibility {
-      Visibility::Visible => rng.gen::<f32>() / 5f32,
-      Visibility::Foreground => rng.gen::<f32>() / 3f32,
-      Visibility::Background => rng.gen::<f32>() / 2f32,
-      Visibility::Hidden => 0.5f32 + rng.gen::<f32>() / 2f32,
-    };
-    let b: f32 = match energy {
-      Energy::Low => rng.gen::<f32>() / 2f32,
-      Energy::Medium => rng.gen::<f32>() / 3f32,
-      Energy::High => rng.gen::<f32>() / 5f32,
-    };
-    modders.0.push((Knob { a: a, b: b, c: 0.0 }, ranger::amod_peak))
-  }
-}
-
+/// mix of three different percs. 
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  let mut rng: ThreadRng = thread_rng();
-
-  // Principal layer
-  knob_mods.0.push((
-    KnobMacro {
-      a: match arf.energy {
-        Energy::High => [0.8f32, 1f32],
-        Energy::Medium => [0.5f32, 0.8f32],
-        Energy::Low => [0.35f32, 0.5f32],
-      },
-      b: [0.1f32, 0.2f32], // Using the arguments to in_range directly
-      c: [0f32, 0f32],     // Static value as [0, 0]
-      ma: MacroMotion::Constant,
-      mb: MacroMotion::Constant,
-      mc: MacroMotion::Random,
-    },
-    ranger::amod_burp,
-  ));
-
-  // Attenuation layer
-  knob_mods.0.push((
-    KnobMacro {
-      a: match arf.energy {
-        Energy::High => [0.3f32, 1f32],
-        Energy::Medium => [0.5f32, 0.8f32],
-        Energy::Low => [0.35f32, 0.5f32],
-      },
-      b: [0.2f32, 0.8f32], // Using the arguments to in_range directly
-      c: [0f32, 0f32],     // Static value as [0, 0]
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
-    },
-    ranger::amod_burp,
-  ));
-
-  // Attenuation layer
-  knob_mods.0.push((
-    KnobMacro {
-      a: match arf.energy {
-        Energy::High => [0.3f32, 1f32],
-        Energy::Medium => [0.5f32, 0.8f32],
-        Energy::Low => [0.35f32, 0.5f32],
-      },
-      b: match arf.visibility {
-        Visibility::Visible => [0.15f32, 0.5f32 + 0.5f32 * rng.gen::<f32>() / 5f32],
-        Visibility::Foreground => [0.25f32, 0.25f32 + 0.5f32 * rng.gen::<f32>() / 3f32],
-        Visibility::Background => [0.35f32, 0.15f32 + 0.5f32 * rng.gen::<f32>() / 2f32],
-        Visibility::Hidden => [0.45f32, 0.05f32 + 0.5f32 * rng.gen::<f32>() / 2f32],
-      },
-      c: [0f32, 0f32],
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
-    },
-    ranger::amod_fadeout,
-  ));
-
-  // Detail layer
-  knob_mods.0.push((
-    KnobMacro {
-      a: match arf.presence {
-        Presence::Staccatto => [0.33f32, 0.5f32], // Using the arguments to in_range directly
-        Presence::Legato => [0.23f32, 0.3f32],    // Using the arguments to in_range directly
-        Presence::Tenuto => [0.08f32, 0.2f32],    // Using the arguments to in_range directly
-      },
-      b: match arf.energy {
-        Energy::High => [0.7f32, 1f32],      // Using the arguments to in_range directly
-        Energy::Medium => [0.33f32, 0.7f32], // Using the arguments to in_range directly
-        Energy::Low => [0.15f32, 0.33f32],   // Using the arguments to in_range directly
-      },
-      c: [0f32, 0f32], // Static value as [0, 0]
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
-    },
-    ranger::amod_oscillation_sine,
-  ));
-
-  let len_cycles: f32 = time::count_cycles(&melody[0]);
-
-  let height = match arf.energy {
-    Energy::High => 10i32,
-    Energy::Medium => 11i32,
-    Energy::Low => 12i32,
-  };
-
-  let noise_type = druidic_soids::NoiseType::Violet;
-
-  let soids = soid_fx::concat(&vec![
-    druidic_soids::noise(2f32.powi(height), noise_type),
-    soid_fx::noise::resof(2f32 * rng.gen::<f32>()),
-    soid_fx::noise::resof(1f32 + 2f32 * rng.gen::<f32>()),
-  ]);
-
-  let delays_note = vec![delay::passthrough];
-  let delays_room = vec![];
-  let reverbs_note: Vec<ReverbParams> = vec![];
-  let reverbs_room: Vec<ReverbParams> = vec![];
-
-  let stem = (
-    melody,
-    soids,
-    expr(arf),
-    get_bp(conf.cps, melody, arf, len_cycles),
-    knob_mods,
-    delays_note,
-    delays_room,
-    reverbs_note,
-    reverbs_room,
-  );
-  Renderable2::Instance(stem)
+    Renderable2::Mix(vec![
+        (1f32/2f32, stemmy(conf, melody, arf)),
+        (1f32/4f32, stemmy(conf, melody, arf)),
+        (1f32/4f32, stemmy(conf, melody, arf)),
+    ])
 }
-// }
+
+/// Generates a set of delay macros for percussion in house music.
+///
+/// # Parameters
+/// - `visibility`: Controls gain level for delay feedback.
+/// - `energy`: Influences delay density and feedback time.
+/// - `presence`: Adjusts delay timing and spatialization.
+///
+/// # Returns
+/// A vector of `DelayParamsMacro` instances.
+fn generate_delay_macros(visibility: Visibility, energy: Energy, presence: Presence) -> Vec<DelayParamsMacro> {
+    let delay_gain = match visibility {
+        Visibility::Hidden => db_to_amp(-18.0),
+        Visibility::Background => db_to_amp(-12.0),
+        Visibility::Foreground => db_to_amp(-9.0),
+        Visibility::Visible => db_to_amp(-6.0),
+    };
+
+    let delay_time = match energy {
+        Energy::Low => vec![0.25, 0.5],
+        Energy::Medium => vec![0.5, 0.75],
+        Energy::High => vec![0.75, 1.0],
+    };
+
+    let pan_spread = match presence {
+        Presence::Staccatto => vec![StereoField::LeftRight(0.8, 0.2)],
+        Presence::Legato => vec![StereoField::Mono],
+        Presence::Tenuto => vec![StereoField::LeftRight(0.5, 0.5)],
+    };
+
+    vec![
+        DelayParamsMacro {
+            gain: [delay_gain, delay_gain + 0.1],
+            dtimes_cycles: delay_time,
+            n_echoes: [3, 5],
+            mix: [0.4, 0.6],
+            pan: pan_spread,
+            mecho: vec![MacroMotion::Forward],
+            mgain: vec![MacroMotion::Constant],
+            mpan: vec![MacroMotion::Constant],
+            mmix: vec![MacroMotion::Constant],
+        },
+    ]
+}

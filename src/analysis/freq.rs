@@ -1,4 +1,4 @@
-use crate::synth::{pi, pi_4};
+use crate::synth::{pi, pi_4, NFf};
 
 /// Interpolates between two frequency values `f1` and `f2` based on time `t` and contour `contour_factor`.
 /// The interpolation is done in the logarithmic domain (base 2) to provide a smooth interpolation
@@ -223,6 +223,82 @@ pub fn apply_resonance(curr_freq: f32, resonance_f: f32, resonance_distance: f32
     attenuation_factor.min(1.0)
   }
 }
+
+/// Applies a second-order Butterworth low-pass filter to the input samples.
+///
+/// # Parameters
+/// - `samples`: A slice of input audio samples (`f32`) to be filtered.
+/// - `sample_rate`: The sample rate of the audio (`u32`), in Hz.
+/// - `cutoff_freq`: The cutoff frequency of the low-pass filter (`f32`), in Hz.
+///
+/// # Returns
+/// A `Vec<f32>` containing the filtered audio samples.
+///
+/// # Description
+/// This function implements a second-order Butterworth low-pass filter. The filter
+/// coefficients are calculated based on the provided `cutoff_freq` and `sample_rate`.
+/// It processes the samples using the Direct Form I implementation, maintaining
+/// state variables for the past two input and output samples.
+///
+/// # Examples
+/// ```
+/// let samples = vec![0.0, 1.0, 0.5, -0.5, -1.0, 0.0];
+/// let sample_rate = 44100;
+/// let cutoff_freq = 200.0;
+/// let filtered_samples = butterworth_lowpass_filter(&samples, sample_rate, cutoff_freq);
+/// println!("{:?}", filtered_samples);
+/// ```
+pub fn butterworth_lowpass_filter(samples: &[f32], sample_rate: u32, cutoff_freq_max: f32) -> Vec<f32> {
+  // Prevent unexpected behavior at the boundary of sample rate
+  let cutoff_freq = cutoff_freq_max.min(NFf - 100f32);
+  // Precompute constants for the filter
+  let omega = 2.0 * std::f32::consts::PI * cutoff_freq / sample_rate as f32;
+  let cos_omega = omega.cos();
+  let sin_omega = omega.sin();
+  let alpha = sin_omega / (2.0 * (1.0 as f32).sqrt());
+
+  // Calculate filter coefficients
+  let b0 = (1.0 - cos_omega) / 2.0;
+  let b1 = 1.0 - cos_omega;
+  let b2 = (1.0 - cos_omega) / 2.0;
+  let a0 = 1.0 + alpha;
+  let a1 = -2.0 * cos_omega;
+  let a2 = 1.0 - alpha;
+
+  // Normalize coefficients
+  let b0 = b0 / a0;
+  let b1 = b1 / a0;
+  let b2 = b2 / a0;
+  let a1 = a1 / a0;
+  let a2 = a2 / a0;
+
+  // Initialize the filtered output buffer
+  let mut filtered_samples = Vec::with_capacity(samples.len());
+
+  // Initialize delay elements
+  let mut x_n1 = 0.0;
+  let mut x_n2 = 0.0;
+  let mut y_n1 = 0.0;
+  let mut y_n2 = 0.0;
+
+  // Process each sample
+  for &sample in samples {
+      // Compute the current output sample
+      let y_n = b0 * sample + b1 * x_n1 + b2 * x_n2 - a1 * y_n1 - a2 * y_n2;
+
+      // Store the computed sample in the output buffer
+      filtered_samples.push(y_n);
+
+      // Update the delay elements
+      x_n2 = x_n1;
+      x_n1 = sample;
+      y_n2 = y_n1;
+      y_n1 = y_n;
+  }
+
+  filtered_samples
+}
+
 
 #[cfg(test)]
 mod filter_unit_test {

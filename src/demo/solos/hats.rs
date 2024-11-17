@@ -60,7 +60,7 @@ fn test_arf() {
   let path: String = location(demo_name);
   let cps: f32 = 2.0;
   let root: f32 = 1.12;
-  let preset = Preset::Hill;
+  let preset = Preset::Mountain;
   files::with_dir(&path);
 
   let arf: Arf = Arf {
@@ -68,7 +68,7 @@ fn test_arf() {
     register: 10,
     role: Role::Hats,
     visibility: Visibility::Visible,
-    energy: Energy::High,
+    energy: Energy::Medium,
     presence: Presence::Tenuto,
   };
 
@@ -133,10 +133,10 @@ fn test_iter() {
   let path: String = location(demo_name);
   let cps: f32 = 2.0;
   let root: f32 = 1.12;
-  let preset = Preset::Hill;
+  let preset = Preset::Mountain;
   files::with_dir(&path);
 
-  let label = "hill_simple_melody";
+  let label = "mountain_simple_melody";
   let melody = hats_melody();
   let arfs = prism::iter_all_vep(&label, Role::Hats, Mode::Enharmonic, &melody);
 

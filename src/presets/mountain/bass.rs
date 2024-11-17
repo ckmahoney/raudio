@@ -4,7 +4,9 @@ use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::types::synthesis::{ModifiersHolder, Soids};
 
 pub fn expr(arf: &Arf, n_samples: usize) -> Expr {
-  let dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
+  let gain = visibility_gain(arf.visibility);
+  let dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility)
+  .iter().map(|v| v * gain).collect();
   (dynamics, vec![1f32], vec![0f32])
 }
 

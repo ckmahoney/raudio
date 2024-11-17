@@ -1,20 +1,5 @@
-pub mod ambien;
-pub mod basic;
-pub mod bird;
-pub mod hill;
-pub mod hop;
-pub mod kuwuku;
-pub mod mountain;
-pub mod urbuntu;
-
-/// Shared values for all presets in this mod
-static contour_resolution: usize = 1200;
-static unit_decay: f32 = 9.210340372;
-
 use rand;
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
-
-/// Shared imports for all presets in this mod
 use crate::analysis::{
   in_range,
   melody::{find_reach, mask_sigh, mask_wah, LevelMacro, Levels, ODRMacro, ODR},
@@ -34,21 +19,45 @@ use crate::phrasing::ranger::{self, Knob, KnobMacro, KnobMods, KnobMods2};
 use crate::render::{Renderable, Renderable2};
 use crate::reverb::convolution::ReverbParams;
 use crate::time;
-use crate::types::render::{Conf, Feel, Melody, Stem, Stem2};
+use crate::types::render::{Conf, Feel, Melody, Stem, Stem2, Stem3};
 use crate::types::synthesis::{
   bp2_unit, BoostGroup, Bp2, Direction, Ely, Freq, ModulationEffect, Note, PhaseModParams,
 };
 use crate::types::synthesis::{BoostGroupMacro, MacroMotion, ModifiersHolder, Soids};
 use crate::types::timbre::{Arf, Energy, Mode, Phrasing, Presence, Role, Sound, Sound2, Visibility};
 use crate::types::{Radian, Range};
+use crate::analysis::sampler::read_audio_file;
 use rand::thread_rng;
+use crate::analysis::delay::{self, DelayParamsMacro, DelayParams, StereoField};
+use std::fs::read_dir;
 
-// user configurable headroom value. defaults to -15Db
-pub const DB_HEADROOM: f32 = -15f32;
+pub mod ambien;
+pub mod basic;
+pub mod bird;
+pub mod hill;
+pub mod hop;
+pub mod kuwuku;
+pub mod mountain;
+pub mod urbuntu;
+
 
 pub type KnobPair = (KnobMacro, fn(&Knob, f32, f32, f32, f32, f32) -> f32);
 
-use crate::analysis::delay::{self, DelayParamsMacro, DelayParams, StereoField};
+
+use std::collections::HashMap;
+/// Base directory for audio samples.
+const SAMPLE_SOURCE_DIR: &str = "audio-samples";
+/// Cache for sample paths to avoid repeated directory scans.
+static SAMPLE_CACHE: Lazy<RwLock<HashMap<String, Vec<String>>>> = Lazy::new(|| {
+  RwLock::new(initialize_sample_cache())
+});
+
+// user configurable headroom value. defaults to -15Db
+pub const DB_HEADROOM: f32 = -8f32;
+
+/// Shared values for all presets in this mod
+static contour_resolution: usize = 1200;
+static unit_decay: f32 = 9.210340372;
 
 pub fn amp_microtransient(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
   (
@@ -67,10 +76,10 @@ pub fn amp_microtransient(visibility: Visibility, energy: Energy, presence: Pres
 pub fn microtransient() -> KnobPair {
   (
     KnobMacro {
-      a: [0.45f32, 0.45f32],
+      a: [0.65f32, 0.65f32],
       b: [0f32, 0f32],
       c: [1f32, 1f32],
-      ma: MacroMotion::Max,
+      ma: MacroMotion::Random,
       mb: MacroMotion::Max,
       mc: MacroMotion::Max,
     },
@@ -78,6 +87,19 @@ pub fn microtransient() -> KnobPair {
   )
 }
 
+pub fn microtransient2() -> KnobPair {
+  (
+    KnobMacro {
+      a: [0.45f32, 0.45f32],
+      b: [0f32, 0f32],
+      c: [1f32, 1f32],
+      ma: MacroMotion::Random,
+      mb: MacroMotion::Max,
+      mc: MacroMotion::Max,
+    },
+    ranger::amod_microbreath_20_100,
+  )
+}
 pub fn grab_variant<T: Copy>(variants: Vec<T>) -> T {
   let mut rng = thread_rng();
   *variants.choose(&mut rng).expect("Vector should not be empty")
@@ -86,11 +108,11 @@ pub fn grab_variant<T: Copy>(variants: Vec<T>) -> T {
 pub fn get_bp<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
   println!("OVerriding bp");
   return bp2_unit();
-  match arf.presence {
-    Presence::Staccatto => bp_wah(cps, mel, arf, len_cycles),
-    Presence::Legato => bp_sighpad(cps, mel, arf, len_cycles),
-    Presence::Tenuto => bp_cresc(cps, mel, arf, len_cycles),
-  }
+  // match arf.presence {
+  //   Presence::Staccatto => bp_wah(cps, mel, arf, len_cycles),
+  //   Presence::Legato => bp_sighpad(cps, mel, arf, len_cycles),
+  //   Presence::Tenuto => bp_cresc(cps, mel, arf, len_cycles),
+  // }
 }
 
 /// Create bandpass automations with respect to Arf and Melody
@@ -339,9 +361,7 @@ pub struct RolePreset<'render> {
 #[derive(Copy, Clone, Debug)]
 pub enum Preset {
   Hill,
-  Valley,
   Mountain,
-  // Add more presets as needed
 }
 
 impl fmt::Display for Preset {
@@ -355,7 +375,6 @@ impl<'render> Preset {
   pub fn get(preset: Preset) -> RolePreset<'render> {
     match preset {
       Preset::Hill => hill::map_role_preset(),
-      Preset::Valley => hill::map_role_preset(),
       Preset::Mountain => mountain::map_role_preset(),
     }
   }
@@ -554,4 +573,74 @@ pub fn visibility_gain(v: Visibility) -> f32 {
     Visibility::Foreground => db_to_amp(-12f32),
     Visibility::Visible => db_to_amp(-6f32),
   }
+}
+
+pub fn visibility_gain_sample(v: Visibility) -> f32 {
+    db_to_amp(-3f32) *  match v {
+    Visibility::Hidden => db_to_amp(-22f32), 
+    Visibility::Background => db_to_amp(-18f32),
+    Visibility::Foreground => db_to_amp(-12f32),
+    Visibility::Visible => db_to_amp(-6f32),
+  }
+}
+
+
+use once_cell::sync::Lazy;
+use std::sync::RwLock;
+/// Retrieves a sample file path based on the given `Arf` configuration.
+///
+/// # Parameters
+/// - `arf`: The amplitude and visibility configuration.
+///
+/// # Returns
+/// A randomly selected file path from the appropriate category.
+pub fn get_sample_path(arf: &Arf) -> String {
+  let key = match arf.role {
+      Role::Hats => match arf.presence {
+          Presence::Staccatto | Presence::Legato => format!("{}/hats/short", SAMPLE_SOURCE_DIR),
+          Presence::Tenuto => format!("{}/hats/long", SAMPLE_SOURCE_DIR),
+      },
+      Role::Kick => format!("{}/kick", SAMPLE_SOURCE_DIR),
+      Role::Perc => format!("{}/perc", SAMPLE_SOURCE_DIR),
+      _ => panic!("No samples provided for role: {}", arf.role),
+  };
+
+  // Access the cache
+  let cache = SAMPLE_CACHE.read().expect("Failed to read SAMPLE_CACHE");
+
+  // Retrieve the list of paths for the category
+  if let Some(paths) = cache.get(&key) {
+      paths
+          .choose(&mut rand::thread_rng())
+          .expect("No samples available in category")
+          .clone()
+  } else {
+      panic!("Role not found in cache: {}", arf.role);
+  }
+}
+
+/// Initializes the sample cache by scanning the audio-sample directories.
+///
+/// # Returns
+/// A `HashMap` where keys are categories (e.g., "kick", "hats-short") and values are vectors of file paths.
+fn initialize_sample_cache() -> HashMap<String, Vec<String>> {
+    let mut cache = HashMap::new();
+
+    let categories = vec![
+        format!("{}/kick", SAMPLE_SOURCE_DIR),
+        format!("{}/perc", SAMPLE_SOURCE_DIR),
+        format!("{}/hats/long", SAMPLE_SOURCE_DIR),
+        format!("{}/hats/short", SAMPLE_SOURCE_DIR),
+    ];
+
+    for category in categories {
+        let paths = read_dir(&category)
+            .expect(&format!("Failed to read directory: {}", category))
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| entry.path().to_str().map(String::from))
+            .collect();
+        cache.insert(category, paths);
+    }
+
+    cache
 }

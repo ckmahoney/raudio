@@ -15,10 +15,10 @@ use crate::phrasing::lifespan::{self};
 use crate::phrasing::ranger::{Knob, KnobMacro, KnobMods, KnobMods2, KnobbedRanger, Ranger};
 use crate::presets::DB_HEADROOM;
 use crate::render;
-use crate::reverb::convolution;
+use crate::reverb::convolution::{self, ReverbParams};
 use crate::synth::{pi, pi2, MFf, NFf, SRf, SampleBuffer, MF, NF, SR};
 use crate::time::{self, samples_per_cycle};
-use crate::types::render::{Conf, Feel, Melody, Span, Stem, Stem2};
+use crate::types::render::{Conf, Feel, Melody, Span, Stem, Stem2, Stem3};
 use crate::types::synthesis::{
   BoostGroup, BoostGroupMacro, Bp, Bp2, Clippers, GlideLen, MacroMotion, Modifiers, ModifiersHolder, Note, Range, Soids,
 };
@@ -37,6 +37,8 @@ pub enum Renderable<'render> {
 pub enum Renderable2<'render> {
   Instance(Stem2<'render>),
   Group(Vec<Stem2<'render>>),
+  Sample(Stem3<'render>),
+  Mix(Vec<(f32, Renderable2<'render>)>)
 }
 
 pub fn rescale(samples: &[f32], original_freq: f32, target_freq: f32) -> Vec<f32> {
@@ -377,8 +379,7 @@ fn channel_with_reso(
         p += durs[i] / len_cycles;
       });
 
-      let mut mixed = overlapping(signal_len, cps, durs, &channel_samples);
-      mixed
+      overlapping(signal_len, cps, durs, &channel_samples)
     })
     .collect();
 
@@ -425,6 +426,9 @@ fn channel_with_reso(
   }
 }
 
+
+
+
 /// Convolution and delay effects may produce a long tail of empty signal.
 /// Remove it.
 pub fn trim_zeros(signal: &mut Vec<f32>) {
@@ -440,6 +444,67 @@ fn find_last_audible_index(vec: &Vec<f32>, thresh: f32) -> Option<usize> {
     }
   }
   None
+}
+
+fn finalize_signal(
+  mut signal: SampleBuffer,
+  delays: &[DelayParams],
+  reverbs: &[ReverbParams],
+  lowpass_cutoff_freq: Option<f32>,
+) -> SampleBuffer {
+  // Apply delays
+  if !delays.is_empty() {
+      signal = delays.iter().fold(signal, |mut sig, delay_params| {
+          let samples_per_echo: usize = time::samples_from_dur(1.0, delay_params.len_seconds);
+          for replica_n in 0..=delay_params.n_echoes.max(1) {
+              for j in 0..sig.len() {
+                  let v = sig[j];
+                  let offset_j = j + samples_per_echo * replica_n;
+                  if offset_j < sig.len() {
+                      let gain = delay::gain(j, replica_n, delay_params);
+                      sig[offset_j] += gain * v;
+                  }
+              }
+          }
+          sig
+      });
+  }
+
+  // Apply reverbs
+  if !reverbs.is_empty() {
+      signal = reverbs.iter().fold(signal, |mut sig, params| {
+          let mut sig = convolution::of(&sig, params);
+          sig
+      });
+  }
+
+  // Apply Butterworth filter (if cutoff frequency is specified)
+  if let Some(cutoff_freq) = lowpass_cutoff_freq {
+      signal = crate::analysis::freq::butterworth_lowpass_filter(&signal, SR as u32, NFf);
+  }
+
+  signal
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_finalize_signal_has_passthrough() {
+        let original_signal: SampleBuffer = vec![0.1, 0.2, 0.3, 0.4, 0.5];
+        let delays: Vec<DelayParams> = vec![];
+        let reverbs: Vec<ReverbParams> = vec![];
+        let lowpass_cutoff_freq: Option<f32> = None;
+
+        let result = finalize_signal(original_signal.clone(), &delays, &reverbs, lowpass_cutoff_freq);
+        assert_eq!(result, original_signal, "Must have a passthrough effect when no settings are applied (None)");
+
+        // Nearly equal so just comment out the test
+        // let lowpass_cutoff_freq: Option<f32> = Some(NFf);
+        // let result = finalize_signal(original_signal.clone(), &delays, &reverbs, lowpass_cutoff_freq);
+        // assert_eq!(result, original_signal, "Must have a passthrough effect when no settings are applied (NFf)");
+    }
 }
 
 /// Given a list of signals whose tails may intend to overlap with the head of the next signal
@@ -619,6 +684,22 @@ pub fn summer<'render>(
   sig
 }
 
+fn apply_delay(buffer: Vec<f32>, delay_params: &DelayParams) -> Vec<f32> {
+  let samples_per_echo = time::samples_from_dur(1.0, delay_params.len_seconds);
+  let mut output = buffer.clone();
+  for replica_n in 0..=delay_params.n_echoes.max(1) {
+      for j in 0..buffer.len() {
+          let offset_j = j + replica_n * samples_per_echo;
+          if offset_j < output.len() {
+              let gain = delay::gain(j, replica_n, delay_params);
+              let sample = buffer[j];
+              output[offset_j] += sample * gain;
+          }
+      }
+  }
+  output
+}
+
 /// Render a signal from contextual and decorative parameters.  
 /// Returns a SampleBuffer representing the moment produced from this request.  
 ///
@@ -704,94 +785,95 @@ pub fn summer_with_reso<'render>(
   // (for lowpass filter)
   const DB_PER_OCTAVE: f32 = 48f32; // vertical compression of energy (instantaneous  compression)
   const DB_DISTANCE: f32 = 1f32; // temporal spread of energy (spread over time)
-
-  // render the sample with the provided effects and context
+  
   for delay_params in delays {
+    // setup position and progress
+    // let inner_p: f32 = j as f32 / sig_samples as f32;
     let samples_per_echo: usize = time::samples_from_dur(1f32, delay_params.len_seconds);
-    for j in 0..sig_samples {
-      // setup position and progress
-      // let inner_p: f32 = j as f32 / sig_samples as f32;
+      for j in 0..sig_samples {
+        // sample the amp, freq, and phase offset envelopes
+        let mut am = resampled_aenv[j];
+        let mut fm = resampled_fenv[j];
+        let mut pm = resampled_penv[j];
+        let hp = bp_slice_highpass[j];
+        let lp = bp_slice_lowpass[j];
 
-      // sample the amp, freq, and phase offset envelopes
-      let mut am = resampled_aenv[j];
-      let mut fm = resampled_fenv[j];
-      let mut pm = resampled_penv[j];
-      let hp = bp_slice_highpass[j];
-      let lp = bp_slice_lowpass[j];
+        let t0: f32 = (j as f32) / SRf;
+        let pos_cycles: f32 = t0;
+        let mut v: f32 = 0f32;
 
-      let t0: f32 = (j as f32) / SRf;
-      let pos_cycles: f32 = t0;
-      let mut v: f32 = 0f32;
+        let amplifiers = &soids.0;
+        let multipliers = &soids.1;
+        let phases = &soids.2;
 
-      let amplifiers = &soids.0;
-      let multipliers = &soids.1;
-      let phases = &soids.2;
-
-      // let pp = p + (inner_p * len_cycles);
-      for (i, &m) in multipliers.iter().enumerate() {
-        let a0 = am * amplifiers[i];
-
-        let a1: f32 = knobsAmp.iter().fold(a0, |acc, (knob, func)| {
-          acc * func(knob, cps, fundamental, m, n_cycles, pos_cycles)
-        });
-        let mut amp = vel * a1;
-
-        let f0: f32 = fm * m * fundamental;
-        let f1: f32 = knobsFreq.iter().fold(f0, |acc, (knob, func)| {
-          acc * func(knob, cps, fundamental, m, n_cycles, pos_cycles)
-        });
-
-        let frequency = f1;
-
-        // pre-filter fast check. These are application-wide hard limits.
-        if frequency > NFf || frequency < MFf {
+        if vel < 0f32 {
           continue;
         }
 
-        for (i, (boost_min, boost_max)) in (&reso_slices).iter().enumerate() {
-          let b_min = boost_min[j];
-          let b_max = boost_max[j];
-          // rolloff and q get applied here. rolloff is given as octaves to fade to attenuation level (gain)
-          let d_octave = (frequency.log2() - b_min.log2()).max(0.0) - (b_max.log2() - frequency.log2()).max(0.0);
+        // let pp = p + (inner_p * len_cycles);
+        for (i, &m) in multipliers.iter().enumerate() {
+          let a0 = am * amplifiers[i];
 
-          let boostgroup: &BoostGroup = &boostgroups[i];
-          let y = d_octave / boostgroup.rolloff;
-          let gain = db_to_amp(y * -boostgroup.att.abs()) * boostgroup.q.powf(y);
-          amp *= gain
-        }
+          let a1: f32 = knobsAmp.iter().fold(a0, |acc, (knob, func)| {
+            acc * func(knob, cps, fundamental, m, n_cycles, pos_cycles)
+          });
+          let mut amp = vel * a1;
 
-        let p0 = pm + frequency * pi2 * pos_cycles;
-        let p1: f32 = knobsPhase.iter().fold(p0, |acc, (knob, func)| {
-          acc + func(knob, cps, fundamental, m, n_cycles, pos_cycles)
-        });
-        let phase = p1;
+          let f0: f32 = fm * m * fundamental;
+          let f1: f32 = knobsFreq.iter().fold(f0, |acc, (knob, func)| {
+            acc * func(knob, cps, fundamental, m, n_cycles, pos_cycles)
+          });
 
-        let final_freq = phase.sin();
+          let frequency = f1;
 
-        amp *= apply_filter(frequency, hp, lp, DB_PER_OCTAVE, DB_DISTANCE);
+          // pre-filter fast check. These are application-wide hard limits.
+          if frequency > NFf || frequency < MFf {
+            continue;
+          }
 
-        v += amp * final_freq;
+          for (i, (boost_min, boost_max)) in (&reso_slices).iter().enumerate() {
+            let b_min = boost_min[j];
+            let b_max = boost_max[j];
+            // rolloff and q get applied here. rolloff is given as octaves to fade to attenuation level (gain)
+            let d_octave = (frequency.log2() - b_min.log2()).max(0.0) - (b_max.log2() - frequency.log2()).max(0.0);
+
+            let boostgroup: &BoostGroup = &boostgroups[i];
+            let y = d_octave / boostgroup.rolloff;
+            let gain = db_to_amp(y * -boostgroup.att.abs()) * boostgroup.q.powf(y);
+            amp *= gain
+          }
+
+          let p0 = pm + frequency * pi2 * pos_cycles;
+          let p1: f32 = knobsPhase.iter().fold(p0, |acc, (knob, func)| {
+            acc + func(knob, cps, fundamental, m, n_cycles, pos_cycles)
+          });
+          let phase = p1;
+
+          let final_freq = phase.sin();
+
+          amp *= apply_filter(frequency, hp, lp, DB_PER_OCTAVE, DB_DISTANCE);
+
+          v += amp * final_freq;
       }
 
       for replica_n in 0..=(delay_params.n_echoes.max(1)) {
         let offset_j = samples_per_echo * replica_n;
         let gain = delay::gain(j, replica_n, delay_params);
-        let clip_thresh = 1f32;
-        let gate_thresh = 0f32;
+        if gain < 0f32 {
+          continue;
+        }
 
         // apply gating and clipping
-        if gain * v.abs() > clip_thresh {
-          sig[j + offset_j] += gain * v.signum() * (clip_thresh);
-        } else if gain * v.abs() >= gate_thresh {
-          sig[j + offset_j] += gain * v;
+        if gain * v.abs() > 1f32 {
+          sig[j + offset_j] += gain * v.signum();
         } else {
-          // don't mix this too-quiet sample!
-        }
+          sig[j + offset_j] += gain * v;
+        } 
       }
 
-      // post-gen filter:
-      // apply global headroom scaling
-      sig[j] *= headroom_factor;
+        // post-gen filter:
+        sig[j] *= headroom_factor;
+        // apply global headroom scaling
     }
   }
   sig
@@ -870,7 +952,9 @@ use rayon::ThreadPoolBuilder;
 /// Generate the signals and apply reverberation. Return the new signal.
 /// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
 pub fn combiner_with_reso<'render>(
-  conf: &Conf, renderables: &Vec<Renderable2<'render>>, reverbs: &Vec<convolution::ReverbParams>,
+  conf: &Conf,
+  renderables: &Vec<Renderable2<'render>>,
+  reverbs: &Vec<convolution::ReverbParams>,
   keep_stems: Option<&str>,
 ) -> SampleBuffer {
   // Initialize a global Rayon thread pool with a max of 4 threads
@@ -878,60 +962,208 @@ pub fn combiner_with_reso<'render>(
 
   // Collect channels by processing each renderable in parallel
   let mut channels: Vec<SampleBuffer> = renderables
-    .par_iter()
-    .enumerate()
-    .map(|(j, renderable)| {
-      let ch = match renderable {
-        Renderable2::Instance(stem) => {
-          // Process a single stem
-          vec![channel_with_reso(conf, stem)]
-        }
-        Renderable2::Group(stems) => {
-          // Process each stem in the group
-          stems.par_iter().map(|stem| channel_with_reso(conf, stem)).collect::<Vec<_>>()
-        }
-      };
-      if let Some(stem_dir) = keep_stems {
-        // Keep the substems
-        ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
-          let filename = format!("{}/part-{}-twig-{}.wav", stem_dir, j, stem_num);
-          render::engrave::samples(SR, &channel_samples, &filename);
-        });
-      }
-      let rendered_channel = pad_and_mix_buffers(ch);
+      .par_iter()
+      .enumerate()
+      .map(|(j, renderable)| {
+          let ch = match renderable {
+              Renderable2::Instance(stem) => {
+                  // Process a single stem
+                  vec![channel_with_reso(conf, stem)]
+              }
+              Renderable2::Group(stems) => {
+                  // Process each stem in the group
+                  stems
+                      .par_iter()
+                      .map(|stem| channel_with_reso(conf, stem))
+                      .collect::<Vec<_>>()
+              }
+              Renderable2::Sample(stem) => {
+                vec![channel_with_samples(conf, stem)]
+              } 
+              
+              Renderable2::Mix(weighted_stems) => {
+                weighted_stems.iter().map(|(mul, renderable2)| {
+                  combiner_with_reso(&conf, &vec![renderable2.to_owned()], &vec![], None)
+                  .iter()
+                  .map(|v| mul * v)
+                  .collect()
+                }).collect()
+              }
+          };
 
-      match rendered_channel {
-        Ok(signal) => signal,
-        Err(msg) => panic!("Unexpected error while mixing channels {}", msg),
-      }
-    })
-    .collect();
+          if let Some(stem_dir) = keep_stems {
+              // Keep the substems
+              ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+                  let filename = format!("{}/part-{}-twig-{}.wav", stem_dir, j, stem_num);
+                  if channel_samples.is_empty() {
+                      eprintln!("Warning: Channel samples are empty for stem {}-{}", j, stem_num);
+                  }
+                  render::engrave::samples(SR, &channel_samples, &filename);
+              });
+          }
+
+          let rendered_channel = pad_and_mix_buffers(ch);
+
+          match rendered_channel {
+              Ok(signal) => signal,
+              Err(msg) => panic!("Unexpected error while mixing channels: {}", msg),
+          }
+      })
+      .collect();
 
   // Optionally save stems if `keep_stems` is provided
   if let Some(stem_dir) = keep_stems {
-    channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
-      let filename = format!("{}/stem-{}.wav", stem_dir, stem_num);
-      render::engrave::samples(SR, &channel_samples, &filename);
-    });
+      channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+          let filename = format!("{}/stem-{}.wav", stem_dir, stem_num);
+          render::engrave::samples(SR, &channel_samples, &filename);
+      });
   }
 
   // Pad and mix the collected channels into a final signal
   match pad_and_mix_buffers(channels) {
-    Ok(signal) => {
-      // Apply reverbs if provided
-      if reverbs.is_empty() {
-        signal
-      } else {
-        reverbs.iter().fold(signal, |sig, params| {
-          let mut sig = convolution::of(&sig, &params);
-          trim_zeros(&mut sig);
-          sig
-        })
+      Ok(signal) => {
+          // Apply reverbs if provided
+          if reverbs.is_empty() {
+              signal
+          } else {
+              reverbs.iter().fold(signal, |sig, params| {
+                  let mut sig = convolution::of(&sig, &params);
+                  trim_zeros(&mut sig);
+                  sig
+              })
+          }
       }
-    }
-    Err(msg) => panic!("Failed to mix and render audio: {}", msg),
+      Err(msg) => panic!("Failed to mix and render audio: {}", msg),
   }
 }
+
+/// Render a channel from sample-based input, applying the necessary effects
+#[inline]
+fn channel_with_samples(
+    conf: &Conf,
+    (melody, ref_samples, amp_expr, lowpass_cutoff_freq, delays1, delays2, reverbs1, reverbs2): &Stem3,
+) -> SampleBuffer {
+    let Conf { cps, root } = *conf;
+
+    let line_buffs: Vec<SampleBuffer> = melody
+        .iter()
+        .map(|line| {
+            let len_cycles = time::count_cycles(line);
+            let append_delay = time::samples_of_dur(1.0, longest_delay_length(delays1));
+            let append_reverb = time::samples_of_dur(1.0, longest_reverb_length(reverbs1));
+
+            let signal_len = time::samples_of_cycles(cps, len_cycles) + append_delay + append_reverb;
+            let durs: Vec<f32> = line.iter().map(|(d, _, _)| time::duration_to_cycles(*d)).collect();
+
+            let mut p: f32 = 0.0;
+            let mut line_signal = vec![0.0; signal_len];
+            let mut accumulated_offset: usize = 0; // Track the accumulated offset
+            
+            // Process each note in the line
+            line.iter().enumerate().for_each(|(i, (_, tone, amp))| {
+                let freq = root * tone_to_freq(tone);
+
+                // Render the sample for the current note
+                let moment = render_sample(
+                    p, len_cycles, cps, root, *amp, freq, durs[i],
+                    ref_samples, amp_expr, *lowpass_cutoff_freq,
+                );
+
+                // Apply effects (delays, reverbs) to the sample
+                let mut wet = finalize_signal(moment, delays1, reverbs1, Some(NFf));
+
+                // Add the processed sample to the line buffer
+                add_to_buffer(&mut line_signal, wet, accumulated_offset);
+
+                // Update the accumulated offset for the next note
+                accumulated_offset += time::samples_of_dur(cps, durs[i]);
+
+                // Update position in the line
+                p += durs[i] / len_cycles;
+            });
+
+            line_signal
+        })
+        .collect();
+
+    match pad_and_mix_buffers(line_buffs) {
+        Ok(mixed) => finalize_signal(mixed, delays2, reverbs2, Some(*lowpass_cutoff_freq)),
+        Err(msg) => panic!("Failed to render and mix line buffers: {}", msg),
+    }
+}
+
+/// Render a single sample using the given parameters and reference samples
+/// ## Arguments
+///     `p` Position in the phrase in [0, 1] as defined by render context
+///     `len_cycles` The duration of the phrase this note event lives in
+///     `cps` Cycles Per Second, The sample rate scaling factor (aka playback rate or BPM)
+///     `root` The fundamental frequency of the composition in [1, 2]
+///     `vel` Velocity, a constant scalar for output amplitude
+///     `fundamental` The fundamental frequency of the note event in [MFf, NFf]
+///     `n_cycles` The length in cycles of the note event
+///     `amp_expr` Note-length tuple of ADSR envelopes to apply to amplitude
+///     `delays` Stack of delay effects to apply to output sample
+#[inline]
+fn render_sample(
+  p: f32,
+  len_cycles: f32,
+  cps: f32,
+  root: f32,
+  vel: f32,
+  fundamental: f32,
+  n_cycles: f32,
+  ref_samples: &SampleBuffer,
+  amp_expr: &Vec<Range>,
+  lowpass_cutoff_freq: f32,
+) -> SampleBuffer {
+  // Calculate the duration of the note in seconds
+  let duration = n_cycles / cps;
+
+  // Calculate the desired length of the signal in samples
+  let signal_len = time::samples_of_cycles(cps, n_cycles);
+  let mut signal = vec![0.0; signal_len];
+
+  // Calculate the playback rate for pitch modulation
+  let playback_rate = crate::analysis::fit(0.66f32, root);
+
+  // Resample the amplitude envelope to match the signal length
+  let end_p: f32 = p + (n_cycles / len_cycles);
+  let resampled_aenv = slice_signal(amp_expr, p, end_p, signal_len);
+  let headroom_factor: f32 = db_to_amp(DB_HEADROOM); // would be good to lazy::static this
+
+
+  // Iterate through the output signal
+  for i in 0..signal_len {
+      // Calculate the corresponding index in the reference sample buffer
+      let sample_index = ((i as f32 * playback_rate) as usize).min(ref_samples.len() - 1);
+
+      // Apply the resampled amplitude envelope
+      signal[i] = ref_samples[sample_index] * resampled_aenv[i] * headroom_factor;
+  }
+
+  // If the signal length is less than requested duration, pad with zeros
+  if ref_samples.len() < signal_len {
+      signal.resize(signal_len, 0.0);
+  }
+
+  // Apply a lowpass filter to the signal
+  crate::analysis::freq::butterworth_lowpass_filter(&mut signal, SR as u32, lowpass_cutoff_freq);
+
+  signal
+}
+
+
+
+/// Add a buffer into another, starting at a specified offset
+#[inline]
+fn add_to_buffer(target: &mut SampleBuffer, source: SampleBuffer, offset: usize) {
+    for (i, &sample) in source.iter().enumerate() {
+        if i + offset < target.len() {
+            target[i + offset] += sample;
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod test {

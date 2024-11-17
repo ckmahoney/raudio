@@ -10,17 +10,27 @@ pub const epi: f32 = pi * std::f32::consts::E;
 
 pub use crate::types::synthesis::{RangeBuffer, SampleBuffer};
 
-// Set the sample rate for the application
 pub const SR: usize = 48000;
+pub const SRi: i32 = SR as i32;
 pub const SRf: f32 = SR as f32;
+pub const SRu: u32 = SR as u32;
 
 // Nyquist Frequency: Maximum renderable frequency
 pub const NF: usize = SR / 2;
+pub const NFi: i32 = NF as i32;
+pub const NFu: u32 = NF as u32;
 pub const NFf: f32 = SR as f32 / 2f32;
 
 // Minimum Frequency: Minimum supported application frequency
 pub const MF: usize = 24;
-pub const MFf: f32 = 24f32;
+pub const MFi: i32 = MF as i32;
+pub const MFu: u32 = MF as u32;
+pub const MFf: f32 = MF as f32;
+
+// Aliases for Time Domain
+pub const SECONDS_PER_SAMPLE: f32 = 1.0 / SRf; // Time duration of a single sample
+pub const SAMPLES_PER_MILLISECOND: f32 = SRf / 1000.0; // Number of samples in a millisecond
+pub const SAMPLES_PER_SECOND: f32 = SRf; // Alias for samples per second
 
 pub const MAX_REGISTER: i32 = 13;
 pub const MIN_REGISTER: i32 = 4;

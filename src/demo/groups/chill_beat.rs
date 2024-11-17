@@ -9,12 +9,13 @@ use crate::analysis::volume::db_to_amp;
 use crate::presets::Instrument;
 use crate::render::{self, Renderable};
 use crate::reverb;
+use crate::time;
 use crate::types::render::{Feel, Melody, Stem};
 use crate::types::synthesis::{
   Ampl, Bandpass, Direction, Duration, Ely, FilterPoint, Freq, Frex, GlideLen, Monae, Mote, Note, Register, Soids, Tone,
 };
 
-use presets::hop::{hats, kick, perc};
+use presets::mountain::{hats, kick, perc};
 use rand::thread_rng;
 
 fn kick_melody() -> Melody<Note> {
@@ -114,7 +115,7 @@ fn perc_melody() -> Melody<Note> {
 fn kick_arf(p: Presence) -> Arf {
   Arf {
     mode: Mode::Enharmonic,
-    role: Role::Perc,
+    role: Role::Kick,
     register: 5,
     visibility: Visibility::Visible,
     energy: Energy::Medium,
@@ -153,6 +154,10 @@ fn demonstrate() {
   let cps: f32 = 1.2;
   let cps: f32 = 3.1;
   let root: f32 = 1.9;
+  let conf = Conf {
+    cps,
+    root
+  };
 
   let delays: Vec<DelayParams> = vec![delay::passthrough];
 
@@ -160,21 +165,25 @@ fn demonstrate() {
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
 
-  let stem_hats1 = hats::renderable(cps, &hats_melody, &hats_arf(Presence::Staccatto));
-  let stem_hats2 = hats::renderable(cps, &hats_melody, &hats_arf(Presence::Legato));
-  let stem_hats3 = hats::renderable(cps, &hats_melody, &hats_arf(Presence::Tenuto));
-  let stem_perc1 = perc::renderable(cps, &perc_melody, &perc_arf(Presence::Staccatto));
-  let stem_perc2 = perc::renderable(cps, &perc_melody, &perc_arf(Presence::Legato));
-  let stem_perc3 = perc::renderable(cps, &perc_melody, &perc_arf(Presence::Tenuto));
-  let stem_kick1 = kick::renderable(cps, &kick_mel, &kick_arf(Presence::Staccatto));
-  let stem_kick2 = kick::renderable(cps, &kick_mel, &kick_arf(Presence::Legato));
-  let stem_kick3 = kick::renderable(cps, &kick_mel, &kick_arf(Presence::Tenuto));
+  let stem_hats1 = hats::renderable(&conf, &hats_melody, &hats_arf(Presence::Staccatto));
+  let stem_hats2 = hats::renderable(&conf, &hats_melody, &hats_arf(Presence::Legato));
+  let stem_hats3 = hats::renderable(&conf, &hats_melody, &hats_arf(Presence::Tenuto));
+  let stem_perc1 = perc::renderable(&conf, &perc_melody, &perc_arf(Presence::Staccatto));
+  let stem_perc2 = perc::renderable(&conf, &perc_melody, &perc_arf(Presence::Legato));
+  let stem_perc3 = perc::renderable(&conf, &perc_melody, &perc_arf(Presence::Tenuto));
+  let stem_kick1 = kick::renderable(&conf, &kick_mel, &kick_arf(Presence::Staccatto));
+  let stem_kick2 = kick::renderable(&conf, &kick_mel, &kick_arf(Presence::Legato));
+  let stem_kick3 = kick::renderable(&conf, &kick_mel, &kick_arf(Presence::Tenuto));
 
   use Renderable2::{Group, Instance};
   let renderables: Vec<Renderable2> = vec![
-    stem_kick1, stem_kick2, stem_kick3, stem_perc1, stem_perc2,
-    stem_perc3,
-    // stem_hats1,
+    stem_kick1, 
+    // stem_kick2, 
+    // stem_kick3, 
+    stem_perc1, 
+    // stem_perc2,
+    // stem_perc3,
+    stem_hats1,
     // stem_hats2,
     // stem_hats3,
   ];
@@ -206,9 +215,14 @@ fn samp(cps: f32, root: f32) -> SampleBuffer {
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
 
-  let stem_hats = hats::renderable(cps, &hats_melody, &hats_arf(Presence::Legato));
-  let stem_perc = perc::renderable(cps, &perc_melody, &perc_arf(Presence::Staccatto));
-  let stem_kick = kick::renderable(cps, &kick_mel, &kick_arf(Presence::Tenuto));
+  let len_cycles = time::count_cycles(&hats_melody[0]);
+  let len_seconds = len_cycles / cps;
+
+  let conf:Conf = Conf { cps, root};
+
+  let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf(Presence::Legato));
+  let stem_perc = perc::renderable(&conf, &perc_melody, &perc_arf(Presence::Staccatto));
+  let stem_kick = kick::renderable(&conf, &kick_mel, &kick_arf(Presence::Tenuto));
 
   use Renderable::{Group, Instance};
   let renderables: Vec<Renderable2> = vec![stem_kick, stem_perc, stem_hats];
@@ -217,7 +231,10 @@ fn samp(cps: f32, root: f32) -> SampleBuffer {
   use crate::Distance;
 
   let complexity: f32 = rng.gen::<f32>();
-  let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
+  let group_reverbs = vec![
+    // crate::inp::arg_xform::reverb_params(&mut rng, len_seconds, cps, &Distance::Near, &Enclosure::Spring, complexity)
+  ];
+  // let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Spring, complexity);
 
   render::combiner_with_reso(&Conf { cps, root }, &renderables, &group_reverbs, None)
 }
