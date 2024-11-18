@@ -263,20 +263,10 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let delays_room = vec![];
 
   let reverbs_note: Vec<ReverbParams> = vec![
-      ReverbParams {
-          mix: 0.01f32,
-          amp: 0.3f32,
-          dur: 0.005f32,
-          rate: 0.8f32
-      }
+    
   ];
   let reverbs_room: Vec<ReverbParams> = vec![
-      // ReverbParams {
-      //     mix: 1f32,
-      //     amp: 1f32,
-      //     dur: 32f32,
-      //     rate: 1f32
-      // }
+    
   ];
 
 

@@ -1005,7 +1005,9 @@ pub fn combiner_with_reso<'render>(
           let rendered_channel = pad_and_mix_buffers(ch);
 
           match rendered_channel {
-              Ok(signal) => signal,
+              Ok(signal) => {
+                signal
+              },
               Err(msg) => panic!("Unexpected error while mixing channels: {}", msg),
           }
       })
@@ -1027,6 +1029,100 @@ pub fn combiner_with_reso<'render>(
               signal
           } else {
               reverbs.iter().fold(signal, |sig, params| {
+                  let mut sig = convolution::of(&sig, &params);
+                  trim_zeros(&mut sig);
+                  sig
+              })
+          }
+      }
+      Err(msg) => panic!("Failed to mix and render audio: {}", msg),
+  }
+}
+
+
+
+/// Given a list of renderables (either instances or groups) and how to represent them in space,
+/// Generate the signals and apply reverberation. Return the new signal.
+/// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
+pub fn combiner_with_reso2<'render>(
+  conf: &Conf,
+  renderables: &Vec<Renderable2<'render>>,
+  stem_reverbs: &Vec<convolution::ReverbParams>,
+  group_reverbs: &Vec<convolution::ReverbParams>,
+  keep_stems: Option<&str>,
+) -> SampleBuffer {
+  // Initialize a global Rayon thread pool with a max of 4 threads
+  let _ = ThreadPoolBuilder::new().num_threads(4).build_global();
+
+  // Collect channels by processing each renderable in parallel
+  let mut channels: Vec<SampleBuffer> = renderables
+      .par_iter()
+      .enumerate()
+      .map(|(j, renderable)| {
+          let ch = match renderable {
+              Renderable2::Instance(stem) => {
+                  // Process a single stem
+                  vec![channel_with_reso(conf, stem)]
+              }
+              Renderable2::Group(stems) => {
+                  // Process each stem in the group
+                  stems
+                      .par_iter()
+                      .map(|stem| channel_with_reso(conf, stem))
+                      .collect::<Vec<_>>()
+              }
+              Renderable2::Sample(stem) => {
+                vec![channel_with_samples(conf, stem)]
+              } 
+              
+              Renderable2::Mix(weighted_stems) => {
+                weighted_stems.iter().map(|(mul, renderable2)| {
+                  combiner_with_reso(&conf, &vec![renderable2.to_owned()], &vec![], None)
+                  .iter()
+                  .map(|v| mul * v)
+                  .collect()
+                }).collect()
+              }
+          };
+
+          if let Some(stem_dir) = keep_stems {
+              // Keep the substems
+              ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+                  let filename = format!("{}/part-{}-twig-{}.wav", stem_dir, j, stem_num);
+                  if channel_samples.is_empty() {
+                      eprintln!("Warning: Channel samples are empty for stem {}-{}", j, stem_num);
+                  }
+                  render::engrave::samples(SR, &channel_samples, &filename);
+              });
+          }
+
+          let rendered_channel = pad_and_mix_buffers(ch);
+
+          match rendered_channel {
+              Ok(signal) => {
+                convolution::of(&signal, &stem_reverbs[j])
+              },
+              Err(msg) => panic!("Unexpected error while mixing channels: {}", msg),
+          }
+      })
+      .collect();
+
+  // Optionally save stems if `keep_stems` is provided
+  if let Some(stem_dir) = keep_stems {
+      channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
+          let filename = format!("{}/stem-{}.wav", stem_dir, stem_num);
+          render::engrave::samples(SR, &channel_samples, &filename);
+      });
+  }
+
+  // Pad and mix the collected channels into a final signal
+  match pad_and_mix_buffers(channels) {
+      Ok(signal) => {
+          // Apply reverbs if provided
+          if group_reverbs.is_empty() {
+              signal
+          } else {
+            group_reverbs.iter().fold(signal, |sig, params| {
                   let mut sig = convolution::of(&sig, &params);
                   trim_zeros(&mut sig);
                   sig

@@ -28,20 +28,10 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
         let delays_note = vec![];
         let delays_room = vec![];
         let reverbs_note = vec![
-            ReverbParams {
-                mix: in_range(&mut rng, 0.05, 0.12), 
-                amp: in_range(&mut rng, db_to_amp(-45.0), db_to_amp(-32.0)),
-                dur: in_range(&mut rng, 0.005, 0.1), 
-                rate: in_range(&mut rng, 0.4, 0.8),
-            }
+            
         ];
         let reverbs_room = vec![
-            ReverbParams {
-                mix: in_range(&mut rng, 0.01, 0.05), 
-                amp: in_range(&mut rng, db_to_amp(-50.0), db_to_amp(-45.0)),
-                dur: in_range(&mut rng, 0.05, 0.1), 
-                rate: in_range(&mut rng, 0.05, 0.1),
-            }
+            
         ];
 
     // Configure lowpass cutoff frequency based on energy level

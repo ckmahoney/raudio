@@ -36,12 +36,9 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
             .collect();
 
         // Manually define reverb parameters for the percussion stem
-        reverbs_room = vec![ReverbParams {
-            mix: in_range(&mut rng, 0.005, 0.01),
-            amp: in_range(&mut rng, db_to_amp(-45.0), db_to_amp(-30.0)), // Impulse amplitude
-            dur: in_range(&mut rng, 0.1, 0.5),
-            rate: in_range(&mut rng, 0.01, 0.05),
-        }];
+        reverbs_room = vec![
+            
+        ];
     }
 
     // Set lowpass cutoff frequency based on energy level
