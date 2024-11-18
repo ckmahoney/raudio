@@ -8,7 +8,7 @@
 
 use std::env;
 use std::process;
-
+use reverb::convolution::ReverbParams;
 use rand::{self, rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 
 use crate::render::{Renderable, Renderable2};
@@ -121,6 +121,7 @@ pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_s
   let mut pre_mix_buffs: Vec<synth::SampleBuffer> = Vec::new();
   let mut rng: ThreadRng = rand::thread_rng();
   let mut stems: Vec<Renderable2> = Vec::with_capacity(score.parts.len());
+  let mut room_reverbs: Vec<ReverbParams> = Vec::with_capacity(score.parts.len());
   let mut i = 0;
   for (client_positioning, arf, melody) in &score.parts {
     let delays = inp::arg_xform::gen_delays(
@@ -129,13 +130,20 @@ pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_s
       &client_positioning.echo,
       complexity(&arf.visibility, &arf.energy, &arf.presence),
     );
+    let len_cycles = time::count_cycles(&melody[0]);
+    let len_seconds = len_cycles / score.conf.cps;
+    let convolution_layer = inp::arg_xform::gen_convolution(
+      &mut rng, 
+      arf, 
+      len_seconds, score.conf.cps, &client_positioning.distance, &client_positioning.enclosure
+    );
     let stem = Preset::create_stem(&score.conf, melody, arf, Preset::Mountain);
     i = i + 1;
     stems.push(stem)
   }
-  let verb_complexity: f32 = rng.gen::<f32>() / 10f32;
+  let verb_complexity: f32 = rng.gen::<f32>();
   let len_seconds: f32 = score_duration_seconds(&score);
-  let group_reverb: Vec<reverb::convolution::ReverbParams> = vec![inp::arg_xform::reverb_params(
+  let group_reverb: Vec<ReverbParams> = vec![inp::arg_xform::reverb_params(
     &mut rng,
     len_seconds,
     score.conf.cps,
@@ -144,7 +152,7 @@ pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_s
     verb_complexity,
   )];
   let keeps = if keep_stems { Some(out_dir) } else { None };
-  // let keeps = None;
+  let keeps = None;
   let signal = render::combiner_with_reso(&score.conf, &stems, &group_reverb, keeps);
   render::engrave::samples(crate::synth::SR, &signal, &mixdown_name);
   mixdown_name
