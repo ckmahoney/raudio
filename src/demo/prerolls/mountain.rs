@@ -237,7 +237,7 @@ fn chords_arf() -> Arf {
     mode: Mode::Melodic,
     role: Role::Chords,
     register: 8,
-    visibility: Visibility::Visible,
+    visibility: Visibility::Foreground,
     energy: Energy::Medium,
     presence: Presence::Tenuto,
   }
@@ -246,7 +246,7 @@ fn chords_arf() -> Arf {
 fn kick_arf() -> Arf {
   Arf {
     mode: Mode::Enharmonic,
-    role: Role::Perc,
+    role: Role::Kick,
     register: 5,
     visibility: Visibility::Visible,
     energy: Energy::Medium,
@@ -259,7 +259,7 @@ fn perc_arf() -> Arf {
     mode: Mode::Enharmonic,
     role: Role::Perc,
     register: 7,
-    visibility: Visibility::Visible,
+    visibility: Visibility::Foreground,
     energy: Energy::Low,
     presence: Presence::Staccatto,
   }
@@ -327,7 +327,12 @@ fn demonstrate() {
   use crate::Distance;
 
   let complexity: f32 = rng.gen::<f32>();
-  let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
+  let complexity: f32 = 1f32;
+  let len_cycles = time::count_cycles(&hats_melody[0]);
+  let len_seconds = len_cycles / cps;
+  let group_reverbs = vec![
+    crate::inp::arg_xform::reverb_params(&mut rng, len_seconds,  cps, &Distance::Near, &Enclosure::Hall, complexity)
+  ];
   let keep_stems = Some(path.as_str());
 
   let mix = render::combiner_with_reso(&conf, &renderables, &group_reverbs, keep_stems);
