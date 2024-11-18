@@ -5,8 +5,8 @@ use crate::types::synthesis::{ModifiersHolder, Soids};
 
 pub fn expr(arf: &Arf, n_samples: usize) -> Expr {
   let gain = visibility_gain(arf.visibility);
-  let dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility)
-  .iter().map(|v| v * gain).collect();
+  let mut dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
+  amp_scale(&mut dynamics, gain);
   (dynamics, vec![1f32], vec![0f32])
 }
 
@@ -153,7 +153,7 @@ fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
       c: [0.0, 0.0],
       ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
       mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
-      mc: MacroMotion::Random,
+      mc: MacroMotion::Constant,
     },
     ranger::amod_burp,
   )
@@ -170,8 +170,8 @@ fn amp_knob_attenuation(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
       b: [1f32, 1f32], // Static value as [1, 1]
       c: [0.0, 0.0],   // Static value as [0, 0]
       ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
+      mb: MacroMotion::Constant,
+      mc: MacroMotion::Constant,
     },
     ranger::amod_detune,
   )

@@ -112,14 +112,12 @@ fn amp_knob_presence(visibility: Visibility, energy: Energy, presence: Presence)
 
   return (
     KnobMacro {
-      // a: decay_length,
-      a: [1f32, 1f32],
+      a: decay_length,
       b: [0f32, 0f32],
       c: [0.2f32, 1f32],
-      ma: MacroMotion::Forward,
-      // ma: grab_variant(vec![MacroMotion::Forward,MacroMotion::Reverse, MacroMotion::Constant]),
-      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
-      mc: MacroMotion::Forward,
+      ma: grab_variant(vec![MacroMotion::Forward,MacroMotion::Reverse, MacroMotion::Constant]),
+      mb: MacroMotion::Constant, // unused
+      mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
     },
     ranger::amod_fall,
   );
@@ -129,10 +127,10 @@ fn pmod_chorus(v: Visibility, e: Energy, p: Presence) -> KnobPair {
   let mut rng = thread_rng();
 
   let modulation_depth = match v {
-    Visibility::Hidden => [0.33f32, 0.33f32],
-    Visibility::Background => [0.5, 0.5],
-    Visibility::Foreground => [0.75, 0.75],
-    Visibility::Visible => [1f32, 1f32],
+    Visibility::Hidden => [0f32, 0.33f32],
+    Visibility::Background => [0.33, 0.5],
+    Visibility::Foreground => [0.5, 0.75],
+    Visibility::Visible => [0.75f32, 1f32],
   };
 
   let chorus_visibility = match v {
@@ -151,9 +149,9 @@ fn pmod_chorus(v: Visibility, e: Energy, p: Presence) -> KnobPair {
       a: chorus_visibility,
       b: modulation_depth,
       c: intensity,
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
+      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
+      mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
     },
     ranger::pmod_chorus2,
   )
@@ -252,7 +250,8 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   knob_mods.2.push(pmod_chorus(arf.visibility, arf.energy, arf.presence));
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 
-  let dynamics = dynamics::gen_organic_amplitude(100, n_samples, arf.visibility);
+  let mut dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
+  amp_scale(&mut dynamics, visibility_gain(arf.visibility));
 
   let expr = (dynamics, vec![1f32], vec![0f32]);
   let mut rng = thread_rng();
@@ -265,8 +264,8 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
   let reverbs_note: Vec<ReverbParams> = vec![
       ReverbParams {
-          mix: 0.05f32,
-          amp: 0.8f32,
+          mix: 0.01f32,
+          amp: 0.3f32,
           dur: 0.005f32,
           rate: 0.8f32
       }
@@ -293,5 +292,5 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     reverbs_room,
   );
 
-  Renderable2::Group(vec![stem])
+  Renderable2::Instance(stem)
 }

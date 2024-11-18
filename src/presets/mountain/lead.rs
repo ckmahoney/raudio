@@ -82,8 +82,43 @@ fn generate_lead_delay_macros(visibility: Visibility, energy: Energy, presence: 
 
 
 
+fn pmod_chorus(v: Visibility, e: Energy, p: Presence) -> KnobPair {
+  let mut rng = thread_rng();
 
-fn amp_knob(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
+  let modulation_depth = match v {
+    Visibility::Hidden => [0f32, 0.33f32],
+    Visibility::Background => [0.33, 0.5],
+    Visibility::Foreground => [0.5, 0.75],
+    Visibility::Visible => [0.75f32, 1f32],
+  };
+
+  let chorus_visibility = match v {
+    Visibility::Hidden => [0f32, 0f32],
+    Visibility::Background => [0.1, 0.1 + 0.5 * rng.gen::<f32>()],
+    Visibility::Foreground => [0.6, 0.6 + 0.2 * rng.gen::<f32>()],
+    Visibility::Visible => [0.8, 0.8 + 0.1 * rng.gen::<f32>()],
+  };
+
+  let chorus_visibility = [0.5f32, 1f32];
+  let modulation_depth = [0.1f32, 1f32];
+  let intensity = [0.5 * 1f32 / 3f32, 0.5 * 1f32 / 3f32];
+
+  (
+    KnobMacro {
+      a: chorus_visibility,
+      b: modulation_depth,
+      c: intensity,
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
+      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
+      mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
+    },
+    ranger::pmod_chorus2,
+  )
+}
+
+
+
+fn amp_knob_pluck(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
   let mut rng = thread_rng();
 
   let amp_decay = match energy {
@@ -103,13 +138,49 @@ fn amp_knob(visibility: Visibility, energy: Energy, presence: Presence) -> KnobP
       a: amp_decay,
       b: energy_decay,
       c: [0f32, 0f32],
-      // ma: grab_variant(vec![MacroMotion::Forward,MacroMotion::Reverse]),
-      ma: MacroMotion::Max,
-      mb: MacroMotion::Max,
-      mc: MacroMotion::Random,
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
+      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
+      mc: MacroMotion::Constant,
     },
     ranger::amod_pluck2,
   )
+}
+
+
+fn amp_knob_burp(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
+  let mut rng = thread_rng();
+
+  let amp_decay = match visibility {
+    Visibility::Visible => [0.5f32, 0.5 + 0.5 * rng.gen::<f32>()],
+    Visibility::Foreground => [0.3f32, 0.3 + 0.5 * rng.gen::<f32>()],
+    Visibility::Background => [0.2f32, 0.2 + rng.gen::<f32>() / 3f32],
+    Visibility::Hidden => [0f32, rng.gen::<f32>() / 3f32],
+  };
+
+  let energy_decay = match energy {
+    Energy::Low => [0.5f32, 0.5 + 0.5 * rng.gen::<f32>()],
+    Energy::Medium => [0.3f32, 0.3 + 0.5 * rng.gen::<f32>()],
+    Energy::High => [0.2f32, 0.2 + rng.gen::<f32>() / 3f32],
+  };
+
+  (
+    KnobMacro {
+      a: amp_decay,
+      b: energy_decay,
+      c: [0f32, 0f32],
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
+      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
+      mc: MacroMotion::Random,
+    },
+    ranger::amod_burp,
+  )
+}
+
+fn amp_knob(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
+  if let Presence::Staccatto = presence {
+    return amp_knob_pluck(visibility, energy, presence)
+  }
+  return amp_knob_burp(visibility, energy, presence)
 }
 
 fn freq_knob_tonal(v: Visibility, e: Energy, p: Presence) -> KnobPair {
@@ -279,26 +350,32 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
   // knob_mods.0.push(amp_microtransient(arf.visibility, arf.energy, arf.presence));
   knob_mods.0.push(amp_knob(arf.visibility, arf.energy, arf.presence));
+
+  knob_mods.2.push(pmod_chorus(arf.visibility, arf.energy, arf.presence));
+
+
+
   // knob_mods.1.push(freq_knob_tonal(arf.visibility, arf.energy, arf.presence));
 
   let len_cycles: f32 = time::count_cycles(&melody[0]);
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 
-  let dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
+  let mut dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
+  amp_scale(&mut dynamics, visibility_gain(arf.visibility));
+
   let expr = (dynamics, vec![1f32], vec![0f32]);
-
-
 
   let delays_note = gen_delays(arf.visibility, arf.energy, arf.presence, conf.cps);
   let delays_room = vec![];
-  let reverbs_note: Vec<ReverbParams> = vec![];
+  let reverbs_note: Vec<ReverbParams> = vec![
+      ReverbParams {
+        mix: 0.01f32,
+        amp: 0.3f32,
+        dur: 0.005f32,
+        rate: 0.8f32
+    }
+  ];
   let reverbs_room: Vec<ReverbParams> = vec![];
-
-  // let bp = (
-  //     vec![MFf],
-  //     vec![NFf],
-  //     vec![]
-  // );
 
   let stem = (
     melody,

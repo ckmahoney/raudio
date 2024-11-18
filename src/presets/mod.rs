@@ -576,12 +576,19 @@ pub fn visibility_gain(v: Visibility) -> f32 {
 }
 
 pub fn visibility_gain_sample(v: Visibility) -> f32 {
-    db_to_amp(-3f32) *  match v {
+  match v {
     Visibility::Hidden => db_to_amp(-22f32), 
     Visibility::Background => db_to_amp(-18f32),
     Visibility::Foreground => db_to_amp(-12f32),
     Visibility::Visible => db_to_amp(-6f32),
   }
+}
+
+pub fn amp_scale(cont:&mut Vec<f32>, gain:f32) {
+  if gain < 0f32 { 
+    panic!("Can't scale by less than zero")
+  }
+  cont.iter_mut().for_each(|val| *val *= gain)
 }
 
 

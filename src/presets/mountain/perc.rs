@@ -37,10 +37,10 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
 
         // Manually define reverb parameters for the percussion stem
         reverbs_room = vec![ReverbParams {
-            mix: in_range(&mut rng, 0.05, 0.1),
+            mix: in_range(&mut rng, 0.005, 0.01),
             amp: in_range(&mut rng, db_to_amp(-45.0), db_to_amp(-30.0)), // Impulse amplitude
-            dur: in_range(&mut rng, 0.1, 1.0),
-            rate: in_range(&mut rng, 0.01, 0.5),
+            dur: in_range(&mut rng, 0.1, 0.5),
+            rate: in_range(&mut rng, 0.01, 0.05),
         }];
     }
 
@@ -66,9 +66,8 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
 /// mix of three different percs. 
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
     Renderable2::Mix(vec![
-        (1f32/2f32, stemmy(conf, melody, arf)),
-        (1f32/4f32, stemmy(conf, melody, arf)),
-        (1f32/4f32, stemmy(conf, melody, arf)),
+        (2f32/3f32, stemmy(conf, melody, arf)),
+        (1f32/3f32, stemmy(conf, melody, arf)),
     ])
 }
 
