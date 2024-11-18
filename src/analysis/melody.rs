@@ -316,8 +316,11 @@ pub fn mask_wah(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro:
     let n_samples_ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
     let n_samples_fall: usize = time::samples_of_milliseconds(cps, odr.decay);
     let n_samples_kill: usize = time::samples_of_milliseconds(cps, odr.release);
+    let animation_duration_samples = n_samples_fall + n_samples_ramp + n_samples_kill;
     // sustain level, boxed in by the ramp/fall/kill values
-    let n_samples_hold: usize = n_samples_note - (n_samples_fall + n_samples_ramp + n_samples_kill);
+    let n_samples_hold: usize = if animation_duration_samples > n_samples_note { 0 } else {
+      n_samples_note - animation_duration_samples
+    };
 
     let curr_freq: f32 = note_to_freq(note);
     let stable_freq_base = stable * curr_freq.log2();
@@ -368,8 +371,11 @@ pub fn mask_sigh(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro
     let n_samples_ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
     let n_samples_fall: usize = time::samples_of_milliseconds(cps, odr.decay);
     let n_samples_kill: usize = time::samples_of_milliseconds(cps, odr.release);
+    let animation_duration_samples = n_samples_fall + n_samples_ramp + n_samples_kill;
     // sustain level, boxed in by the ramp/fall/kill values
-    let n_samples_hold: usize = n_samples_note - (n_samples_fall + n_samples_ramp + n_samples_kill);
+    let n_samples_hold: usize = if animation_duration_samples > n_samples_note { 0 } else {
+      n_samples_note - animation_duration_samples
+    };
 
     let curr_freq: f32 = note_to_freq(note);
     let stable_freq_base = stable * curr_freq.log2();
