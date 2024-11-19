@@ -88,98 +88,28 @@ pub fn gen_delays(rng: &mut ThreadRng, cps: f32, echo: &Echo, complexity: f32) -
 }
 
 /// positioning params applied as convolution parameters to blur or distort the signal
-pub fn gen_convolution(rng: &mut ThreadRng, arf:&Arf, len_seconds:f32, cps: f32, distance: &Distance, enclosure:&Enclosure) -> ReverbParams {
-  let v = match arf.visibility {
-    Visibility::Visible => 1f32,
-    Visibility::Foreground => 0.75f32,
-    Visibility::Background => 0.5f32,
-    Visibility::Hidden => 0.25f32,
-  };
-  let e = match arf.energy {
-    Energy::High => 1f32,
-    Energy::Medium => 0.66f32,
-    Energy::Low => 0.33f32
-  };
-  let p = match arf.presence  {
-    Presence::Tenuto => 1f32,
-    Presence::Legato => 0.66f32,
-    Presence::Staccatto => 0.33f32
-  };
-
-  let complexity = ((v + e + p)/3f32).powf(2f32/3f32);
-  reverb_params(rng, len_seconds, cps, distance, enclosure, complexity)
-}
-
-/// positioning params applied as convolution parameters to blur or distort the signal
 pub fn gen_convolution_stem(rng: &mut ThreadRng, arf:&Arf, len_seconds:f32, cps: f32, distance: &Distance, enclosure:&Enclosure) -> ReverbParams {
   let v = match arf.visibility {
     Visibility::Visible => 1f32,
     Visibility::Foreground => 0.75f32,
     Visibility::Background => 0.5f32,
     Visibility::Hidden => 0.25f32,
-  };
+  } - 0.25f32;
   let e = match arf.energy {
     Energy::High => 1f32,
     Energy::Medium => 0.66f32,
     Energy::Low => 0.33f32
-  };
+  } - 0.33f32;
   let p = match arf.presence  {
     Presence::Tenuto => 1f32,
     Presence::Legato => 0.66f32,
     Presence::Staccatto => 0.33f32
-  };
+  } - 0.33f32;
 
-  let complexity = ((v + e + p)/3f32).powf(2f32/3f32);
+  let complexity = ((v + e + p)/3f32).powf(3f32/2f32);
   reverb_params_stem(rng, len_seconds, cps, distance, enclosure, complexity)
 }
 
-/// reverb_params
-pub fn reverb_params_ultra_safe(
-  rng: &mut ThreadRng, total_len_seconds: f32, cps: f32, distance: &Distance, enclosure: &Enclosure, complexity: f32,
-) -> ReverbParams {
-  let reverb_signal_base_length = total_len_seconds / 4f32;
-  // amp correlates to size of reverb/space
-  let mut amp: f32 = match enclosure {
-    Enclosure::Spring => 0.05 * rng.gen::<f32>() / 5f32,
-    Enclosure::Room => 0.05 + rng.gen::<f32>() / 5f32,
-    Enclosure::Hall => 0.1 + rng.gen::<f32>() / 5f32,
-    Enclosure::Vast => 0.3 + rng.gen::<f32>() / 6f32,
-  };
-
-  // decay correlates to transient preservation (blur)
-  let decay = match distance {
-    Distance::Far => 0.7 + rng.gen::<f32>() * 0.3f32,
-    Distance::Adjacent => 0.1 + rng.gen::<f32>() / 4f32,
-    Distance::Near => 0.05 + rng.gen::<f32>() / 8f32,
-  };
-
-  // duration translate to intensity of effect
-  // this also scales with the signal! Really needs to have scale factor as input.
-  let dur: f32 = reverb_signal_base_length
-    * 2f32.powf(2f32 * complexity)
-    * match enclosure {
-      Enclosure::Spring => rng.gen::<f32>().powi(5i32).min(0.05),
-      Enclosure::Room => rng.gen::<f32>().powi(2i32).min(0.5).max(0.1),
-      Enclosure::Hall => rng.gen::<f32>() * 0.8f32,
-      Enclosure::Vast => rng.gen::<f32>().powf(0.25f32).max(0.5),
-    }
-    / cps;
-
-  // corrections to amp when to prevent blowing up the signal
-  if decay >= 0.6f32 {
-    amp /= 2f32;
-    if decay >= 0.8f32 {
-      amp /= 2f32;
-    }
-  }
-
-  ReverbParams {
-    mix: complexity * 0.8f32,
-    amp,
-    dur,
-    rate: decay,
-  }
-}
 
 /// reverb_params
 pub fn reverb_params(
@@ -195,15 +125,15 @@ pub fn reverb_params(
   } else if complexity < 0.75f32 {
     in_range(rng, 1f32 / 12f32, 1f32 / 6f32)
   } else {
-    in_range(rng, 1f32 / 6f32,1f32 / 3f32)
+    in_range(rng, 1f32 / 6f32, 1f32 / 3f32)
   };
 
   // decay correlates to transient preservation (blur)
   // for dur=8, the decay becomes very blury when decay >= 0.9
   let decay = match distance {
     Distance::Far => in_range(rng, 0.8f32,1f32),
-    Distance::Adjacent => in_range(rng, 0.4f32, 0.8f32),
-    Distance::Near => in_range(rng, 0.05f32, 0.2f32) 
+    Distance::Adjacent => in_range(rng, 0.4f32, 0.7f32),
+    Distance::Near => in_range(rng, 0.05f32, 0.05f32) 
   };
 
   // duration translate to intensity of effect
@@ -212,14 +142,14 @@ pub fn reverb_params(
   // hence the division by four factor 
   let reverb_signal_base_length = total_len_seconds / (4f32 * cps);
   let dur: f32 = reverb_signal_base_length * match enclosure {
-      Enclosure::Spring => in_range(rng, 0.1f32, 1f32),
-      Enclosure::Room => in_range(rng, 1f32, 2f32),
-      Enclosure::Hall => in_range(rng, 2f32, 4f32),
-      Enclosure::Vast => in_range(rng, 4f32, 8f32),
+      Enclosure::Spring => in_range(rng, 0.1f32, 0.5f32),
+      Enclosure::Room => in_range(rng, 0.5f32, 1f32),
+      Enclosure::Hall => in_range(rng, 1f32, 2f32),
+      Enclosure::Vast => in_range(rng, 2f32, 6f32),
   };
 
   ReverbParams {
-    mix: complexity * 0.8f32,
+    mix: in_range(rng, 0.005, 0.12),
     amp,
     dur,
     rate: decay,
@@ -265,7 +195,7 @@ pub fn reverb_params_stem(
   };
 
   ReverbParams {
-    mix: complexity * 0.8f32,
+    mix: complexity.powf(0.5f32)/9f32,
     amp,
     dur,
     rate: decay,
