@@ -10,14 +10,14 @@ use crate::analysis::{in_range, in_range_usize};
 /// or with distinct levels for both left and right channels.
 #[derive(Copy, Clone, Debug)]
 pub enum StereoField {
-    /// Mono signal with equal amplitude in a single channel.
-    Mono,
-    /// Pans the signal to the left with specified amplitude.
-    Left(f32),
-    /// Pans the signal to the right with specified amplitude.
-    Right(f32),
-    /// Allows different amplitudes for the left and right channels.
-    LeftRight(f32, f32),
+  /// Mono signal with equal amplitude in a single channel.
+  Mono,
+  /// Pans the signal to the left with specified amplitude.
+  Left(f32),
+  /// Pans the signal to the right with specified amplitude.
+  Right(f32),
+  /// Allows different amplitudes for the left and right channels.
+  LeftRight(f32, f32),
 }
 
 /// Parameters for configuring a delay effect, including duration, echo count, and
@@ -27,16 +27,16 @@ pub enum StereoField {
 /// balance between original and delayed signal, and stereo positioning.
 #[derive(Copy, Clone, Debug)]
 pub struct DelayParams {
-    /// Total length of the delay in seconds.
-    pub len_seconds: f32,
-    /// Number of echo artifacts to create within the delay.
-    pub n_echoes: usize,
-    /// Gain applied to each echo, controlling the decay of echo intensity.
-    pub gain: f32,
-    /// Mix level between the original and delayed signal (0.0 = fully dry, 1.0 = fully wet).
-    pub mix: f32,
-    /// Stereo positioning of the delayed signal.
-    pub pan: StereoField,
+  /// Total length of the delay in seconds.
+  pub len_seconds: f32,
+  /// Number of echo artifacts to create within the delay.
+  pub n_echoes: usize,
+  /// Gain applied to each echo, controlling the decay of echo intensity.
+  pub gain: f32,
+  /// Mix level between the original and delayed signal (0.0 = fully dry, 1.0 = fully wet).
+  pub mix: f32,
+  /// Stereo positioning of the delayed signal.
+  pub pan: StereoField,
 }
 
 /// Macro struct for generating `DelayParams` instances with specified ranges, motions,
@@ -76,27 +76,27 @@ impl DelayParamsMacro {
   /// # Returns
   /// A `DelayParams` instance populated with values derived from `DelayParamsMacro`.
   pub fn gen(&self, rng: &mut ThreadRng, cps: f32) -> DelayParams {
-      // Select a delay ratio from `dtimes_cycles` to use for the delay time.
-      let delay_len_cycles = *self.dtimes_cycles.choose(rng).unwrap_or(&1.0);
-      
-      // Calculate the delay length in seconds based on the selected ratio and `cps`.
-      let len_seconds = delay_len_cycles / cps;
+    // Select a delay ratio from `dtimes_cycles` to use for the delay time.
+    let delay_len_cycles = *self.dtimes_cycles.choose(rng).unwrap_or(&1.0);
 
-      // Sample other parameters within their ranges.
-      let gain = in_range(rng, self.gain[0], self.gain[1]);
-      let n_echoes = in_range_usize(rng, self.n_echoes[0], self.n_echoes[1]);
-      let mix = in_range(rng, self.mix[0], self.mix[1]);
-      
-      // Select a panning position randomly from the available options in `pan`.
-      let pan = *self.pan.choose(rng).unwrap_or(&StereoField::Mono);
+    // Calculate the delay length in seconds based on the selected ratio and `cps`.
+    let len_seconds = delay_len_cycles / cps;
 
-      DelayParams {
-          len_seconds,
-          n_echoes,
-          gain,
-          mix,
-          pan,
-      }
+    // Sample other parameters within their ranges.
+    let gain = in_range(rng, self.gain[0], self.gain[1]);
+    let n_echoes = in_range_usize(rng, self.n_echoes[0], self.n_echoes[1]);
+    let mix = in_range(rng, self.mix[0], self.mix[1]);
+
+    // Select a panning position randomly from the available options in `pan`.
+    let pan = *self.pan.choose(rng).unwrap_or(&StereoField::Mono);
+
+    DelayParams {
+      len_seconds,
+      n_echoes,
+      gain,
+      mix,
+      pan,
+    }
   }
 }
 

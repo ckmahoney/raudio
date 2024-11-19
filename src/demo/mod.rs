@@ -16,11 +16,11 @@ use crate::analysis::{
   delay::{self, DelayParams},
   volume::db_to_amp,
 };
-use crate::time;
 use crate::phrasing::contour::Expr;
 use crate::render::{Renderable, Renderable2};
 use crate::reverb::convolution::ReverbParams;
 use crate::synth::{MFf, NFf, SampleBuffer, SR};
+use crate::time;
 use crate::types::render::{Conf, Feel, Melody, Stem};
 use crate::types::synthesis::{
   Ampl, Bandpass, Direction, Duration, Ely, FilterPoint, Freq, Frex, GlideLen, Monae, Mote, Note, Register, Soids, Tone,

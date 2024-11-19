@@ -2,8 +2,8 @@ pub mod delay;
 pub mod freq;
 pub mod melody;
 pub mod monic_theory;
-pub mod sine_cache;
 pub mod sampler;
+pub mod sine_cache;
 pub mod time;
 pub mod transient;
 pub mod trig;
@@ -110,7 +110,6 @@ pub fn in_range(rng: &mut ThreadRng, min: f32, max: f32) -> f32 {
 pub fn in_range_usize(rng: &mut ThreadRng, min: usize, max: usize) -> usize {
   min + rng.gen_range(0..=(max - min))
 }
-
 
 #[cfg(test)]
 mod test {

@@ -6,10 +6,10 @@
 #![allow(unused_must_use)]
 #![allow(non_upper_case_globals)]
 
+use rand::{self, rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
+use reverb::convolution::ReverbParams;
 use std::env;
 use std::process;
-use reverb::convolution::ReverbParams;
-use rand::{self, rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 
 use crate::render::{Renderable, Renderable2};
 use crate::types::render::*;
@@ -134,9 +134,12 @@ pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_s
     let len_cycles = time::count_cycles(&melody[0]);
     let len_seconds = len_cycles / score.conf.cps;
     let convolution_layer = inp::arg_xform::gen_convolution_stem(
-      &mut rng, 
-      arf, 
-      len_seconds, score.conf.cps, &client_positioning.distance, &client_positioning.enclosure
+      &mut rng,
+      arf,
+      len_seconds,
+      score.conf.cps,
+      &client_positioning.distance,
+      &client_positioning.enclosure,
     );
     let stem = Preset::create_stem(&score.conf, melody, arf, Preset::Mountain);
     i = i + 1;
@@ -166,5 +169,9 @@ pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_s
 fn test_render_playbook() {
   let filepath: &str = &format!("{}/demo/test_render_playbook", crate::demo::out_dir);
   // render_playbook(filepath, "src/demo/test-druidic-score.json", "test-druidic-render")
-  render_playbook(filepath, "src/demo/playbooks/playbook-ambien.json", "test-ambien-render")
+  render_playbook(
+    filepath,
+    "src/demo/playbooks/playbook-ambien.json",
+    "test-ambien-render",
+  )
 }

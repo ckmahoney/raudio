@@ -283,22 +283,21 @@ pub fn butterworth_lowpass_filter(samples: &[f32], sample_rate: u32, cutoff_freq
 
   // Process each sample
   for &sample in samples {
-      // Compute the current output sample
-      let y_n = b0 * sample + b1 * x_n1 + b2 * x_n2 - a1 * y_n1 - a2 * y_n2;
+    // Compute the current output sample
+    let y_n = b0 * sample + b1 * x_n1 + b2 * x_n2 - a1 * y_n1 - a2 * y_n2;
 
-      // Store the computed sample in the output buffer
-      filtered_samples.push(y_n);
+    // Store the computed sample in the output buffer
+    filtered_samples.push(y_n);
 
-      // Update the delay elements
-      x_n2 = x_n1;
-      x_n1 = sample;
-      y_n2 = y_n1;
-      y_n1 = y_n;
+    // Update the delay elements
+    x_n2 = x_n1;
+    x_n1 = sample;
+    y_n2 = y_n1;
+    y_n1 = y_n;
   }
 
   filtered_samples
 }
-
 
 #[cfg(test)]
 mod filter_unit_test {

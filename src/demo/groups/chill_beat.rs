@@ -154,10 +154,7 @@ fn demonstrate() {
   let cps: f32 = 1.2;
   let cps: f32 = 3.1;
   let root: f32 = 1.9;
-  let conf = Conf {
-    cps,
-    root
-  };
+  let conf = Conf { cps, root };
 
   let delays: Vec<DelayParams> = vec![delay::passthrough];
 
@@ -177,11 +174,9 @@ fn demonstrate() {
 
   use Renderable2::{Group, Instance};
   let renderables: Vec<Renderable2> = vec![
-    stem_kick1, 
-    // stem_kick2, 
-    // stem_kick3, 
-    stem_perc1, 
-    // stem_perc2,
+    stem_kick1, // stem_kick2,
+    // stem_kick3,
+    stem_perc1, // stem_perc2,
     // stem_perc3,
     stem_hats1,
     // stem_hats2,
@@ -218,7 +213,7 @@ fn samp(cps: f32, root: f32) -> SampleBuffer {
   let len_cycles = time::count_cycles(&hats_melody[0]);
   let len_seconds = len_cycles / cps;
 
-  let conf:Conf = Conf { cps, root};
+  let conf: Conf = Conf { cps, root };
 
   let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf(Presence::Legato));
   let stem_perc = perc::renderable(&conf, &perc_melody, &perc_arf(Presence::Staccatto));

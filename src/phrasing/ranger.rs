@@ -378,7 +378,7 @@ pub fn amod_microtransient_4_20(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cy
   db_to_amp(MIN_DB + MIN_DB.abs() * y)
 }
 
-/// A oneshot amplitude contouring for microtransients (20ms to 100ms). 
+/// A oneshot amplitude contouring for microtransients (20ms to 100ms).
 /// Turn any sound into a micro sound!
 ///
 /// ## Arguments
@@ -835,7 +835,7 @@ pub fn amod_oscillation_tri(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles
 pub fn amod_oscillation_sin_mul(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
   // let t: f32 = (mul * knob.b).sin().powi(2i32) * (pos_cycles / n_cycles) % 1f32;
   let t: f32 = (pos_cycles / n_cycles) % 1f32;
-  let osc_rate: f32 = 2f32.powf(-3f32 + 3f32 * knob.a)  * (t.powf(2f32 * knob.b - one)).sin().powi(2i32);
+  let osc_rate: f32 = 2f32.powf(-3f32 + 3f32 * knob.a) * (t.powf(2f32 * knob.b - one)).sin().powi(2i32);
 
   let y: f32 = (pi2 * osc_rate).sin();
   y.powi(2i32)

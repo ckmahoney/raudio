@@ -4,7 +4,7 @@
 //! It contains valuable tests that need to be updated to the current model;
 //! though the methods herein are not called outside the module.
 
-use crate::analysis::delay::{DelayParams, StereoField, self};
+use crate::analysis::delay::{self, DelayParams, StereoField};
 use crate::analysis::xform_freq;
 use crate::druid::applied_modulation::{
   gen_tremelo, gen_vibrato, update_mods, Modifiers, ModifiersHolder, ModulationEffect,
@@ -83,8 +83,8 @@ pub fn ninj<'render>(
     expr,
     dressing,
     modifiers,
-  }: &'render FeelingHolder,
-  delays: &Vec<DelayParams>, reverbs: &Vec<&convolution::ReverbParams>,
+  }: &'render FeelingHolder, delays: &Vec<DelayParams>,
+  reverbs: &Vec<&convolution::ReverbParams>,
 ) -> Vec<f32> {
   let append_delay = time::samples_of_dur(span.0, longest_delay_length(delays));
   let n_samples = crate::time::samples_of_cycles(span.0, span.1) + append_delay;
@@ -438,7 +438,7 @@ mod test {
       gain: 0.99,
       len_seconds: 0.15f32,
       n_echoes: 5,
-      pan: StereoField::Mono
+      pan: StereoField::Mono,
     }];
 
     let ms: Vec<fn() -> ModifiersHolder> = vec![modifiers_lead, modifiers_chords];
@@ -502,7 +502,7 @@ mod test {
       gain: 0.99,
       len_seconds: 0.15f32,
       n_echoes: 5,
-      pan: StereoField::Mono
+      pan: StereoField::Mono,
     }];
 
     let ms: Vec<fn() -> ModifiersHolder> = vec![modifiers_lead, modifiers_chords];
@@ -574,7 +574,7 @@ mod test {
       gain: 0f32,
       len_seconds: 0f32,
       n_echoes: 0,
-      pan: StereoField::Mono
+      pan: StereoField::Mono,
     }];
 
     let reverbs: Vec<&convolution::ReverbParams> = vec![&convolution::ReverbParams {
@@ -659,14 +659,14 @@ mod test {
         gain: 0.3f32,
         len_seconds: 0.66f32,
         n_echoes: 3,
-        pan: StereoField::Mono
+        pan: StereoField::Mono,
       },
       DelayParams {
         mix: 0.5f32,
         gain: 0.5f32,
         len_seconds: 1.5f32,
         n_echoes: 2,
-        pan: StereoField::Mono
+        pan: StereoField::Mono,
       },
     ];
 

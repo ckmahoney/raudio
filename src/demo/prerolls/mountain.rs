@@ -304,7 +304,7 @@ fn demonstrate() {
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
 
-  let conf: Conf = Conf{ cps, root };
+  let conf: Conf = Conf { cps, root };
 
   let stem_lead = lead::renderable(&conf, &lead_melody, &lead_arf());
   let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf());
@@ -314,14 +314,7 @@ fn demonstrate() {
   let stem_kick = kick::renderable(&conf, &kick_mel, &kick_arf());
 
   use Renderable::{Group, Instance};
-  let renderables: Vec<Renderable2> = vec![
-    stem_kick,
-    stem_perc,
-    stem_hats,
-    stem_bass,
-    stem_chords,
-    stem_lead,
-  ];
+  let renderables: Vec<Renderable2> = vec![stem_kick, stem_perc, stem_hats, stem_bass, stem_chords, stem_lead];
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;
@@ -330,9 +323,14 @@ fn demonstrate() {
   let complexity: f32 = 1f32;
   let len_cycles = time::count_cycles(&hats_melody[0]);
   let len_seconds = len_cycles / cps;
-  let group_reverbs = vec![
-    crate::inp::arg_xform::reverb_params(&mut rng, len_seconds,  cps, &Distance::Near, &Enclosure::Hall, complexity)
-  ];
+  let group_reverbs = vec![crate::inp::arg_xform::reverb_params(
+    &mut rng,
+    len_seconds,
+    cps,
+    &Distance::Near,
+    &Enclosure::Hall,
+    complexity,
+  )];
   let keep_stems = Some(path.as_str());
 
   let mix = render::combiner_with_reso(&conf, &renderables, &group_reverbs, keep_stems);

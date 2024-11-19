@@ -8,7 +8,6 @@ use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::time;
 use crate::types::synthesis::{BoostGroup, BoostGroupMacro, ModifiersHolder, Soids};
 
-
 /// Generates a set of delay macros for chord textures in ambient music, utilizing VEP parameters.
 /// Each macro represents a different chord delay style, designed to create wide, immersive textures
 /// that enhance the ambient mix's depth and spatial quality.
@@ -23,24 +22,24 @@ use crate::types::synthesis::{BoostGroup, BoostGroupMacro, ModifiersHolder, Soid
 fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence: Presence) -> Vec<DelayParamsMacro> {
   // Determine gain level based on visibility to set chord presence in the mix
   let gain_level = match visibility {
-      Visibility::Hidden => db_to_amp(-12.0),
-      Visibility::Background => db_to_amp(-9.0),
-      Visibility::Foreground => db_to_amp(-6.0),
-      Visibility::Visible => db_to_amp(-3.0),
+    Visibility::Hidden => db_to_amp(-12.0),
+    Visibility::Background => db_to_amp(-9.0),
+    Visibility::Foreground => db_to_amp(-6.0),
+    Visibility::Visible => db_to_amp(-3.0),
   };
 
   // Adjust echo density based on energy level for layering control
   let n_echoes_range = match energy {
-      Energy::Low => [3, 4],
-      Energy::Medium => [4, 6],
-      Energy::High => [6, 8],
+    Energy::Low => [3, 4],
+    Energy::Medium => [4, 6],
+    Energy::High => [6, 8],
   };
 
   // Set delay cycle lengths based on presence, adding variety to the spatial effect
   let dtimes_cycles = match presence {
-      Presence::Staccatto => vec![0.5, 1.0, 1.5],          // Short cycles for rhythmic delay
-      Presence::Legato => vec![0.666,1.0, 1.5,2.0],            // Medium cycles for smooth, sustained echoes
-      Presence::Tenuto => vec![1.333,1.5,2.0, 3.0],       // Longer cycles for a more spacious feel
+    Presence::Staccatto => vec![0.5, 1.0, 1.5], // Short cycles for rhythmic delay
+    Presence::Legato => vec![0.666, 1.0, 1.5, 2.0], // Medium cycles for smooth, sustained echoes
+    Presence::Tenuto => vec![1.333, 1.5, 2.0, 3.0], // Longer cycles for a more spacious feel
   };
 
   let dtimes_cycles = vec![0.5, 1.0];
@@ -48,52 +47,51 @@ fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence:
   // 1. Wide Stereo Pad Delay
   // Creates a wide, lush stereo spread for ambient chord textures.
   let wide_stereo_pad = DelayParamsMacro {
-      gain: [gain_level, gain_level + 0.1],               // Slight gain increase for depth
-      dtimes_cycles: dtimes_cycles.clone(),
-      n_echoes: n_echoes_range,
-      mix: [0.5, 0.7],                                    // Stronger mix for an immersive stereo effect
-      pan: vec![StereoField::LeftRight(0.7, 0.7)],        // Wide stereo spread for spatial depth
-      mecho: vec![MacroMotion::Forward],
-      mgain: vec![MacroMotion::Constant],
-      mpan: vec![MacroMotion::Constant],
-      mmix: vec![MacroMotion::Constant],
+    gain: [gain_level, gain_level + 0.1], // Slight gain increase for depth
+    dtimes_cycles: dtimes_cycles.clone(),
+    n_echoes: n_echoes_range,
+    mix: [0.5, 0.7],                             // Stronger mix for an immersive stereo effect
+    pan: vec![StereoField::LeftRight(0.7, 0.7)], // Wide stereo spread for spatial depth
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
   };
 
   // 2. Smooth Mono Pad Delay
   // Provides a centered, smooth delay that blends chords for a cohesive background layer.
   let smooth_mono_pad = DelayParamsMacro {
-      gain: [gain_level * 0.8, gain_level],               // Slightly lower gain for blending
-      dtimes_cycles: dtimes_cycles.clone(),
-      n_echoes: n_echoes_range,
-      mix: [0.4, 0.6],                                    // Balanced mix to maintain smoothness
-      pan: vec![StereoField::Mono],                       // Mono to keep it centered and cohesive
-      mecho: vec![MacroMotion::Forward],
-      mgain: vec![MacroMotion::Constant],
-      mpan: vec![MacroMotion::Constant],
-      mmix: vec![MacroMotion::Constant],
+    gain: [gain_level * 0.8, gain_level], // Slightly lower gain for blending
+    dtimes_cycles: dtimes_cycles.clone(),
+    n_echoes: n_echoes_range,
+    mix: [0.4, 0.6],              // Balanced mix to maintain smoothness
+    pan: vec![StereoField::Mono], // Mono to keep it centered and cohesive
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
   };
 
   // 3. Evolving Pad Delay
   // Adds long, varied delay cycles to create a slowly evolving, immersive chord texture.
   let evolving_pad_delay = DelayParamsMacro {
-      gain: [gain_level, gain_level + 0.2],               // Slightly increased gain for evolving textures
-      dtimes_cycles: match presence {
-          Presence::Staccatto => vec![1.0, 1.5, 2.0],    // Moderate cycles for subtle movement
-          Presence::Legato => vec![2.0, 3.0, 4.0],       // Longer cycles for smooth flow
-          Presence::Tenuto => vec![3.0, 4.0, 5.0, 6.0],  // Longest cycles for gradual evolution
-      },
-      n_echoes: [n_echoes_range[0], n_echoes_range[1] + 1], // Slightly more echoes for layering
-      mix: [0.5, 0.8],                                    // Higher mix for a prominent ambient presence
-      pan: vec![StereoField::LeftRight(0.6, 0.6)],        // Moderate stereo spread for depth
-      mecho: vec![MacroMotion::Forward],
-      mgain: vec![MacroMotion::Constant],
-      mpan: vec![MacroMotion::Constant],
-      mmix: vec![MacroMotion::Constant],
+    gain: [gain_level, gain_level + 0.2], // Slightly increased gain for evolving textures
+    dtimes_cycles: match presence {
+      Presence::Staccatto => vec![1.0, 1.5, 2.0], // Moderate cycles for subtle movement
+      Presence::Legato => vec![2.0, 3.0, 4.0],    // Longer cycles for smooth flow
+      Presence::Tenuto => vec![3.0, 4.0, 5.0, 6.0], // Longest cycles for gradual evolution
+    },
+    n_echoes: [n_echoes_range[0], n_echoes_range[1] + 1], // Slightly more echoes for layering
+    mix: [0.5, 0.8],                                      // Higher mix for a prominent ambient presence
+    pan: vec![StereoField::LeftRight(0.6, 0.6)],          // Moderate stereo spread for depth
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
   };
 
   vec![wide_stereo_pad, smooth_mono_pad, evolving_pad_delay]
 }
-
 
 fn amp_knob_presence(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
   let mut rng = thread_rng();
@@ -115,7 +113,7 @@ fn amp_knob_presence(visibility: Visibility, energy: Energy, presence: Presence)
       a: decay_length,
       b: [0f32, 0f32],
       c: [0.2f32, 1f32],
-      ma: grab_variant(vec![MacroMotion::Forward,MacroMotion::Reverse, MacroMotion::Constant]),
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
       mb: MacroMotion::Constant, // unused
       mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
     },
@@ -149,9 +147,30 @@ fn pmod_chorus(v: Visibility, e: Energy, p: Presence) -> KnobPair {
       a: chorus_visibility,
       b: modulation_depth,
       c: intensity,
-      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
-      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
-      mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant, MacroMotion::Min, MacroMotion::Mean, MacroMotion::Max]),
+      ma: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Constant,
+        MacroMotion::Min,
+        MacroMotion::Mean,
+        MacroMotion::Max,
+      ]),
+      mb: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Constant,
+        MacroMotion::Min,
+        MacroMotion::Mean,
+        MacroMotion::Max,
+      ]),
+      mc: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Constant,
+        MacroMotion::Min,
+        MacroMotion::Mean,
+        MacroMotion::Max,
+      ]),
     },
     ranger::pmod_chorus2,
   )
@@ -262,13 +281,8 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
   let delays_room = vec![];
 
-  let reverbs_note: Vec<ReverbParams> = vec![
-    
-  ];
-  let reverbs_room: Vec<ReverbParams> = vec![
-    
-  ];
-
+  let reverbs_note: Vec<ReverbParams> = vec![];
+  let reverbs_room: Vec<ReverbParams> = vec![];
 
   let stem = (
     melody,

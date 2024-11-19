@@ -167,24 +167,20 @@ fn demonstrate() {
     n_echoes: 4,
     gain: 0.5f32,
     mix: 0.33f32,
-    pan: delay::StereoField::Mono
+    pan: delay::StereoField::Mono,
   }];
 
   let lead_melody = lead_melody();
   let chords_melody = chords_melody();
   let bass_melody = bass_melody();
-  let conf: Conf  = Conf{ cps, root };
+  let conf: Conf = Conf { cps, root };
 
   let stem_lead = lead::renderable(&conf, &lead_melody, &lead_arf());
   let stem_chords = chords::renderable(&conf, &chords_melody, &chords_arf());
   let stem_bass = bass::renderable(&conf, &bass_melody, &bass_arf());
 
   use Renderable::{Group, Instance};
-  let renderables: Vec<Renderable2> = vec![
-    stem_bass, 
-    stem_chords,
-    stem_lead,
-  ];
+  let renderables: Vec<Renderable2> = vec![stem_bass, stem_chords, stem_lead];
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;

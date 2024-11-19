@@ -1,5 +1,3 @@
-use rand;
-use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
 use crate::analysis::{
   in_range,
   melody::{find_reach, mask_sigh, mask_wah, LevelMacro, Levels, ODRMacro, ODR},
@@ -10,7 +8,11 @@ use crate::phrasing::older_ranger::{Modders, OldRangerDeprecated, WOldRangerDepr
 use crate::phrasing::{dynamics, lifespan, micro};
 use crate::synth::{pi, pi2, MFf, NFf, SRf, SampleBuffer, MAX_REGISTER, MIN_REGISTER, SR};
 use crate::{render, AmpLifespan};
+use rand;
+use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
 
+use crate::analysis::delay::{self, DelayParams, DelayParamsMacro, StereoField};
+use crate::analysis::sampler::read_audio_file;
 use crate::druid::{self, noise::NoiseColor, soid_fx, soids as druidic_soids};
 use crate::druid::{bell, melodic, noise, Element, Elementor};
 use crate::phrasing::contour::expr_none;
@@ -26,9 +28,7 @@ use crate::types::synthesis::{
 use crate::types::synthesis::{BoostGroupMacro, MacroMotion, ModifiersHolder, Soids};
 use crate::types::timbre::{Arf, Energy, Mode, Phrasing, Presence, Role, Sound, Sound2, Visibility};
 use crate::types::{Radian, Range};
-use crate::analysis::sampler::read_audio_file;
 use rand::thread_rng;
-use crate::analysis::delay::{self, DelayParamsMacro, DelayParams, StereoField};
 use std::fs::read_dir;
 
 pub mod ambien;
@@ -40,17 +40,13 @@ pub mod kuwuku;
 pub mod mountain;
 pub mod urbuntu;
 
-
 pub type KnobPair = (KnobMacro, fn(&Knob, f32, f32, f32, f32, f32) -> f32);
-
 
 use std::collections::HashMap;
 /// Base directory for audio samples.
 const SAMPLE_SOURCE_DIR: &str = "audio-samples";
 /// Cache for sample paths to avoid repeated directory scans.
-static SAMPLE_CACHE: Lazy<RwLock<HashMap<String, Vec<String>>>> = Lazy::new(|| {
-  RwLock::new(initialize_sample_cache())
-});
+static SAMPLE_CACHE: Lazy<RwLock<HashMap<String, Vec<String>>>> = Lazy::new(|| RwLock::new(initialize_sample_cache()));
 
 // user configurable headroom value. defaults to -15Db
 pub const DB_HEADROOM: f32 = -8f32;
@@ -577,20 +573,19 @@ pub fn visibility_gain(v: Visibility) -> f32 {
 
 pub fn visibility_gain_sample(v: Visibility) -> f32 {
   match v {
-    Visibility::Hidden => db_to_amp(-22f32), 
+    Visibility::Hidden => db_to_amp(-22f32),
     Visibility::Background => db_to_amp(-18f32),
     Visibility::Foreground => db_to_amp(-12f32),
     Visibility::Visible => db_to_amp(-6f32),
   }
 }
 
-pub fn amp_scale(cont:&mut Vec<f32>, gain:f32) {
-  if gain < 0f32 { 
+pub fn amp_scale(cont: &mut Vec<f32>, gain: f32) {
+  if gain < 0f32 {
     panic!("Can't scale by less than zero")
   }
   cont.iter_mut().for_each(|val| *val *= gain)
 }
-
 
 use once_cell::sync::Lazy;
 use std::sync::RwLock;
@@ -603,13 +598,13 @@ use std::sync::RwLock;
 /// A randomly selected file path from the appropriate category.
 pub fn get_sample_path(arf: &Arf) -> String {
   let key = match arf.role {
-      Role::Hats => match arf.presence {
-          Presence::Staccatto | Presence::Legato => format!("{}/hats/short", SAMPLE_SOURCE_DIR),
-          Presence::Tenuto => format!("{}/hats/long", SAMPLE_SOURCE_DIR),
-      },
-      Role::Kick => format!("{}/kick", SAMPLE_SOURCE_DIR),
-      Role::Perc => format!("{}/perc", SAMPLE_SOURCE_DIR),
-      _ => panic!("No samples provided for role: {}", arf.role),
+    Role::Hats => match arf.presence {
+      Presence::Staccatto | Presence::Legato => format!("{}/hats/short", SAMPLE_SOURCE_DIR),
+      Presence::Tenuto => format!("{}/hats/long", SAMPLE_SOURCE_DIR),
+    },
+    Role::Kick => format!("{}/kick", SAMPLE_SOURCE_DIR),
+    Role::Perc => format!("{}/perc", SAMPLE_SOURCE_DIR),
+    _ => panic!("No samples provided for role: {}", arf.role),
   };
 
   // Access the cache
@@ -617,12 +612,9 @@ pub fn get_sample_path(arf: &Arf) -> String {
 
   // Retrieve the list of paths for the category
   if let Some(paths) = cache.get(&key) {
-      paths
-          .choose(&mut rand::thread_rng())
-          .expect("No samples available in category")
-          .clone()
+    paths.choose(&mut rand::thread_rng()).expect("No samples available in category").clone()
   } else {
-      panic!("Role not found in cache: {}", arf.role);
+    panic!("Role not found in cache: {}", arf.role);
   }
 }
 
@@ -631,23 +623,23 @@ pub fn get_sample_path(arf: &Arf) -> String {
 /// # Returns
 /// A `HashMap` where keys are categories (e.g., "kick", "hats-short") and values are vectors of file paths.
 fn initialize_sample_cache() -> HashMap<String, Vec<String>> {
-    let mut cache = HashMap::new();
+  let mut cache = HashMap::new();
 
-    let categories = vec![
-        format!("{}/kick", SAMPLE_SOURCE_DIR),
-        format!("{}/perc", SAMPLE_SOURCE_DIR),
-        format!("{}/hats/long", SAMPLE_SOURCE_DIR),
-        format!("{}/hats/short", SAMPLE_SOURCE_DIR),
-    ];
+  let categories = vec![
+    format!("{}/kick", SAMPLE_SOURCE_DIR),
+    format!("{}/perc", SAMPLE_SOURCE_DIR),
+    format!("{}/hats/long", SAMPLE_SOURCE_DIR),
+    format!("{}/hats/short", SAMPLE_SOURCE_DIR),
+  ];
 
-    for category in categories {
-        let paths = read_dir(&category)
-            .expect(&format!("Failed to read directory: {}", category))
-            .filter_map(|entry| entry.ok())
-            .filter_map(|entry| entry.path().to_str().map(String::from))
-            .collect();
-        cache.insert(category, paths);
-    }
+  for category in categories {
+    let paths = read_dir(&category)
+      .expect(&format!("Failed to read directory: {}", category))
+      .filter_map(|entry| entry.ok())
+      .filter_map(|entry| entry.path().to_str().map(String::from))
+      .collect();
+    cache.insert(category, paths);
+  }
 
-    cache
+  cache
 }

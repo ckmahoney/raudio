@@ -24,76 +24,74 @@ pub fn expr(arf: &Arf, n_samples: usize) -> Expr {
 fn generate_bass_delay_macros(visibility: Visibility, energy: Energy, presence: Presence) -> Vec<DelayParamsMacro> {
   // Adjust gain level based on visibility
   let gain_level = match visibility {
-      Visibility::Hidden => db_to_amp(-15.0),
-      Visibility::Background => db_to_amp(-12.0),
-      Visibility::Foreground => db_to_amp(-9.0),
-      Visibility::Visible => db_to_amp(-6.0),
+    Visibility::Hidden => db_to_amp(-15.0),
+    Visibility::Background => db_to_amp(-12.0),
+    Visibility::Foreground => db_to_amp(-9.0),
+    Visibility::Visible => db_to_amp(-6.0),
   };
 
   // Determine echo counts based on energy level for density control
   let n_echoes_range = match energy {
-      Energy::Low => [2, 3],
-      Energy::Medium => [3, 5],
-      Energy::High => [5, 7],
+    Energy::Low => [2, 3],
+    Energy::Medium => [3, 5],
+    Energy::High => [5, 7],
   };
 
   // Set delay cycle lengths based on presence, making it shorter for clearer bass delay textures
   let dtimes_cycles = match presence {
-      Presence::Staccatto => vec![0.25, 0.5, 0.75, 1.0], // Short cycles for rhythmic texture
-      Presence::Legato => vec![0.5, 1.0, 1.5],           // Medium cycles for smooth flow
-      Presence::Tenuto => vec![1.0, 2.0, 3.0],           // Longer cycles for spacious, evolving bass
+    Presence::Staccatto => vec![0.25, 0.5, 0.75, 1.0], // Short cycles for rhythmic texture
+    Presence::Legato => vec![0.5, 1.0, 1.5],           // Medium cycles for smooth flow
+    Presence::Tenuto => vec![1.0, 2.0, 3.0],           // Longer cycles for spacious, evolving bass
   };
 
   // 1. Classic Mono Bass Delay
   // Provides a grounded, centered bass presence with shorter delay times.
   let classic_mono_bass = DelayParamsMacro {
-      gain: [gain_level * 0.8, gain_level],              // Lower gain for subtle presence
-      dtimes_cycles: dtimes_cycles.clone(),
-      n_echoes: n_echoes_range,
-      mix: [0.2, 0.4],                                   // Low mix to keep it supportive and centered
-      pan: vec![StereoField::Mono],                      // Centered, mono delay
-      mecho: vec![MacroMotion::Forward],
-      mgain: vec![MacroMotion::Constant],
-      mpan: vec![MacroMotion::Constant],
-      mmix: vec![MacroMotion::Constant],
+    gain: [gain_level * 0.8, gain_level], // Lower gain for subtle presence
+    dtimes_cycles: dtimes_cycles.clone(),
+    n_echoes: n_echoes_range,
+    mix: [0.2, 0.4],              // Low mix to keep it supportive and centered
+    pan: vec![StereoField::Mono], // Centered, mono delay
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
   };
 
   // 2. Wide Stereo Bass Delay
   // Adds width to the bass, creating a subtle stereo spread for a supportive low-end layer.
   let wide_stereo_bass = DelayParamsMacro {
-      gain: [gain_level, gain_level + 0.1],              // Slightly higher gain for stereo presence
-      dtimes_cycles: dtimes_cycles.clone(),
-      n_echoes: n_echoes_range,
-      mix: [0.3, 0.5],                                   // Moderate mix to provide noticeable width
-      pan: vec![StereoField::LeftRight(0.6, 0.6)],       // Subtle stereo panning for depth
-      mecho: vec![MacroMotion::Forward],
-      mgain: vec![MacroMotion::Constant],
-      mpan: vec![MacroMotion::Constant],
-      mmix: vec![MacroMotion::Constant],
+    gain: [gain_level, gain_level + 0.1], // Slightly higher gain for stereo presence
+    dtimes_cycles: dtimes_cycles.clone(),
+    n_echoes: n_echoes_range,
+    mix: [0.3, 0.5],                             // Moderate mix to provide noticeable width
+    pan: vec![StereoField::LeftRight(0.6, 0.6)], // Subtle stereo panning for depth
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
   };
 
   // 3. Rhythmic Bass Delay
   // Adds rhythmic texture with varied delay cycles and slightly higher mix, ideal for dynamic bass.
   let rhythmic_bass_delay = DelayParamsMacro {
-      gain: [gain_level, gain_level * 1.1],              // Slightly boosted gain for rhythmic emphasis
-      dtimes_cycles: match presence {
-          Presence::Staccatto => vec![0.25, 0.5, 1.0],   // Short cycles for rhythmic pulsing
-          Presence::Legato => vec![0.5, 1.0, 1.5, 2.0], // Medium cycles for smooth rhythm
-          Presence::Tenuto => vec![1.0, 2.0, 3.0, 4.0], // Longer cycles for evolving, spacious rhythm
-      },
-      n_echoes: n_echoes_range,
-      mix: [0.4, 0.6],                                   // Higher mix to enhance rhythmic movement
-      pan: vec![StereoField::Mono],                      // Mono for a centered, rhythmic bass
-      mecho: vec![MacroMotion::Forward],
-      mgain: vec![MacroMotion::Constant],
-      mpan: vec![MacroMotion::Constant],
-      mmix: vec![MacroMotion::Constant],
+    gain: [gain_level, gain_level * 1.1], // Slightly boosted gain for rhythmic emphasis
+    dtimes_cycles: match presence {
+      Presence::Staccatto => vec![0.25, 0.5, 1.0], // Short cycles for rhythmic pulsing
+      Presence::Legato => vec![0.5, 1.0, 1.5, 2.0], // Medium cycles for smooth rhythm
+      Presence::Tenuto => vec![1.0, 2.0, 3.0, 4.0], // Longer cycles for evolving, spacious rhythm
+    },
+    n_echoes: n_echoes_range,
+    mix: [0.4, 0.6],              // Higher mix to enhance rhythmic movement
+    pan: vec![StereoField::Mono], // Mono for a centered, rhythmic bass
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
   };
 
   vec![classic_mono_bass, wide_stereo_bass, rhythmic_bass_delay]
 }
-
-
 
 /// Create bandpass automations with respect to Arf and Melody
 fn bp<'render>(melody: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> (SampleBuffer, SampleBuffer) {

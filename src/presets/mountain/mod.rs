@@ -8,7 +8,6 @@ pub mod perc;
 
 use std::marker::PhantomData;
 
-
 /// short delay with loud echo
 /// works best with percussive or plucky sounds
 fn gen_slapback(cps: f32, rng: &mut ThreadRng, complexity: f32) -> DelayParams {
@@ -22,7 +21,7 @@ fn gen_slapback(cps: f32, rng: &mut ThreadRng, complexity: f32) -> DelayParams {
     len_seconds,
     n_echoes,
     gain,
-    pan
+    pan,
   }
 }
 
@@ -48,10 +47,9 @@ fn gen_trailing(cps: f32, rng: &mut ThreadRng, complexity: f32) -> DelayParams {
     len_seconds,
     n_echoes,
     gain,
-    pan: StereoField::Mono
+    pan: StereoField::Mono,
   }
 }
-
 
 /// Create bandpass automations with respect to Arf and Melody
 fn bp_cresc<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
@@ -93,9 +91,9 @@ fn bp_cresc<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles
 fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
   let size = (len_cycles.log2() - 1f32).max(1f32); // offset 1 to account for lack of CPC. -1 assumes CPC=2
   let rate_per_size = match arf.energy {
-      Energy::Low => 0.5f32,
-      Energy::Medium => 1f32,
-      Energy::High => 2f32,
+    Energy::Low => 0.5f32,
+    Energy::Medium => 1f32,
+    Energy::High => 2f32,
   };
   let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
   let n_samples: usize = ((len_cycles / 2f32) as usize).max(1) * SR;
@@ -103,50 +101,48 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: 
   let levels = Levels::new(0.7f32, 4f32, 0.5f32);
 
   let level_macro: LevelMacro = LevelMacro {
-      stable: match arf.energy {
-          Energy::Low => [1f32, 3f32],
-          Energy::Medium => [2f32, 3f32],
-          Energy::High => [2f32, 3f32],
-      },
-      peak: match arf.energy {
-          Energy::Low => [2.0f32, 3.0f32],
-          Energy::Medium => [3.75f32, 5f32],
-          Energy::High => [4f32, 8f32],
-      },
-      sustain: match arf.visibility {
-          Visibility::Visible => [0.85f32, 1f32],
-          Visibility::Foreground => [0.5f32, 1.0f32],
-          Visibility::Background => [0.2f32, 0.5f32],
-          Visibility::Hidden => [0.0132, 0.1f32],
-      },
+    stable: match arf.energy {
+      Energy::Low => [1f32, 3f32],
+      Energy::Medium => [2f32, 3f32],
+      Energy::High => [2f32, 3f32],
+    },
+    peak: match arf.energy {
+      Energy::Low => [2.0f32, 3.0f32],
+      Energy::Medium => [3.75f32, 5f32],
+      Energy::High => [4f32, 8f32],
+    },
+    sustain: match arf.visibility {
+      Visibility::Visible => [0.85f32, 1f32],
+      Visibility::Foreground => [0.5f32, 1.0f32],
+      Visibility::Background => [0.2f32, 0.5f32],
+      Visibility::Hidden => [0.0132, 0.1f32],
+    },
   };
 
   // Increased ODR values for slower, more gradual changes suitable for ambient music
   let odr_macro = ODRMacro {
-      onset: [180.0, 360f32],  // Previously 60.0, 120f32
-      decay: [460.0, 600f32],  // Previously 230.0, 300f32
-      release: [330.0, 400f32], // Previously 110.0, 200f32
+    onset: [180.0, 360f32],   // Previously 60.0, 120f32
+    decay: [460.0, 600f32],   // Previously 230.0, 300f32
+    release: [330.0, 400f32], // Previously 110.0, 200f32
   };
   let highpass = if let Energy::Low = arf.energy {
-      filter_contour_triangle_shape_highpass(lowest_register, highest_register, n_samples, size * rate_per_size)
+    filter_contour_triangle_shape_highpass(lowest_register, highest_register, n_samples, size * rate_per_size)
   } else {
-      vec![MFf]
+    vec![MFf]
   };
   (
-      highpass,
-      mask_wah(cps, &mel[low_index], &level_macro, &odr_macro),
-      vec![],
+    highpass,
+    mask_wah(cps, &mel[low_index], &level_macro, &odr_macro),
+    vec![],
   )
 }
 
-
 pub fn get_bp<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
   match arf.presence {
-      Presence::Staccatto => bp_wah(cps, mel, arf, len_cycles),
-      Presence::Legato => bp_sighpad(cps, mel, arf, len_cycles),
-      Presence::Tenuto => bp_cresc(cps, mel, arf, len_cycles),
+    Presence::Staccatto => bp_wah(cps, mel, arf, len_cycles),
+    Presence::Legato => bp_sighpad(cps, mel, arf, len_cycles),
+    Presence::Tenuto => bp_cresc(cps, mel, arf, len_cycles),
   }
-
 }
 
 trait Conventions<'render> {
