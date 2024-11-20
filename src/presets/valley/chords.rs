@@ -35,8 +35,12 @@ fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence:
     Energy::High => [6, 8],
   };
 
-  let dtimes_cycles = vec![1.333, 1.5, 2.0, 3.0, 6f32, 8f32];
-
+  // Set delay cycle lengths based on presence, adding variety to the spatial effect
+  let dtimes_cycles = match presence {
+    Presence::Staccatto => vec![1f32/8f32, 1f32/4f32, 1f32/2f32],
+    Presence::Legato => vec![1f32/8f32, 1f32/4f32, 1f32/3f32, 2f32/3f32, 1f32, 3f32/2f32, 2f32], // Medium cycles for smooth, sustained echoes
+    Presence::Tenuto => vec![1.333, 1.5, 2.0, 3.0], // Longer cycles for a more spacious feel
+  };
 
   // 1. Wide Stereo Pad Delay
   // Creates a wide, lush stereo spread for ambient chord textures.
@@ -223,17 +227,9 @@ fn dynamics(arf: &Arf, n_samples: usize, k: f32) -> SampleBuffer {
 }
 
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  // 8 is the optimal value for high energy because using 7 often has the same appearance but costs 2x more
-  // 10 is clearly different than 8
-  // 12 is clearly different than 10
-  // also noting that 8 and 9 not so different, 10 and 11 somewhat different
-  // edit nov 13, just used 9 instead of 8 because adding soid_fx doubled the number of soids.
-  let mullet = match arf.visibility {
-    Visibility::Hidden => 2f32.powi(12i32),
-    Visibility::Background => 2f32.powi(11i32),
-    Visibility::Foreground => 2f32.powi(10i32),
-    Visibility::Visible => 2f32.powi(9i32),
-  };
+  
+  let mullet = get_mullet(&arf);
+
   let len_cycles: f32 = time::count_cycles(&melody[0]);
 
   let soids = &druidic_soids::overs_sawtooth(mullet);
@@ -247,20 +243,14 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     sustain: [0.4f32, 0.8f32],
   };
   let odr_macro = ODRMacro {
-    onset: [4260.0, 21200f32],
-    decay: [8330.0, 16500f32],
-    release: [1510.0, 3000f32],
-
+    onset: [160.0, 1200f32],
+    decay: [233f32, 1650f32],
+    release: [151f32, 200f32],
     mo: vec![MacroMotion::Constant],
     md: vec![MacroMotion::Constant],
     mr: vec![MacroMotion::Constant],
   };
-  let bp = (
-    vec![MFf],
-    mask_sigh(conf.cps, &melody[low_index], &level_macro, &odr_macro),
-    vec![],
-  );
-
+  
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
   knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
   knob_mods.0.push(amp_knob_presence(arf.visibility, arf.energy, arf.presence));
@@ -286,7 +276,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     melody,
     soids,
     expr,
-    bp,
+    ValleyCon::get_bp(conf.cps, melody, arf),
     knob_mods,
     delays_note,
     delays_room,

@@ -14,6 +14,7 @@ static half: f32 = 0.5f32;
 
 const MIN_DB: f32 = -60f32;
 const MAX_DB: f32 = 0f32;
+const DYNAMIC_RANGE_DB:f32 = MAX_DB - MIN_DB;
 
 #[derive(Copy, Clone, Debug)]
 /// A set of three dials for managing the parameters of these predefined methods.
@@ -643,6 +644,125 @@ pub fn amod_pluck(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos
   1f32 / (decay_rate * t).exp()
 }
 
+/// Computes the amplitude modulation for a given cycle length and fade parameters.
+///
+/// ## Arguments
+/// - `pos_cycles`: Current position within the event in cycles.
+/// - `cycle_length`: Length of the fade in cycles.
+/// - `knob_b`: Controls fade shape from concave, linear, to convex.
+/// - `knob_c`: Scales dynamic range of the fade.
+/// 
+/// ## Returns
+/// Amplitude value at the current cycle position.
+fn compute_fade(pos_cycles: f32, cycle_length: f32, knob_b: f32, knob_c: f32) -> f32 {
+    let b  = knob_b.clamp(0.005f32, 0.995f32);
+    let dyn_range = DYNAMIC_RANGE_DB * knob_c;
+    let min_db = MAX_DB - dyn_range;
+    if pos_cycles >= cycle_length {
+        return 1.0;
+    }
+
+    let t = (pos_cycles / cycle_length).clamp(0.0, 1.0);
+
+    // https://www.desmos.com/calculator/hyk8nfkpcz
+    let fade_shape = t.powf(3.0f32 * (1.0 - 2.0 * (b - 0.5)));
+
+    let adjusted_amplitude = fade_shape.powf(3.0 * knob_c);
+
+    // Convert to dB scale and return linearly perceived amplitude
+    db_to_amp(min_db + (MAX_DB - min_db) * adjusted_amplitude)
+}
+
+
+/// A cycle-based amplitude contouring for fading in volumes from four cycle to sixteen cycles.
+/// Allows for smooth transitions with adjustable cycle length and fade shapes.
+///
+/// ## Arguments
+/// `knob.a`: Length in cycles, scaling logarithmically from 4 to 16 cycles.  
+/// `knob.b`: Fade mode, controls curve shape from concave (b < 0.5), linear (0.5), to convex (b > 0.5)  
+/// `knob.c`: Dynamic range control, scales final amplitude range. 0 is a passthrough effect, 1 spans the complete dynamic range (from quietest to loudest).  Amplitudes always end at 1 at the end of the amod lifespan.   
+/// `cps`: Instantaneous playback rate in cycles per second.
+/// `fund`: Fundamental frequency reference.
+/// `mul`: Harmonic multiplier with respect to the fundamental.
+/// `n_cycles`: Total duration of this event in cycles.
+/// `pos_cycles`: Current position within the event in cycles.
+///
+/// ## Returns
+/// Amplitude value at the current cycle position.
+pub fn amod_cycle_fadein_4_16(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+  // Length in cycles, logarithmic scaling
+  let cycle_length = 2f32.powf(2f32 + 2f32 * knob.a);    
+  compute_fade(pos_cycles, cycle_length, knob.b, knob.c)
+}
+
+
+/// A cycle-based amplitude contouring for fading in volumes from one cycle to four cycles.
+/// Allows for smooth transitions with adjustable cycle length and fade shapes.
+///
+/// ## Arguments
+/// `knob.a`: Length in cycles, scaling logarithmically from 1 to 4 cycles.
+/// `knob.b`: Fade mode, controls curve shape from concave (b < 0.5), linear (0.5), to convex (b > 0.5).  
+/// `knob.c`: Dynamic range control, scales final amplitude range. 0 is a passthrough effect, 1 spans the complete dynamic range (from quietest to loudest).  Amplitudes always end at 1 at the end of the amod lifespan.   
+/// `cps`: Instantaneous playback rate in cycles per second.
+/// `fund`: Fundamental frequency reference.
+/// `mul`: Harmonic multiplier with respect to the fundamental.
+/// `n_cycles`: Total duration of this event in cycles.
+/// `pos_cycles`: Current position within the event in cycles.
+///
+/// ## Returns
+/// Amplitude value at the current cycle position.
+pub fn amod_cycle_fadein_1_4(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+  // Length in cycles, logarithmic scaling
+  let cycle_length = 2f32.powf(2f32 * knob.a);
+  compute_fade(pos_cycles, cycle_length, knob.b, knob.c)
+}
+
+
+/// A cycle-based amplitude contouring for fading in volume from an eight of a cycle to the full cycle.
+/// Allows for smooth transitions with adjustable cycle length and fade shapes.
+///
+/// ## Arguments
+/// `knob.a`: Length in cycles, scaling logarithmically from 1/8 to 1 cycle
+/// `knob.b`: Fade mode, controls curve shape from concave (b < 0.5), linear (0.5), to convex (b > 0.5).  
+/// `knob.c`: Dynamic range control, scales final amplitude range. 0 is a passthrough effect, 1 spans the complete dynamic range (from quietest to loudest).  Amplitudes always end at 1 at the end of the amod lifespan.   
+/// `cps`: Instantaneous playback rate in cycles per second.
+/// `fund`: Fundamental frequency reference.
+/// `mul`: Harmonic multiplier with respect to the fundamental.
+/// `n_cycles`: Total duration of this event in cycles.
+/// `pos_cycles`: Current position within the event in cycles.
+///
+/// ## Returns
+/// Amplitude value at the current cycle position.
+pub fn amod_cycle_fadein_0p125_1(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+  // Length in cycles, logarithmic scaling
+  let cycle_length = 2f32.powf(-3f32 + 3f32 * knob.a);
+  compute_fade(pos_cycles, cycle_length, knob.b, knob.c)
+}
+
+
+
+
+/// A cycle-based amplitude contouring for fading in volume from an eight of a cycle to the full cycle.
+/// Allows for smooth transitions with adjustable cycle length and fade shapes.
+///
+/// ## Arguments
+/// `knob.a`: Length in cycles, scaling logarithmically from 1/32 to 1/4 cycle
+/// `knob.b`: Fade mode, controls curve shape from concave (b < 0.5), linear (0.5), to convex (b > 0.5).  
+/// `knob.c`: Dynamic range control, scales final amplitude range. 0 is a passthrough effect, 1 spans the complete dynamic range (from quietest to loudest).  Amplitudes always end at 1 at the end of the amod lifespan.   
+/// `cps`: Instantaneous playback rate in cycles per second.
+/// `fund`: Fundamental frequency reference.
+/// `mul`: Harmonic multiplier with respect to the fundamental.
+/// `n_cycles`: Total duration of this event in cycles.
+/// `pos_cycles`: Current position within the event in cycles.
+///
+/// ## Returns
+/// Amplitude value at the current cycle position.
+pub fn amod_cycle_fadein_0p031_0p125(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
+  // Length in cycles, logarithmic scaling
+  let cycle_length = 2f32.powf(-3f32 + 3f32 * knob.a);
+  compute_fade(pos_cycles, cycle_length, knob.b, knob.c)
+}
+
 /// A third oneshot amplitdue modulation for rapid decay.
 ///
 /// ## Arguments
@@ -970,62 +1090,6 @@ pub fn amod_stick(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos
   y
 }
 
-pub fn amod_glideupdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
-  let t: f32 = (12f32 * pos_cycles / n_cycles) % 1f32;
-  let max_mul: f32 = (NFf / 4f32) / fund;
-  let q_factor: f32 = 0.1f32;
-
-  let lower_t = t - q_factor;
-  let upper_t = t + q_factor;
-
-  let lower_bound_mul = if (t - lower_t) < 0.5f32 {
-    2f32 * lower_t * max_mul
-  } else {
-    2f32 * (1f32 - lower_t) * max_mul
-  };
-
-  let upper_bound_mul = if upper_t < 0.5f32 {
-    2f32 * upper_t * max_mul
-  } else {
-    2f32 * (1f32 - upper_t) * max_mul
-  };
-
-  // println!("t {} mul {} lower_t {} upper_t {} lower_bound_mul {} upper_bound_mul {} ", t, mul, lower_t, upper_t, lower_bound_mul,upper_bound_mul);
-  // if t > 0.008f32 {
-  //     panic!("Kill it ")
-  // }
-
-  if lower_bound_mul < mul && mul < upper_bound_mul {
-    1f32
-  } else {
-    0f32
-  }
-}
-
-pub fn amod_cutupdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
-  let t: f32 = (3f32 * pos_cycles / n_cycles) % 1f32;
-  let max_mul: f32 = (NFf * 0.75) / fund;
-  let q_factor: f32 = 1f32;
-
-  let cur_mul: f32 = if t < 0.5f32 {
-    2f32 * t * max_mul
-  } else {
-    2f32 * (1f32 - t) * max_mul
-  };
-
-  if cur_mul == mul {
-    one
-  } else if (cur_mul - q_factor) < mul {
-    let y = (mul - q_factor) / (cur_mul - q_factor);
-    y.powi(2i32)
-  } else if (cur_mul + q_factor) > mul {
-    let y = (mul - q_factor) / (cur_mul - q_factor);
-    y.powi(2i32)
-  } else {
-    0f32
-  }
-}
-
 /// alternates between even and odd harmonics
 /// a: mod time scale factor
 /// b: mod time depth
@@ -1033,13 +1097,13 @@ pub fn amod_cutupdown(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32,
 pub fn amod_seesaw(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
   let rate: f32 = 1f32;
   let t: f32 = (rate * pos_cycles / n_cycles) % 1f32;
-  let mod_rate: f32 = ((knob.b * 3f32) * pi2 * t.powf(knob.a * 2f32 - one)).cos().powi(2i32);
+  let mod_rate: f32 = (pi2 * (knob.b * 3f32) * t.powf(knob.a * 2f32 - one)).cos().powi(2i32);
   let mod_phase_delay: f32 = (knob.c * mul.log2() * pi2 * t).sin() * pi2;
   if mul.floor() % 2f32 == 0f32 {
-    let amp_evens = (mod_rate * pi * t * half + mod_phase_delay).cos();
+    let amp_evens = (mod_rate * pi_2 * t  + mod_phase_delay).cos();
     amp_evens.powi(2i32)
   } else {
-    let amp_odds = (mod_rate * pi * t * half + mod_phase_delay).sin();
+    let amp_odds = (mod_rate * pi_2 * t + mod_phase_delay).sin();
     amp_odds.powi(2i32)
   }
 }

@@ -4,6 +4,33 @@ use rand::{thread_rng, Rng};
 
 static one: f32 = 1f32;
 
+fn mul_metrics(soids:&Soids) -> (f32, f32) {
+  let mut min_mul = 100f32;
+  let mut max_mul = 0f32;
+  for mul in soids.1.iter() {
+    min_mul = min_mul.min(*mul);
+    max_mul = max_mul.max(*mul);
+  }
+  (min_mul, max_mul)
+}
+
+// fn degrade(soids:&Soids, q:f32) -> Soids {
+//   if soids.1.len() < 8 {
+//     return soids.clone()
+//   }
+//   // the min/max percentages of elements removed. 
+//   // goes on the idea that you need 7 soids to create a distinct mask, 
+//   // so a 1/8 chance means 8 or more soids may start to sound degraded on each call.
+//   let (minp, maxp) = (1f32/8f32, 1f32/2f32);
+//   let (min_mul, max_mul) = mul_metrics(soids);
+
+//   let cap_octaves = 8f32;
+//   let n_octaves = (max_mul/min_mul).log2().min(cap_octaves);
+//   let n_percent_removals = minp + (maxp - minp) * n_octaves / cap_octaves;
+//   let n_removals = n_percent_removals * soids.len() as usize;
+
+// }
+
 pub mod ratio {
   use super::*;
 

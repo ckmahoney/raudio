@@ -10,34 +10,25 @@ use super::*;
 /// # Returns
 /// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
 pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  // Dynamically retrieve a percussion sample file path
   let sample_path = get_sample_path(arf);
 
-  // Read the audio sample from the retrieved path
   let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
   let gain = visibility_gain_sample(arf.visibility);
   let amp_expr = dynamics::gen_organic_amplitude(10, 2000, arf.visibility).iter().map(|v| v * gain).collect();
 
-  // Initialize effect parameters
   let mut delays_note = vec![];
   let mut reverbs_room = vec![];
 
-  // Add delays and reverbs only when Visibility::Foreground
   if let Visibility::Foreground = arf.visibility {
-    // Generate delay macros for the percussion stem
     let delay_macros = generate_delay_macros(arf.visibility, arf.energy, arf.presence);
     let mut rng = rand::thread_rng();
     delays_note = delay_macros.iter().map(|mac| mac.gen(&mut rng, conf.cps)).collect();
-
-    // Manually define reverb parameters for the percussion stem
     reverbs_room = vec![];
   }
 
-  // Set lowpass cutoff frequency based on energy level
   let lowpass_cutoff = NFf;
   let ref_sample = ref_samples[0].to_owned();
 
-  // Return the renderable sample
   Renderable2::Sample((
     melody,
     ref_sample,
@@ -46,7 +37,7 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
     delays_note,
     vec![],       
     vec![],       
-    reverbs_room,
+    reverbs_room, 
   ))
 }
 
@@ -99,3 +90,5 @@ fn generate_delay_macros(visibility: Visibility, energy: Energy, presence: Prese
     mmix: vec![MacroMotion::Constant],
   }]
 }
+
+

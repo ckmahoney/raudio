@@ -6,7 +6,7 @@ use crate::presets::Instrument;
 use crate::synth::{pi, pi2, SampleBuffer, MF, NF, SR};
 use crate::time;
 use crate::types::render::{Feel, Melody, Stem};
-use presets::basic::*;
+use presets::mountain::*;
 
 use crate::druid::{inflect, melody_frexer, ApplyAt, Element, Elementor};
 use crate::phrasing::{lifespan, ranger::KnobMods};

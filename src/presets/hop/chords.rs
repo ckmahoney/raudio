@@ -1,69 +1,133 @@
+use super::*;
 use hound::Sample;
 
-use super::*;
 use crate::analysis::melody::{find_reach, mask_sigh, mask_wah, LevelMacro, Levels, ODRMacro, ODR};
 use crate::druid::{self, soids as druidic_soids};
+use crate::monic_theory::note_to_freq;
 use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::time;
 use crate::types::synthesis::{BoostGroup, BoostGroupMacro, ModifiersHolder, Soids};
 
-fn amp_knob_detune(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
-  let mut rng = thread_rng();
-
-  let detune_rate = match energy {
-    Energy::Low => [0f32, rng.gen::<f32>() / 6f32],
-    Energy::Medium => [0f32, rng.gen::<f32>() / 3f32],
-    Energy::High => [0f32, rng.gen::<f32>()],
+/// Generates a set of delay macros for chord textures in ambient music, utilizing VEP parameters.
+/// Each macro represents a different chord delay style, designed to create wide, immersive textures
+/// that enhance the ambient mix's depth and spatial quality.
+///
+/// # Arguments
+/// - `visibility`: Controls gain level, adjusting the overall prominence of the chords.
+/// - `energy`: Influences echo density, layering more echoes for higher energy levels.
+/// - `presence`: Adjusts delay cycle lengths to achieve various spatial effects.
+///
+/// # Returns
+/// A vector of `DelayParamsMacro` instances for ambient chord delay styles.
+fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence: Presence) -> Vec<DelayParamsMacro> {
+  // Determine gain level based on visibility to set chord presence in the mix
+  let gain_level = match visibility {
+    Visibility::Hidden => db_to_amp(-12.0),
+    Visibility::Background => db_to_amp(-9.0),
+    Visibility::Foreground => db_to_amp(-6.0),
+    Visibility::Visible => db_to_amp(-3.0),
   };
-  let detune_mix = match visibility {
-    Visibility::Visible => [0.33, 0.33 + 0.47 * rng.gen::<f32>()],
-    Visibility::Foreground => [0.2, 0.2 + 0.13 * rng.gen::<f32>()],
-    Visibility::Background => [0.1, 0.1 + 0.1 * rng.gen::<f32>()],
-    Visibility::Hidden => [0f32, 0.05 * rng.gen::<f32>()],
+
+  // Adjust echo density based on energy level for layering control
+  let n_echoes_range = match energy {
+    Energy::Low => [3, 4],
+    Energy::Medium => [4, 6],
+    Energy::High => [6, 8],
   };
 
-  (
-    KnobMacro {
-      a: detune_rate,
-      b: detune_mix,
-      c: [0.0, 0.0], // Static value as [0, 0]
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
+  // Set delay cycle lengths based on presence, adding variety to the spatial effect
+  let dtimes_cycles = match presence {
+    Presence::Staccatto => vec![1f32/8f32, 1f32/4f32, 1f32/2f32],
+    Presence::Legato => vec![1f32/8f32, 1f32/4f32, 1f32/3f32, 2f32/3f32, 1f32, 3f32/2f32, 2f32], // Medium cycles for smooth, sustained echoes
+    Presence::Tenuto => vec![1.333, 1.5, 2.0, 3.0], // Longer cycles for a more spacious feel
+  };
+
+
+  // 1. Wide Stereo Pad Delay
+  // Creates a wide, lush stereo spread for ambient chord textures.
+  let wide_stereo_pad = DelayParamsMacro {
+    gain: [gain_level, gain_level + 0.1], // Slight gain increase for depth
+    dtimes_cycles: dtimes_cycles.clone(),
+    n_echoes: n_echoes_range,
+    mix: [0.5, 0.7],                             // Stronger mix for an immersive stereo effect
+    pan: vec![StereoField::LeftRight(0.7, 0.7)], // Wide stereo spread for spatial depth
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
+  };
+
+  // 2. Smooth Mono Pad Delay
+  // Provides a centered, smooth delay that blends chords for a cohesive background layer.
+  let smooth_mono_pad = DelayParamsMacro {
+    gain: [gain_level * 0.8, gain_level], // Slightly lower gain for blending
+    dtimes_cycles: dtimes_cycles.clone(),
+    n_echoes: n_echoes_range,
+    mix: [0.4, 0.6],              // Balanced mix to maintain smoothness
+    pan: vec![StereoField::Mono], // Mono to keep it centered and cohesive
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
+  };
+
+  // 3. Evolving Pad Delay
+  // Adds long, varied delay cycles to create a slowly evolving, immersive chord texture.
+  let evolving_pad_delay = DelayParamsMacro {
+    gain: [gain_level, gain_level + 0.2], // Slightly increased gain for evolving textures
+    dtimes_cycles: match presence {
+      Presence::Staccatto => vec![1.0, 1.5, 2.0], // Moderate cycles for subtle movement
+      Presence::Legato => vec![2.0, 3.0, 4.0],    // Longer cycles for smooth flow
+      Presence::Tenuto => vec![3.0, 4.0, 5.0, 6.0], // Longest cycles for gradual evolution
     },
-    ranger::amod_detune,
-  )
+    n_echoes: [n_echoes_range[0], n_echoes_range[1] + 1], // Slightly more echoes for layering
+    mix: [0.5, 0.8],                                      // Higher mix for a prominent ambient presence
+    pan: vec![StereoField::LeftRight(0.6, 0.6)],          // Moderate stereo spread for depth
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
+  };
+
+  vec![wide_stereo_pad, smooth_mono_pad, evolving_pad_delay]
 }
 
-fn freq_knob_tonal(v: Visibility, e: Energy, p: Presence) -> KnobPair {
+fn amp_knob_presence(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
   let mut rng = thread_rng();
-  let modulation_amount = match e {
-    Energy::Low => [0.005f32, 0.005f32 + 0.003 * rng.gen::<f32>()],
-    Energy::Medium => [0.008f32, 0.008f32 + 0.012f32 * rng.gen::<f32>()],
-    Energy::High => [0.1f32, 0.1f32 + 0.2f32 * rng.gen::<f32>()],
+
+  let decay_length = match visibility {
+    Visibility::Visible => [0.33f32, 0.33 + 0.5 * rng.gen::<f32>()],
+    Visibility::Foreground => [0.33f32, 0.33 + 0.33 * rng.gen::<f32>()],
+    Visibility::Background => [0.2, 0.2 + 0.2 * rng.gen::<f32>()],
+    Visibility::Hidden => [0.1f32, 0.2f32],
+  };
+  let sustain_level  = match energy {
+    Energy::High => [0.66f32,  0.66 + 0.33 * rng.gen::<f32>()],
+    Energy::Medium => [0.55f32, 0.55 + 0.2f32 * rng.gen::<f32>()],
+    Energy::Low => [0.33f32, 0.33 + rng.gen::<f32>() / 4f32],
   };
 
-  (
+  return (
     KnobMacro {
-      a: modulation_amount,
-      b: [0f32, 0f32], // Static value as [0, 0]
-      c: [0f32, 0f32], // Static value as [0, 0]
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
+      a: decay_length,
+      b: [0f32, 0f32],
+      c: sustain_level,
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
+      mb: MacroMotion::Constant, // unused
+      mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse,  MacroMotion::Random, MacroMotion::Constant]),
     },
-    ranger::fmod_warble,
-  )
+    ranger::amod_fall,
+  );
 }
 
 fn pmod_chorus(v: Visibility, e: Energy, p: Presence) -> KnobPair {
   let mut rng = thread_rng();
 
   let modulation_depth = match v {
-    Visibility::Hidden => [0.33f32, 0.33f32],
-    Visibility::Background => [0.5, 0.5],
-    Visibility::Foreground => [0.75, 0.75],
-    Visibility::Visible => [1f32, 1f32],
+    Visibility::Hidden => [0f32, 0.33f32],
+    Visibility::Background => [0.33, 0.5],
+    Visibility::Foreground => [0.5, 0.75],
+    Visibility::Visible => [0.75f32, 1f32],
   };
 
   let chorus_visibility = match v {
@@ -73,16 +137,41 @@ fn pmod_chorus(v: Visibility, e: Energy, p: Presence) -> KnobPair {
     Visibility::Visible => [0.8, 0.8 + 0.1 * rng.gen::<f32>()],
   };
 
+  let chorus_visibility = [0.5f32, 1f32];
+  let modulation_depth = [0.1f32, 1f32];
+  let intensity = [0.5 * 1f32 / 3f32, 0.5 * 1f32 / 3f32];
+
   (
     KnobMacro {
-      a: modulation_depth,
-      b: chorus_visibility,
-      c: [0.0, 0.0], // Static value as [0, 0]
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
+      a: chorus_visibility,
+      b: modulation_depth,
+      c: intensity,
+      ma: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Constant,
+        MacroMotion::Min,
+        MacroMotion::Mean,
+        MacroMotion::Max,
+      ]),
+      mb: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Constant,
+        MacroMotion::Min,
+        MacroMotion::Mean,
+        MacroMotion::Max,
+      ]),
+      mc: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Constant,
+        MacroMotion::Min,
+        MacroMotion::Mean,
+        MacroMotion::Max,
+      ]),
     },
-    ranger::pmod_chorus,
+    ranger::pmod_chorus2,
   )
 }
 
@@ -95,7 +184,7 @@ pub fn filter_contour_linear_rise<'render>(
   let mut highpass_contour: SampleBuffer = vec![MFf; n_samples];
   let mut lowpass_contour: SampleBuffer = Vec::with_capacity(n_samples);
 
-  // The default position of the lowpass filter.
+  // the default position of the lowpass filter.
   let start_cap: f32 = 2.1f32;
   let final_cap: f32 = MAX_REGISTER as f32 - arf.register as f32 - start_cap;
 
@@ -138,36 +227,50 @@ fn dynamics(arf: &Arf, n_samples: usize, k: f32) -> SampleBuffer {
   dynamp_contour
 }
 
-pub fn renderable<'render>(cps: f32, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  let mullet = match arf.energy {
-    Energy::Low => 2f32.powi(12i32),
-    Energy::Medium => 2f32.powi(10i32),
-    Energy::High => 2f32.powi(8i32),
+pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
+  let mullet = match arf.visibility {
+    Visibility::Hidden => 2f32.powi(12i32),
+    Visibility::Background => 2f32.powi(10i32),
+    Visibility::Foreground => 2f32.powi(9i32),
+    Visibility::Visible => 2f32.powi(8i32),
   };
   let len_cycles: f32 = time::count_cycles(&melody[0]);
-  let soids = druidic_soids::overs_sawtooth(mullet);
-
-  let bp: Bp2 = get_bp(cps, melody, arf, len_cycles);
+  let soids = &druidic_soids::overs_sawtooth(mullet);
+  let soids = soid_fx::fmod::reece(&soids, 1.5f32, 7);
+  let soids = soid_fx::fmod::reece(&soids, 1.5f32, 6);
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  knob_mods.0.push(amp_microtransient(arf.visibility, arf.energy, arf.presence));
+  if let Visibility::Visible = arf.visibility {
+    // don't add it 
+  } else {
+    knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
+  }
+  knob_mods.0.push(amp_knob_presence(arf.visibility, arf.energy, arf.presence));
   knob_mods.2.push(pmod_chorus(arf.visibility, arf.energy, arf.presence));
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 
-  let dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
+  let mut dynamics = dynamics::gen_organic_amplitude(4, n_samples, arf.visibility);
+  amp_scale(&mut dynamics, visibility_gain(arf.visibility));
 
   let expr = (dynamics, vec![1f32], vec![0f32]);
+  let mut rng = thread_rng();
+  let delays_note = generate_chord_delay_macros(arf.visibility, arf.energy, arf.presence)
+    .iter()
+    .map(|mac| mac.gen(&mut rng, conf.cps))
+    .collect();
 
-  let delays_note = vec![delay::passthrough];
   let delays_room = vec![];
+
   let reverbs_note: Vec<ReverbParams> = vec![];
   let reverbs_room: Vec<ReverbParams> = vec![];
 
-  let stem: Stem2 = (
+  let stem = (
     melody,
     soids,
     expr,
-    bp,
+    // (vec![1f32], vec![1f32], vec![0f32]),
+    HopCon::get_bp(conf.cps, melody, arf),
+    // bp2_unit(),
     knob_mods,
     delays_note,
     delays_room,

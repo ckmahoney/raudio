@@ -55,25 +55,25 @@ fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
   (
     KnobMacro {
       a: match arf.presence {
-        Presence::Staccatto => [0.11f32, 0.3f32], // Using range values directly
-        Presence::Legato => [0.33f32, 0.5f32],
-        Presence::Tenuto => [0.7f32, 0.9f32],
+        Presence::Staccatto => [0.2f32, 0.5f32],
+        Presence::Legato => [0.4f32, 0.8f32],
+        Presence::Tenuto => [0.85f32, 1f32],
       },
       b: match arf.visibility {
-        Visibility::Visible => [0f32, 0.2f32],
-        Visibility::Foreground => [0.2f32, 0.3f32],
-        _ => [0.3f32, 0.5f32],
+        Visibility::Visible => [0.2f32, 0.4f32],
+        Visibility::Foreground => [0.5f32, 0.7f32],
+        _ => [0.6f32, 1f32],
       },
-      c: [0.0, 0.0], // Static value as [0, 0]
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
+      c: [0.0, 0.0], 
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
+      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Random, MacroMotion::Constant]),
       mc: MacroMotion::Random,
     },
-    ranger::amod_burp,
+    ranger::amod_pluck2,
   )
 }
 
-fn amp_knob_attenuation(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
+fn amp_knob_detune(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
   (
     KnobMacro {
       a: match arf.energy {
@@ -81,29 +81,38 @@ fn amp_knob_attenuation(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
         Energy::Medium => [0.23f32, 0.34f32],
         Energy::Low => [0.0f32, 0.21f32],
       },
-      b: [1f32, 1f32], // Static value as [1, 1]
-      c: [0.0, 0.0],   // Static value as [0, 0]
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
+      b: [1f32, 1f32], 
+      c: [0.0, 0.0],   
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Min, MacroMotion::Constant]),
+      mb: MacroMotion::Min,
+      mc: MacroMotion::Min,
     },
     ranger::amod_detune,
   )
 }
 
-pub fn renderable<'render>(cps: f32, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
+pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   let mut rng = thread_rng();
   let len_cycles: f32 = time::count_cycles(&melody[0]);
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  knob_mods.0.push(amp_microtransient(arf.visibility, arf.energy, arf.presence));
-  knob_mods.0.push(amp_knob_principal(&mut rng, &arf));
-  knob_mods.0.push(amp_knob_attenuation(&mut rng, &arf));
+  if let Visibility::Visible = arf.visibility {
+    // don't add it 
+  } else {
+    knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
+  }
+  knob_mods.0.push(amp_knob_principal(&mut rng, &arf)); 
+  knob_mods.0.push(amp_knob_detune(&mut rng, &arf));
 
-  let soids = druidic_soids::overs_square(2f32.powi(7i32));
+  let height = mul_it(&arf, 10f32, 9f32, 7f32);
 
-  let delays_note = vec![delay::passthrough];
+  let soids = match arf.visibility {
+    Visibility::Visible => druidic_soids::overs_sawtooth(height),
+    Visibility::Foreground => druidic_soids::overs_sawtooth(height),
+    _ => druidic_soids::overs_triangle(height),
+  };
+  let delays_note = vec![];
   let delays_room = vec![];
   let reverbs_note: Vec<ReverbParams> = vec![];
   let reverbs_room: Vec<ReverbParams> = vec![];
@@ -112,7 +121,7 @@ pub fn renderable<'render>(cps: f32, melody: &'render Melody<Note>, arf: &Arf) -
     melody,
     soids,
     expr(arf, n_samples),
-    get_bp(cps, melody, arf, len_cycles),
+    HopCon::get_bp(conf.cps, melody, arf),
     knob_mods,
     delays_note,
     delays_room,
@@ -120,5 +129,5 @@ pub fn renderable<'render>(cps: f32, melody: &'render Melody<Note>, arf: &Arf) -
     reverbs_room,
   );
 
-  Renderable2::Group(vec![stem])
+  Renderable2::Instance(stem)
 }

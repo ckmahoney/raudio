@@ -3,7 +3,7 @@ use crate::analysis::delay;
 use crate::complexity;
 use crate::files;
 
-static demo_name: &str = "chill-beat-hop";
+static demo_name: &str = "cvalley-beat-hop";
 
 use crate::analysis::volume::db_to_amp;
 use crate::presets::Instrument;
@@ -275,7 +275,7 @@ fn test_hypnosis() {
 
 #[test]
 fn test_render_playbook() {
-  let filepath: &str = &format!("{}/demo/chill/test_chill_playbook", crate::demo::out_dir);
+  let filepath: &str = &format!("{}/demo/cvalley/test_cvalley_playbook", crate::demo::out_dir);
 
-  crate::render_playbook(filepath, "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
+  crate::render_playbook(filepath, "hop", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
 }

@@ -344,5 +344,5 @@ fn test_demo() {
 fn test_render_playbook() {
   let filepath: &str = &format!("{}/demo/reverb/test_reverb_playbook", crate::demo::out_dir);
 
-  crate::render_playbook(filepath, "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
+  crate::render_playbook(filepath, "mountain", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
 }

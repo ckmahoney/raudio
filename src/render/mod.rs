@@ -1083,7 +1083,8 @@ pub fn combiner_with_reso2<'render>(
       let rendered_channel = pad_and_mix_buffers(ch);
 
       match rendered_channel {
-        Ok(signal) => convolution::of(&signal, &stem_reverbs[j]),
+        Ok(signal) => if stem_reverbs.is_empty() { signal }
+        else { convolution::of(&signal, &stem_reverbs[j]) },
         Err(msg) => panic!("Unexpected error while mixing channels: {}", msg),
       }
     })

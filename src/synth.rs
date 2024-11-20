@@ -32,6 +32,9 @@ pub const SECONDS_PER_SAMPLE: f32 = 1.0 / SRf; // Time duration of a single samp
 pub const SAMPLES_PER_MILLISECOND: f32 = SRf / 1000.0; // Number of samples in a millisecond
 pub const SAMPLES_PER_SECOND: f32 = SRf; // Alias for samples per second
 
+pub fn MAX_POW_2i() -> i32 { NFf.log2() as i32 }
+pub fn MAX_POW_2f() -> f32 { NFf.log2() }
+pub fn MAX_POW_2u() -> u32 { NFf.log2() as u32 }
 pub const MAX_REGISTER: i32 = 13;
 pub const MIN_REGISTER: i32 = 4;
 

@@ -10,6 +10,7 @@ use crate::synth::{pi, pi2, MFf, NFf, SRf, SampleBuffer, MAX_REGISTER, MIN_REGIS
 use crate::{render, AmpLifespan};
 use rand;
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
+use std::marker::PhantomData;
 
 use crate::analysis::delay::{self, DelayParams, DelayParamsMacro, StereoField};
 use crate::analysis::sampler::read_audio_file;
@@ -32,9 +33,7 @@ use rand::thread_rng;
 use std::fs::read_dir;
 
 pub mod ambien;
-pub mod basic;
-pub mod bird;
-pub mod hill;
+pub mod valley;
 pub mod hop;
 pub mod kuwuku;
 pub mod mountain;
@@ -55,6 +54,12 @@ pub const DB_HEADROOM: f32 = -8f32;
 static contour_resolution: usize = 1200;
 static unit_decay: f32 = 9.210340372;
 
+pub trait Conventions<'render> {
+  fn get_bp(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2;
+}
+
+/// A constant microtransient onset to prevent immediate entry.
+/// This is the smallest possible for a natural entry onset. 
 pub fn amp_microtransient(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
   (
     KnobMacro {
@@ -112,7 +117,8 @@ pub fn get_bp<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycl
 }
 
 /// Create bandpass automations with respect to Arf and Melody
-fn bp_cresc<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
+fn bp_cresc<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
+  let len_cycles = time::count_cycles(&mel[0]);
   let size = (len_cycles.log2() - 1f32).max(1f32); // offset 1 to account for lack of CPC. -1 assumes CPC=2
   let rate_per_size = match arf.energy {
     Energy::Low => 0.5f32,
@@ -148,7 +154,8 @@ fn bp_cresc<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles
 }
 
 /// Create bandpass automations with respect to Arf and Melody
-fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
+fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
+  let len_cycles = time::count_cycles(&mel[0]);
   let size = (len_cycles.log2() - 1f32).max(1f32); // offset 1 to account for lack of CPC. -1 assumes CPC=2
   let rate_per_size = match arf.energy {
     Energy::Low => 0.5f32,
@@ -183,6 +190,10 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: 
     onset: [60.0, 120f32],
     decay: [230.0, 300f32],
     release: [110.0, 200f32],
+
+    mo: vec![MacroMotion::Constant],
+    md: vec![MacroMotion::Constant],
+    mr: vec![MacroMotion::Constant],
   };
   let highpass = if let Energy::Low = arf.energy {
     filter_contour_triangle_shape_highpass(lowest_register, highest_register, n_samples, size * rate_per_size)
@@ -196,8 +207,17 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: 
   )
 }
 
+/// Gets an applied fundamental frequency for a synth by energy
+/// and provided powers of 2,
+/// given that a high power of two is a higher fundamental is a shorter synth.
+pub fn mul_it(arf:&Arf, low:f32, medium:f32, high:f32) -> f32 {
+  2f32.powf(match arf.energy {
+    Energy::Low => low, Energy::Medium => medium, Energy::High => high
+  })
+}
 /// Create bandpass automations with respect to Arf and Melody
-fn bp_sighpad<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
+fn bp_sighpad<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
+  let len_cycles = time::count_cycles(&mel[0]);
   let size = (len_cycles.log2() - 1f32).max(1f32); // offset 1 to account for lack of CPC. -1 assumes CPC=2
   let rate_per_size = match arf.energy {
     Energy::Low => 0.5f32,
@@ -214,9 +234,13 @@ fn bp_sighpad<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycl
   };
 
   let odr_macro = ODRMacro {
-    onset: [1260.0, 2120f32],
-    decay: [2330.0, 8500f32],
+    onset: [260.0, 2120f32],
+    decay: [1330.0, 5000f32],
     release: [1510.0, 2000f32],
+
+    mo: vec![MacroMotion::Constant],
+    md: vec![MacroMotion::Constant],
+    mr: vec![MacroMotion::Constant],
   };
 
   let highpass = if let Energy::Low = arf.energy {
@@ -356,8 +380,9 @@ pub struct RolePreset<'render> {
 /// Enum representing the different presets, with support for `Format::display`.
 #[derive(Copy, Clone, Debug)]
 pub enum Preset {
-  Hill,
+  Valley,
   Mountain,
+  Hop
 }
 
 impl fmt::Display for Preset {
@@ -370,8 +395,9 @@ impl<'render> Preset {
   /// Returns the `RolePreset` associated with the given `Preset`.
   pub fn get(preset: Preset) -> RolePreset<'render> {
     match preset {
-      Preset::Hill => hill::map_role_preset(),
+      Preset::Valley => valley::map_role_preset(),
       Preset::Mountain => mountain::map_role_preset(),
+      Preset::Hop => hop::map_role_preset(),
     }
   }
 
@@ -403,7 +429,6 @@ impl Instrument {
   //     use Role::*;
   //     use crate::synth::MFf;
   //     use crate::phrasing::ranger::KnobMods;
-  //     use crate::presets::basic::*;
 
   //     let renderable = match arf.role {
   //         Kick => hop::kick::renderable(cps, melody, arf),
@@ -411,17 +436,8 @@ impl Instrument {
   //         Hats => hop::hats::renderable(cps, melody, arf),
   //         Lead => hop::lead::renderable(cps, melody, arf),
   //         Bass => hop::bass::renderable(cps, melody, arf),
-  //         Chords => hill::chords::renderable(cps, melody, arf),
+  //         Chords => valley::chords::renderable(cps, melody, arf),
   //     };
-
-  //     // match arf.role {
-  //     //     Kick => kuwuku::kick::renderable(melody, arf),
-  //     //     Perc => kuwuku::perc::renderable(melody, arf),
-  //     //     Hats => kuwuku::hats::renderable(melody, arf),
-  //     //     Lead => urbuntu::lead::renderable(melody, arf),
-  //     //     Bass => kuwuku::bass::renderable(melody, arf),
-  //     //     Chords => kuwuku::chords::renderable(melody, arf),
-  //     // };
 
   //     // match arf.role {
   //     //     Kick => ambien::kick::renderable(melody, arf),
@@ -430,23 +446,6 @@ impl Instrument {
   //     //     Lead => ambien::lead::renderable(melody, arf),
   //     //     Bass => ambien::bass::renderable(melody, arf),
   //     //     Chords => ambien::chords::renderable(melody, arf),
-  //     // }
-  //     // match arf.role {
-  //     //     Kick => bird::kick::renderable(melody, arf),
-  //     //     Perc => bird::perc::renderable(melody, arf),
-  //     //     Hats => bird::hats::renderable(melody, arf),
-  //     //     Lead => bird::lead::renderable(melody, arf),
-  //     //     Bass => bird::bass::renderable(melody, arf),
-  //     //     Chords => bird::chords::renderable(melody, arf),
-  //     // }
-
-  //     // match arf.role {
-  //     //     Kick => urbuntu::kick::renderable(melody, arf),
-  //     //     Perc => urbuntu::perc::renderable(melody, arf),
-  //     //     Hats => urbuntu::hats::renderable(melody, arf),
-  //     //     Lead => urbuntu::lead::renderable(melody, arf),
-  //     //     Bass => urbuntu::bass::renderable(melody, arf),
-  //     //     Chords => urbuntu::chords::renderable(melody, arf),
   //     // }
 
   //     match renderable {
@@ -564,9 +563,9 @@ pub fn amod_impulse(k: usize, x: f32, d: f32) -> f32 {
 
 pub fn visibility_gain(v: Visibility) -> f32 {
   match v {
-    Visibility::Hidden => db_to_amp(-24f32),
-    Visibility::Background => db_to_amp(-18f32),
-    Visibility::Foreground => db_to_amp(-12f32),
+    Visibility::Hidden => db_to_amp(-20f32),
+    Visibility::Background => db_to_amp(-16f32),
+    Visibility::Foreground => db_to_amp(-10f32),
     Visibility::Visible => db_to_amp(-6f32),
   }
 }
@@ -642,4 +641,57 @@ fn initialize_sample_cache() -> HashMap<String, Vec<String>> {
   }
 
   cache
+}
+
+/// Create bandpass automations with respect to Arf and Melody
+/// animation_duration_basis determines how long (in cycles) the effect lasts per-note.
+fn bp_bark<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, animation_duration_basis:f32) -> Bp2 {
+  let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
+  let line_samples = time::samples_of_line(cps, &mel[0]);
+  let lsf = line_samples as f32;
+
+  let mut lowpass_contour: SampleBuffer = Vec::with_capacity(line_samples);
+
+  // the basis of the filter; e.g. sustain level 
+  let base_cap: f32 = 1.5f32.powi(match arf.energy {
+    Energy::Low => 1i32, Energy::Medium => 2i32, Energy::High => 3i32
+  });
+  // 
+  let peak_cap: f32 = MAX_REGISTER as f32 - lowest_register as f32 - base_cap;
+
+  let min_f: f32 = 2f32.powf(lowest_register as f32 + base_cap);
+  let max_f: f32 = 2f32.powf(lowest_register as f32 + base_cap + peak_cap);
+  let df: f32 = (max_f - min_f).log2(); 
+
+  
+  let mut line_p:f32 = 0f32;
+
+  mel[0].iter().enumerate().for_each(|(i, note)| {
+    let note_samples = time::samples_of_note(cps, &note);
+    let note_dur_cycles = time::duration_to_cycles(note.0);
+    let animation_duration_cycles = animation_duration_basis * match arf.presence {
+      Presence::Staccatto => 1f32, Presence::Legato => 2f32, Presence::Tenuto => 3f32, 
+    };
+    let animation_duration_samples = time::samples_of_cycles(cps, animation_duration_cycles * note_dur_cycles);
+    let adf = animation_duration_samples as f32;
+
+    for j in 0..note_samples {
+      let note_p = j / note_samples;
+      let fx_p = j as f32 / adf;
+      if j > animation_duration_samples { 
+        lowpass_contour.push(min_f);
+      } else {
+        lowpass_contour.push(min_f + 2f32.powf(df * (1f32 - fx_p)));
+      }
+    }
+    
+    line_p = (line_p + note_samples as f32/lsf) .min(1f32);
+  });
+
+  let highpass = vec![MFf];
+  (
+    highpass,
+    lowpass_contour,
+    vec![],
+  )
 }

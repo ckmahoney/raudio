@@ -52,7 +52,7 @@ fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> (Knob, fn(&Knob, f32, f
   );
 }
 
-fn amp_knob_attenuation(rng: &mut ThreadRng, arf: &Arf) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
+fn amp_knob_detune(rng: &mut ThreadRng, arf: &Arf) -> (Knob, fn(&Knob, f32, f32, f32, f32, f32) -> f32) {
   return (
     Knob {
       a: match arf.energy {
@@ -84,7 +84,7 @@ pub fn renderable<'render>(melody: &'render Melody<Note>, arf: &Arf) -> Renderab
 
   let mut knob_mods: KnobMods = KnobMods::unit();
   knob_mods.0.push(amp_knob_principal(&mut rng, &arf));
-  knob_mods.0.push(amp_knob_attenuation(&mut rng, &arf));
+  knob_mods.0.push(amp_knob_detune(&mut rng, &arf));
 
   let soids = soid_fx::map(
     &soids,

@@ -6,7 +6,44 @@ pub mod kick;
 pub mod lead;
 pub mod perc;
 
-use std::marker::PhantomData;
+
+
+/// Generates a macro for ambient music, designed for long, evolving fades suitable for lead and pad synths.
+/// Adjusts cycle length, fade shape, and dynamic range based on visibility, energy, and presence.
+pub fn amp_onset(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
+  let visibility_gain = match visibility {
+      Visibility::Hidden => [0.0, 0.2],
+      Visibility::Background => [0.2, 0.5],
+      Visibility::Foreground => [0.5, 0.8],
+      Visibility::Visible => [0.8, 1.0],
+  };
+
+  let spectral_mod = match energy {
+      Energy::Low => [0.2, 0.5],
+      Energy::Medium => [0.4, 0.8],
+      Energy::High => [0.7, 1.0],
+  };
+
+  let duration_mod = match presence {
+      Presence::Staccatto => [0.1, 0.2],
+      Presence::Tenuto => [0.3, 0.6],
+      Presence::Legato => [0.7, 1.0],
+  };
+
+  (
+      KnobMacro {
+          a: visibility_gain,
+          b: spectral_mod,
+          c: duration_mod,
+          ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Constant]),
+          mb: grab_variant(vec![MacroMotion::Mean, MacroMotion::Reverse]),
+          mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Constant]),
+      },
+      ranger::amod_cycle_fadein_4_16,
+  )
+}
+
+
 
 /// short delay with loud echo
 /// works best with percussive or plucky sounds
@@ -52,7 +89,8 @@ fn gen_trailing(cps: f32, rng: &mut ThreadRng, complexity: f32) -> DelayParams {
 }
 
 /// Create bandpass automations with respect to Arf and Melody
-fn bp_cresc<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
+fn bp_cresc<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
+  let len_cycles = time::count_cycles(&mel[0]);
   let size = (len_cycles.log2() - 1f32).max(1f32); // offset 1 to account for lack of CPC. -1 assumes CPC=2
   let rate_per_size = match arf.energy {
     Energy::Low => 0.5f32,
@@ -88,7 +126,8 @@ fn bp_cresc<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles
 }
 
 /// Create bandpass automations with respect to Arf and Melody
-fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
+fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
+  let len_cycles = time::count_cycles(&mel[0]);
   let size = (len_cycles.log2() - 1f32).max(1f32); // offset 1 to account for lack of CPC. -1 assumes CPC=2
   let rate_per_size = match arf.energy {
     Energy::Low => 0.5f32,
@@ -124,6 +163,9 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: 
     onset: [180.0, 360f32],   // Previously 60.0, 120f32
     decay: [460.0, 600f32],   // Previously 230.0, 300f32
     release: [330.0, 400f32], // Previously 110.0, 200f32
+    mo: vec![MacroMotion::Constant],
+    md: vec![MacroMotion::Constant],
+    mr: vec![MacroMotion::Constant],
   };
   let highpass = if let Energy::Low = arf.energy {
     filter_contour_triangle_shape_highpass(lowest_register, highest_register, n_samples, size * rate_per_size)
@@ -137,28 +179,25 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: 
   )
 }
 
-pub fn get_bp<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
+pub fn get_bp<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
   match arf.presence {
-    Presence::Staccatto => bp_wah(cps, mel, arf, len_cycles),
-    Presence::Legato => bp_sighpad(cps, mel, arf, len_cycles),
-    Presence::Tenuto => bp_cresc(cps, mel, arf, len_cycles),
+    Presence::Staccatto => bp_wah(cps, mel, arf),
+    Presence::Legato => bp_sighpad(cps, mel, arf),
+    Presence::Tenuto => bp_cresc(cps, mel, arf),
   }
 }
 
-trait Conventions<'render> {
-  fn get_bp(&self, cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2;
-}
 
 pub struct MountainCon<'render> {
   _marker: PhantomData<&'render ()>,
 }
 
 impl<'render> Conventions<'render> for MountainCon<'render> {
-  fn get_bp(&self, cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
+  fn get_bp(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
     match arf.presence {
-      Presence::Staccatto => bp_wah(cps, mel, arf, len_cycles),
-      Presence::Legato => bp_sighpad(cps, mel, arf, len_cycles),
-      Presence::Tenuto => bp_cresc(cps, mel, arf, len_cycles),
+      Presence::Staccatto => bp_wah(cps, mel, arf),
+      Presence::Legato => bp_sighpad(cps, mel, arf),
+      Presence::Tenuto => bp_cresc(cps, mel, arf),
     }
   }
 }

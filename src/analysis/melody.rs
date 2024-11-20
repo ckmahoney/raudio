@@ -118,7 +118,7 @@ pub struct ODR {
 
 /// Min/max ranges for generating `ODR` values, used to set bounds for each stage (onset, decay, release)
 /// within specified limits in milliseconds.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct ODRMacro {
   /// Range of onset times in milliseconds [min, max].
   pub onset: [f32; 2],
@@ -126,6 +126,9 @@ pub struct ODRMacro {
   pub decay: [f32; 2],
   /// Range of release times in milliseconds [min, max].
   pub release: [f32; 2],
+  pub mo: Vec<MacroMotion>,
+  pub md: Vec<MacroMotion>,
+  pub mr: Vec<MacroMotion>,
 }
 
 impl ODRMacro {
@@ -313,16 +316,18 @@ pub fn mask_wah(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro:
     let dur_seconds = time::step_to_seconds(cps, &(*note).0);
     let odr: ODR = (odr_macro.gen()).fit_in_samples(cps, dur_seconds);
 
-    let n_samples_ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
-    let n_samples_fall: usize = time::samples_of_milliseconds(cps, odr.decay);
-    let n_samples_kill: usize = time::samples_of_milliseconds(cps, odr.release);
-    let animation_duration_samples = n_samples_fall + n_samples_ramp + n_samples_kill;
-    // sustain level, boxed in by the ramp/fall/kill values
-    let n_samples_hold: usize = if animation_duration_samples > n_samples_note {
-      0
-    } else {
-      n_samples_note - animation_duration_samples
-    };
+    // let n_samples_ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
+    // let n_samples_fall: usize = time::samples_of_milliseconds(cps, odr.decay);
+    // let n_samples_kill: usize = time::samples_of_milliseconds(cps, odr.release);
+    // let animation_duration_samples = n_samples_fall + n_samples_ramp + n_samples_kill;
+    // // sustain level, boxed in by the ramp/fall/kill values
+    // let n_samples_hold: usize = if animation_duration_samples > n_samples_note {
+    //   0
+    // } else {
+    //   n_samples_note - animation_duration_samples
+    // };
+
+    let (n_samples_ramp, n_samples_fall, n_samples_hold, n_samples_kill) = eval_odr(cps, n_samples_note, &odr);
 
     let curr_freq: f32 = note_to_freq(note);
     let stable_freq_base = stable * curr_freq.log2();
@@ -353,6 +358,21 @@ pub fn mask_wah(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro:
   contour
 }
 
+fn eval_odr(cps:f32, at_n_samples:usize, odr:&ODR) -> (usize, usize, usize, usize) {
+  let ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
+  let fall: usize = time::samples_of_milliseconds(cps, odr.decay);
+  let kill: usize = time::samples_of_milliseconds(cps, odr.release);
+  let animation_duration_samples = fall + ramp + kill;
+  // sustain level, boxed in by the ramp/fall/kill values
+  let hold: usize = if animation_duration_samples > at_n_samples {
+    0
+  } else {
+    at_n_samples - animation_duration_samples
+  };
+
+  (ramp, fall, hold, kill)
+}
+
 /// Given a line,
 /// define a lowpass contour  with a unique ODSR per-note
 /// bound by the Level and ODR macros provided.
@@ -370,16 +390,8 @@ pub fn mask_sigh(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro
     let dur_seconds = time::step_to_seconds(cps, &(*note).0);
     let odr: ODR = (odr_macro.gen()).fit_in_samples(cps, dur_seconds);
 
-    let n_samples_ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
-    let n_samples_fall: usize = time::samples_of_milliseconds(cps, odr.decay);
-    let n_samples_kill: usize = time::samples_of_milliseconds(cps, odr.release);
-    let animation_duration_samples = n_samples_fall + n_samples_ramp + n_samples_kill;
-    // sustain level, boxed in by the ramp/fall/kill values
-    let n_samples_hold: usize = if animation_duration_samples > n_samples_note {
-      0
-    } else {
-      n_samples_note - animation_duration_samples
-    };
+    let (n_samples_ramp, n_samples_fall, n_samples_hold, n_samples_kill) = eval_odr(cps, n_samples_note, &odr);
+
 
     let curr_freq: f32 = note_to_freq(note);
     let stable_freq_base = stable * curr_freq.log2();

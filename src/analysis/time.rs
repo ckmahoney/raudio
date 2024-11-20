@@ -15,11 +15,6 @@ pub fn cycles_from_n(cps: f32, n: usize) -> f32 {
   n as f32 / one
 }
 
-/// Given a duration as a ratio of seconds, return the number of samples representing this length
-pub fn samples_of_duration(cps: f32, d: &Ratio) -> usize {
-  ((SRf / cps) * dur(cps, &d)) as usize
-}
-
 /// Given a duration in seconds, return the number of samples representing this length
 pub fn samples_of_dur(cps: f32, dur: f32) -> usize {
   samples_of_seconds(cps, dur)
@@ -51,16 +46,22 @@ pub fn samples_of_cycles(cps: f32, k: f32) -> usize {
 pub fn dur(cps: f32, ratio: &Ratio) -> f32 {
   step_to_seconds(cps, ratio)
 }
+
+/// Provides the time in seconds for a given duration ratio.
+pub fn step_to_samples(cps: f32, ratio: &Ratio) -> usize {
+  samples_of_seconds(cps, step_to_seconds(cps, ratio))
+}
+
 /// Provides the time in seconds for a given duration ratio.
 pub fn step_to_seconds(cps: f32, ratio: &Ratio) -> f32 {
   duration_to_cycles((ratio.0.abs(), ratio.1.abs())) / cps
 }
 
 pub fn duration_to_cycles((numerator, denominator): Ratio) -> f32 {
-  numerator as f32 / denominator as f32
+  (numerator as f32 / denominator as f32).abs()
 }
 
-/// Given a sequence of notes, determine the total number of cycles it requests.
+/// Given a line (vec of notes), determine the total number of cycles it requests.
 pub fn count_cycles(line: &Vec<Note>) -> f32 {
   line.iter().fold(0f32, |acc, (duration, _, _)| acc + duration_to_cycles(*duration))
 }

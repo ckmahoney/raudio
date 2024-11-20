@@ -14,7 +14,7 @@ use crate::types::synthesis::{
   Ampl, Bandpass, Direction, Duration, Ely, FilterPoint, Freq, Frex, GlideLen, Monae, Mote, Note, Register, Soids, Tone,
 };
 
-use presets::hill;
+use presets::valley;
 use presets::hop;
 
 fn lead_melody_long() -> Melody<Note> {
@@ -99,22 +99,22 @@ fn demonstrate() {
   let lead_melody = lead_melody_short();
   let conf = Conf { cps, root };
 
-  let stem_lead2 = hill::lead::renderable(
+  let stem_lead2 = valley::lead::renderable(
     &conf,
     &lead_melody,
     &lead_arf(Visibility::Visible, Energy::Low, Presence::Staccatto),
   );
-  let stem_lead1 = hill::lead::renderable(
+  let stem_lead1 = valley::lead::renderable(
     &conf,
     &lead_melody,
     &lead_arf(Visibility::Foreground, Energy::Medium, Presence::Staccatto),
   );
-  let stem_lead3 = hill::lead::renderable(
+  let stem_lead3 = valley::lead::renderable(
     &conf,
     &lead_melody,
     &lead_arf(Visibility::Background, Energy::High, Presence::Staccatto),
   );
-  let stem_lead4 = hill::lead::renderable(
+  let stem_lead4 = valley::lead::renderable(
     &conf,
     &lead_melody,
     &lead_arf(Visibility::Hidden, Energy::High, Presence::Staccatto),
@@ -178,10 +178,10 @@ fn test_iter() {
   let path: String = location(demo_name);
   let cps: f32 = 2.0;
   let root: f32 = 1.12;
-  let preset = Preset::Hill;
+  let preset = Preset::Valley;
   files::with_dir(&path);
 
-  let label = "hill_simple_melody";
+  let label = "valley_simple_melody";
   let melody = lead_melody_short();
   let arfs = prism::iter_all_vep(&label, Role::Lead, Mode::Melodic, &melody);
 

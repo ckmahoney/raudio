@@ -98,61 +98,47 @@ fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
   (
     KnobMacro {
       a: match arf.presence {
-        Presence::Staccatto => [0.11f32, 0.3f32],
-        Presence::Legato => [0.33f32, 0.5f32],
+        Presence::Staccatto => [0.2f32, 0.4f32],
+        Presence::Legato => [0.33f32, 0.66f32],
         Presence::Tenuto => [0.7f32, 1f32],
       },
       b: match arf.visibility {
-        Visibility::Visible => [0.4f32, 1f32],
-        Visibility::Foreground => [0.7f32, 1f32],
-        _ => [0.85f32, 1f32],
+        Visibility::Visible => [0f32, 0.2f32],
+        Visibility::Foreground => [0.2f32, 0.3f32],
+        _ => [0.3f32, 0.5f32],
       },
       c: [0.0, 0.0],
-      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Random, MacroMotion::Constant]),
       mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
       mc: MacroMotion::Constant,
     },
-    ranger::amod_burp,
+    ranger::amod_pluck2,
   )
 }
+
 
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   let mut rng = thread_rng();
   let len_cycles: f32 = time::count_cycles(&melody[0]);
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 
-  let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  
-  knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
-  knob_mods.0.push(amp_knob_principal(&mut rng, &arf));
 
-  knob_mods.0.push((KnobMacro {
-    a: [0.3, 0.7],
-    b: [0.3, 0.7],
-    c: [0.3, 0.7],
-    ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
-    mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
-    mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
-  }, ranger::amod_seesaw));
+  let soids = druidic_soids::overs_square(get_mullet(&arf));
 
-  let height = match arf.energy {
-    Energy::Low => 2, Energy::Medium => 3, Energy::High => 4
-  } * match arf.visibility {
-    Visibility::Visible => 3, Visibility::Foreground => 2, _ => 1
-  };
-
-  let soids = druidic_soids::upto(height);
-
-  let delays_note = vec![delay::passthrough];
+  let delays_note = vec![];
   let delays_room = vec![];
   let reverbs_note: Vec<ReverbParams> = vec![];
   let reverbs_room: Vec<ReverbParams> = vec![];
+
+  let mut knob_mods: KnobMods2 = KnobMods2::unit();
+  knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
+  knob_mods.0.push(amp_knob_principal(&mut rng, &arf));
 
   let stem = (
     melody,
     soids,
     expr(arf, n_samples),
-    get_bp(conf.cps, melody, arf),
+    ValleyCon::get_bp(conf.cps, melody, arf),
     knob_mods,
     delays_note,
     delays_room,
@@ -160,5 +146,5 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     reverbs_room,
   );
 
-  Renderable2::Group(vec![stem])
+  Renderable2::Instance(stem)
 }

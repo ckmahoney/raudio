@@ -14,8 +14,8 @@ use crate::types::synthesis::{
   Ampl, Bandpass, Direction, Duration, Ely, FilterPoint, Freq, Frex, GlideLen, Monae, Mote, Note, Register, Soids, Tone,
 };
 
-use presets::hill;
 use presets::hop;
+use presets::valley;
 
 fn chords_melody_long() -> Melody<Note> {
   let tala: Vec<Duration> = vec![
@@ -151,22 +151,22 @@ fn demonstrate() {
 
   let chords_melody = chords_melody_short();
 
-  let stem_chords2 = hill::chords::renderable(
+  let stem_chords2 = valley::chords::renderable(
     &conf,
     &chords_melody,
     &chords_arf(Visibility::Visible, Energy::Low, Presence::Staccatto),
   );
-  let stem_chords1 = hill::chords::renderable(
+  let stem_chords1 = valley::chords::renderable(
     &conf,
     &chords_melody,
     &chords_arf(Visibility::Foreground, Energy::Medium, Presence::Staccatto),
   );
-  let stem_chords3 = hill::chords::renderable(
+  let stem_chords3 = valley::chords::renderable(
     &conf,
     &chords_melody,
     &chords_arf(Visibility::Background, Energy::High, Presence::Staccatto),
   );
-  let stem_chords4 = hill::chords::renderable(
+  let stem_chords4 = valley::chords::renderable(
     &conf,
     &chords_melody,
     &chords_arf(Visibility::Hidden, Energy::High, Presence::Staccatto),
@@ -230,12 +230,14 @@ fn test_iter() {
   let path: String = location(demo_name);
   let cps: f32 = 2.0;
   let root: f32 = 1.12;
-  let preset = Preset::Hill;
+  let preset = Preset::Hop;
   files::with_dir(&path);
 
-  let label = "hill_simple_melody";
+  let label = "hop_simple_melody";
   let melody = chords_melody_short();
-  let arfs = prism::iter_all_vep(&label, Role::Chords, Mode::Melodic, &melody);
+  let vs = vec![Visibility::Foreground, Visibility::Hidden];
+  let arfs = prism::iter_vep(&label, Role::Chords, Mode::Melodic, &melody, &vs, &prism::ENERGYS.to_vec(), &prism::PRESENCES.to_vec());
+  // let arfs = prism::iter_all_vep(&label, Role::Chords, Mode::Melodic, &melody);
 
   let num_threads = get_par_thread_count().min(4);
 

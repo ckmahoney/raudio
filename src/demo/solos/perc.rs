@@ -64,7 +64,7 @@ fn test_arf() {
   let path: String = location(demo_name);
   let cps: f32 = 2.0;
   let root: f32 = 1.12;
-  let preset = Preset::Hill;
+  let preset = Preset::Valley;
   files::with_dir(&path);
 
   let arf: Arf = Arf {
@@ -76,7 +76,7 @@ fn test_arf() {
     presence: Presence::Tenuto,
   };
 
-  let label = "hill_simple_melody";
+  let label = "valley_simple_melody";
   let melody = perc_melody();
   let arfs: Vec<(String, Arf)> = vec![("the-one".to_string(), arf)];
 
@@ -108,10 +108,10 @@ fn test_slice() {
   let path: String = location(demo_name);
   let cps: f32 = 2.0;
   let root: f32 = 1.12;
-  let preset = Preset::Hill;
+  let preset = Preset::Valley;
   files::with_dir(&path);
 
-  let label = "hill_simple_melody";
+  let label = "valley_simple_melody";
   let melody = perc_melody();
   let arfs = prism::iter_all_vep(&label, Role::Perc, Mode::Enharmonic, &melody);
 
@@ -137,10 +137,10 @@ fn test_iter() {
   let path: String = location(demo_name);
   let cps: f32 = 2.0;
   let root: f32 = 1.12;
-  let preset = Preset::Hill;
+  let preset = Preset::Valley;
   files::with_dir(&path);
 
-  let label = "hill_simple_melody";
+  let label = "valley_simple_melody";
   let melody = perc_melody();
   let arfs = prism::iter_all_vep(&label, Role::Perc, Mode::Enharmonic, &melody);
 

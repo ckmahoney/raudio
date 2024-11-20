@@ -28,11 +28,7 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
   }
   let mut rng = thread_rng();
 
-  let lowpass_cutoff = match arf.energy {
-    Energy::Low => NFf / 10f32,
-    Energy::Medium => NFf / 8f32,
-    Energy::High => NFf / 6f32,
-  };
+  let lowpass_cutoff = NFf;
   let ref_sample = ref_samples[0].to_owned();
 
   Renderable2::Sample((
@@ -51,7 +47,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   // Return the renderable sample
   Renderable2::Mix(vec![
     (0.3, stemmy(conf, melody, arf)),
-    (0.3, crate::presets::hill::hats::renderable(conf, melody, arf)),
+    (0.3, crate::presets::valley::hats::renderable(conf, melody, arf)),
     (0.2, stemmy(conf, melody, arf)),
   ])
 }

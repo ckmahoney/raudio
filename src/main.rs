@@ -39,24 +39,55 @@ fn main() {
   let args: Vec<String> = env::args().collect();
 
   if args.len() < 3 {
-    eprintln!(r#"Usage: raudio "/abspath/in/to/playbook.json" "/abspath/to/dir" "asset-filename""#);
+    eprintln!(r#"Usage: raudio "/abspath/in/to/playbook.json" "preset-pack" "/abspath/to/dir" "asset-filename""#);
     process::exit(1);
   }
 
   let file_path = &args[1];
-  let out_dir = &args[2];
-  let mixdown_name = &args[3];
-  render_playbook(out_dir, file_path, mixdown_name);
+  let preset_pack = &args[2];
+  let out_dir = &args[3];
+  let mixdown_name = &args[4];
+  render_playbook(out_dir, preset_pack, file_path, mixdown_name);
 }
 
-fn render_playbook(out_dir: &str, playbook_path: &str, asset_name: &str) {
+fn parse_preset(s: &str) -> Option<Preset> {
+  let src = s.to_lowercase();
+  match src.as_str() {
+      "hop" => Some(Preset::Hop),
+      "valley" => Some(Preset::Valley),
+      "mountain" => Some(Preset::Mountain),
+      _ => None,
+  }
+}
+
+
+#[cfg(test)]
+mod test_parse {
+    use super::*;
+
+
+    #[test]
+    fn test_parse_preset_valid_lowercase() {
+        let res = parse_preset("hop");
+        println!("Got it {:#?}", res)
+    }
+
+}
+
+
+fn render_playbook(out_dir: &str, preset_pack: &str, playbook_path: &str, asset_name: &str) {
   use std::fs;
   use std::path::Path;
   let keep_stems = true;
 
+  let preset = parse_preset(preset_pack);
+  if preset.is_none() {
+    panic!("Must provide a valid preset pack. here are the options: hop, valley, mountain")
+  }
+
   match inp::arg_parse::load_score_from_file(&playbook_path) {
     Ok(score) => {
-      let out_path = render_score(score, out_dir, asset_name, keep_stems);
+      let out_path = render_score(score, preset.unwrap(), out_dir, asset_name, keep_stems);
       println!("{}", out_path)
     }
     Err(msg) => {
@@ -115,7 +146,7 @@ fn score_duration_seconds(score: &DruidicScore) -> f32 {
 //     render::combiner_with_reso(&Conf {cps, root}, &stems, &group_reverbs, keep_stems);
 // }
 
-pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_stems: bool) -> String {
+pub fn render_score(score: DruidicScore, preset:Preset, out_dir: &str, asset_name: &str, keep_stems: bool) -> String {
   let mixdown_name = format!("{}/{}.wav", out_dir, asset_name);
   files::with_dir(&mixdown_name);
   let mut pre_mix_buffs: Vec<synth::SampleBuffer> = Vec::new();
@@ -141,7 +172,7 @@ pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_s
       &client_positioning.distance,
       &client_positioning.enclosure,
     );
-    let stem = Preset::create_stem(&score.conf, melody, arf, Preset::Mountain);
+    let stem = Preset::create_stem(&score.conf, melody, arf, preset);
     i = i + 1;
     stem_reverbs.push(convolution_layer);
     stems.push(stem)
@@ -168,9 +199,9 @@ pub fn render_score(score: DruidicScore, out_dir: &str, asset_name: &str, keep_s
 #[test]
 fn test_render_playbook() {
   let filepath: &str = &format!("{}/demo/test_render_playbook", crate::demo::out_dir);
-  // render_playbook(filepath, "src/demo/test-druidic-score.json", "test-druidic-render")
   render_playbook(
     filepath,
+    "valley",
     "src/demo/playbooks/playbook-ambien.json",
     "test-ambien-render",
   )

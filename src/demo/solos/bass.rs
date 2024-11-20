@@ -144,10 +144,10 @@ fn test_iter() {
   let path: String = location(demo_name);
   let cps: f32 = 2.0;
   let root: f32 = 1.12;
-  let preset = Preset::Hill;
+  let preset = Preset::Valley;
   files::with_dir(&path);
 
-  let label = "hill_simple_melody";
+  let label = "valley_simple_melody";
   let melody = bass_melody();
   let arfs = prism::iter_all_vep(&label, Role::Bass, Mode::Enharmonic, &melody);
 

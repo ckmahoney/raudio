@@ -1,139 +1,95 @@
 use super::*;
-use crate::druid::{self, noise::NoiseColor, soid_fx, soids as druidic_soids};
-use crate::phrasing::{contour::Expr, ranger::KnobMods};
-use crate::types::synthesis::{ModifiersHolder, Soids};
 
-/// Noise component
-pub fn stem_visible<'render>(cps: f32, arf: &Arf, melody: &'render Melody<Note>) -> Stem2<'render> {
-  let expr: Expr = (
-    vec![db_to_amp(-4.5f32) * visibility_gain(Visibility::Foreground)],
-    vec![1f32],
-    vec![0f32],
-  );
+/// Returns a `Stem3` for the hats preset.
+///
+/// # Parameters
+/// - `conf`: Configuration object for additional context.
+/// - `melody`: Melody structure specifying note events for the stem.
+/// - `arf`: Configuration for amplitude and visibility adjustments.
+///
+/// # Returns
+/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
+  let sample_path = get_sample_path(arf);
 
-  let soids = soid_fx::concat(&vec![
-    soid_fx::noise::rank(0, NoiseColor::Pink, 1f32 / 3f32),
-    soid_fx::noise::rank(2, NoiseColor::Violet, 1f32 / 11f32),
-    soid_fx::noise::rank(3, NoiseColor::Violet, 1f32 / 9f32),
-  ]);
+  let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read hats sample");
+  let gain = visibility_gain_sample(arf.visibility);
+  let amp_expr = dynamics::gen_organic_amplitude(10, 2000, arf.visibility).iter().map(|v| v * gain).collect();
 
-  let mut knob_mods: KnobMods2 = KnobMods2::unit();
+  let mut delays_note = vec![];
+  let mut reverbs_note = vec![];
+
+  if let Visibility::Foreground = arf.visibility {
+    let delay_macros = generate_delay_macros(arf.visibility, arf.energy, arf.presence);
+    let mut rng = rand::thread_rng();
+    delays_note = delay_macros.iter().map(|mac| mac.gen(&mut rng, conf.cps)).collect();
+
+    reverbs_note = vec![];
+  }
   let mut rng = thread_rng();
 
-  // Principal layer
-  knob_mods.0.push((
-    KnobMacro {
-      a: match arf.presence {
-        Presence::Staccatto => [0f32, 0.5f32],
-        Presence::Legato => [0.33f32, 0.66f32],
-        Presence::Tenuto => [0.95f32, 1f32],
-      },
-      b: match arf.energy {
-        Energy::High => [0f32, 0f32],
-        Energy::Medium => [0.1f32, 0.2f32],
-        Energy::Low => [0.2f32, 0.4f32],
-      },
-      c: [0f32, 0f32],
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
-    },
-    ranger::amod_pluck,
-  ));
+  let lowpass_cutoff = NFf;
+  let ref_sample = ref_samples[0].to_owned();
 
-  // Attenuation layer
-  knob_mods.0.push((
-    KnobMacro {
-      a: match arf.presence {
-        Presence::Staccatto => [0.22f32, 0.33f32],
-        Presence::Legato => [0.33f32, 0.75f32],
-        Presence::Tenuto => [0.95f32, 1f32],
-      },
-      b: match arf.energy {
-        Energy::High => [0f32, 0.2f32],
-        Energy::Medium => [0.2f32, 0.3f32],
-        Energy::Low => [0.3f32, 0.5f32],
-      },
-      c: [0f32, 0f32],
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
-    },
-    if let Presence::Tenuto = arf.presence {
-      ranger::amod_burp
-    } else {
-      ranger::amod_pluck
-    },
-  ));
-
-  let len_cycles: f32 = time::count_cycles(&melody[0]);
-  let delays_note = vec![delay::passthrough];
-  let delays_room = vec![];
-  let reverbs_note: Vec<ReverbParams> = vec![];
-  let reverbs_room: Vec<ReverbParams> = vec![];
-
-  (
+  Renderable2::Sample((
     melody,
-    soids,
-    expr,
-    get_bp(cps, melody, arf, len_cycles),
-    knob_mods,
+    ref_sample,
+    amp_expr,
+    lowpass_cutoff,
     delays_note,
-    delays_room,
+    vec![],
     reverbs_note,
-    reverbs_room,
-  )
+    vec![],
+  ))
 }
 
-/// Tonal component
-pub fn stem_tonal<'render>(cps: f32, arf: &Arf, melody: &'render Melody<Note>) -> Stem2<'render> {
-  let soids_base = soid_fx::concat(&vec![
-    druidic_soids::under_sawtooth(2f32.powi(11i32)),
-    druidic_soids::overs_square(2f32.powi(11i32)),
-  ]);
-  let soids = soid_fx::concat(&vec![
-    soid_fx::ratio::constant(&soids_base, 0.8f32, 0.15f32),
-    soid_fx::ratio::constant(&soids_base, 0.666f32, 0.25f32),
-  ]);
-
-  let expr: Expr = (vec![visibility_gain(Visibility::Hidden)], vec![1f32], vec![0f32]);
-
-  let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  let mut rng = thread_rng();
-  knob_mods.0.push((
-    KnobMacro {
-      a: [rng.gen::<f32>(), rng.gen::<f32>()],
-      b: [rng.gen::<f32>() / 5f32, rng.gen::<f32>() / 5f32],
-      c: [0f32, 0f32],
-      ma: MacroMotion::Random,
-      mb: MacroMotion::Random,
-      mc: MacroMotion::Random,
-    },
-    ranger::amod_pluck,
-  ));
-
-  let len_cycles: f32 = time::count_cycles(&melody[0]);
-  let delays_note = vec![delay::passthrough];
-  let delays_room = vec![];
-  let reverbs_note: Vec<ReverbParams> = vec![];
-  let reverbs_room: Vec<ReverbParams> = vec![];
-
-  (
-    melody,
-    soids,
-    expr,
-    bp2_unit(),
-    knob_mods,
-    delays_note,
-    delays_room,
-    reverbs_note,
-    reverbs_room,
-  )
+pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
+  // Return the renderable sample
+  Renderable2::Mix(vec![
+    (0.3, stemmy(conf, melody, arf)),
+    (0.3, crate::presets::valley::hats::renderable(conf, melody, arf)),
+    (0.2, stemmy(conf, melody, arf)),
+  ])
 }
 
-/// Defines the constituent stems to create a simple closed hat drum
-/// Components include:
-///  - a pluck of pink noise
-pub fn renderable<'render>(cps: f32, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  Renderable2::Group(vec![stem_visible(cps, arf, melody), stem_tonal(cps, arf, melody)])
+/// Generates a set of delay macros for hats in house music.
+///
+/// # Parameters
+/// - `visibility`: Controls gain level for delay feedback.
+/// - `energy`: Influences delay density and feedback time.
+/// - `presence`: Adjusts delay timing and spatialization.
+///
+/// # Returns
+/// A vector of `DelayParamsMacro` instances.
+fn generate_delay_macros(visibility: Visibility, energy: Energy, presence: Presence) -> Vec<DelayParamsMacro> {
+  let delay_gain = match visibility {
+    Visibility::Hidden => db_to_amp(-24.0),
+    Visibility::Background => db_to_amp(-18.0),
+    Visibility::Foreground => db_to_amp(-12.0),
+    Visibility::Visible => db_to_amp(-6.0),
+  };
+
+  let delay_time = match energy {
+    Energy::Low => vec![0.125, 0.25],
+    Energy::Medium => vec![0.25, 0.5],
+    Energy::High => vec![0.5, 1.0],
+  };
+
+  let pan_spread = match presence {
+    Presence::Staccatto => vec![StereoField::LeftRight(0.9, 0.1)],
+    Presence::Legato => vec![StereoField::Mono],
+    Presence::Tenuto => vec![StereoField::LeftRight(0.7, 0.3)],
+  };
+
+  vec![DelayParamsMacro {
+    gain: [delay_gain, delay_gain + 0.05],
+    dtimes_cycles: delay_time,
+    n_echoes: [2, 4],
+    mix: [0.3, 0.5],
+    pan: pan_spread,
+    mecho: vec![MacroMotion::Forward],
+    mgain: vec![MacroMotion::Constant],
+    mpan: vec![MacroMotion::Constant],
+    mmix: vec![MacroMotion::Constant],
+  }]
 }

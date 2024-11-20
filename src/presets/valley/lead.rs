@@ -5,6 +5,9 @@ use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::types::synthesis::{ModifiersHolder, Soids};
 use std::os::unix::thread;
 
+
+
+
 /// Generates a set of delay macros for lead lines in ambient music using VEP parameters.
 /// The macros adapt based on `Visibility`, `Energy`, and `Presence`, tailoring delay characteristics
 /// to create subtle, floating echoes that emphasize the melody.
@@ -85,10 +88,10 @@ fn pmod_chorus(v: Visibility, e: Energy, p: Presence) -> KnobPair {
   let mut rng = thread_rng();
 
   let modulation_depth = match v {
-    Visibility::Hidden => [0f32, 0.33f32],
-    Visibility::Background => [0.33, 0.5],
-    Visibility::Foreground => [0.5, 0.75],
-    Visibility::Visible => [0.75f32, 1f32],
+    Visibility::Hidden => [0f32, 0.05f32],
+    Visibility::Background => [0.1, 0.2],
+    Visibility::Foreground => [0.2, 0.4],
+    Visibility::Visible => [0.5f32, 0.51f32],
   };
 
   let chorus_visibility = match v {
@@ -227,102 +230,10 @@ fn freq_knob_tonal(v: Visibility, e: Energy, p: Presence) -> KnobPair {
 }
 
 
-/// Generates a vector of `DelayParams` tailored for an ambient lead synth, with different settings
-/// based on `Visibility`, `Energy`, and `Presence`.
-///
-/// - `Visibility` affects the number of delays and their prominence.
-/// - `Energy` controls gain levels for each delay.
-/// - `Presence` influences delay times and spacing to suit the style of articulation.
-///
-/// # Arguments
-/// - `visibility`: Determines the prominence and number of delays.
-/// - `energy`: Controls the intensity of delay gain.
-/// - `presence`: Sets delay times and spacing for articulation (staccato, legato, tenuto).
-/// - `cps`: Cycles per second, used to convert delay ratios to seconds.
-///
-/// # Returns
-/// A vector of `DelayParams` with settings customized for a sparse, evolving ambient lead.
-fn gen_delays(visibility: Visibility, energy: Energy, presence: Presence, cps: f32) -> Vec<DelayParams> {
-  let mut rng = thread_rng();
-
-  // Determine the number of delays based on visibility
-  let n_delays = match visibility {
-    Visibility::Visible => in_range_usize(&mut rng, 3, 5),
-    Visibility::Foreground => in_range_usize(&mut rng, 2, 4),
-    Visibility::Background => in_range_usize(&mut rng, 1, 3),
-    _ => 0,
-  };
-
-  if n_delays == 0 {
-    return vec![];
-  }
-
-  // Define gain levels based on visibility, using `db_to_amp` to convert dB values to amplitude
-  let gain_level = match visibility {
-    Visibility::Hidden => db_to_amp(-15.0),
-    Visibility::Background => db_to_amp(-12.0),
-    Visibility::Foreground => db_to_amp(-9.0),
-    Visibility::Visible => db_to_amp(-6.0),
-  };
-
-  // Define echo counts based on energy
-  let n_echoes_range = match energy {
-    Energy::Low => [4, 6],
-    Energy::Medium => [6, 8],
-    Energy::High => [8, 10],
-  };
-
-  // Define cycle lengths based on presence
-  let dtimes_cycles = match presence {
-    Presence::Staccatto => vec![0.25, 0.5, 0.75], // Short cycle lengths for quick echoes
-    Presence::Legato => vec![1.0, 2.0, 2.5],      // Medium cycle lengths for smooth echoes
-    Presence::Tenuto => vec![3.0, 4.0, 5.0],      // Long cycle lengths for extended echoes
-  };
-
-  // Define macros for stereo and mono delays using adjusted parameters
-  let stereo_macro = DelayParamsMacro {
-    gain: [gain_level, gain_level + 0.1], // Slight gain variation
-    dtimes_cycles: dtimes_cycles.clone(), // Use defined cycle lengths
-    n_echoes: n_echoes_range,
-    mix: [0.6, 0.8], // Stronger mix for stereo presence
-    pan: vec![StereoField::LeftRight(0.8, 0.8)],
-    mecho: vec![MacroMotion::Forward],
-    mgain: vec![MacroMotion::Constant],
-    mpan: vec![MacroMotion::Constant],
-    mmix: vec![MacroMotion::Constant],
-  };
-
-  let mono_delay_macro = DelayParamsMacro {
-    gain: [gain_level * 0.8, gain_level], // Slightly lower gain for mono
-    dtimes_cycles,                        // Use defined cycle lengths
-    n_echoes: n_echoes_range,
-    mix: [0.4, 0.6], // Moderate mix for subtle mono delays
-    pan: vec![StereoField::Mono],
-    mecho: vec![MacroMotion::Forward],
-    mgain: vec![MacroMotion::Constant],
-    mpan: vec![MacroMotion::Constant],
-    mmix: vec![MacroMotion::Constant],
-  };
-
-  // Generate delays using the macros, selecting randomly for variety
-  let mut delays = Vec::new();
-  for _ in 0..n_delays {
-    let delay = match rng.gen_range(0..2) {
-      0 => stereo_macro.gen(&mut rng, cps),
-      _ => mono_delay_macro.gen(&mut rng, cps),
-    };
-    delays.push(delay);
-  }
-
-  delays
-}
 
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  let mullet = match arf.energy {
-    Energy::Low => 2f32.powi(11i32),
-    Energy::Medium => 2f32.powi(9i32),
-    Energy::High => 2f32.powi(7i32),
-  };
+  let mut rng = thread_rng();
+  let mullet = get_mullet(&arf);
   
   let soids = match arf.visibility {
     Visibility::Hidden => druidic_soids::octave(mullet),
@@ -334,11 +245,11 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let soids = druidic_soids::octave(mullet);
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  
-  knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
+
   knob_mods.0.push(amp_knob(arf.visibility, arf.energy, arf.presence));
+  knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
   knob_mods.2.push(pmod_chorus(arf.visibility, arf.energy, arf.presence));
-  
+
   let len_cycles: f32 = time::count_cycles(&melody[0]);
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 
@@ -347,7 +258,8 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
   let expr = (dynamics, vec![1f32], vec![0f32]);
 
-  let delays_note = gen_delays(arf.visibility, arf.energy, arf.presence, conf.cps);
+  let delays_note = generate_lead_delay_macros(arf.visibility, arf.energy, arf.presence)
+    .iter().map(|m| m.gen(&mut rng, conf.cps)).collect();
   let delays_room = vec![];
   let reverbs_note: Vec<ReverbParams> = vec![];
   let reverbs_room: Vec<ReverbParams> = vec![];
@@ -356,7 +268,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     melody,
     soids,
     expr,
-    MountainCon::get_bp(conf.cps, melody, arf),
+    ValleyCon::get_bp(conf.cps, melody, arf),
     knob_mods,
     delays_note,
     delays_room,

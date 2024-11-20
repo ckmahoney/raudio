@@ -105,16 +105,16 @@ pub mod synthesis {
   #[derive(Copy, Clone, Debug)]
   pub struct BoostGroupMacro {
     // min/max freqs. is a static value for macro application
-    pub bandpass: [f32; 2],
+    pub bandpass: [Range; 2],
     // min/max range of allowed frequencies in octaves
-    pub bandwidth: [f32; 2],
+    pub bandwidth: [Range; 2],
     // amount to attenuate out of range values
     // (applied as a decrease to all out of range values by inverse)
-    pub att: [f32; 2],
+    pub att: [Range; 2],
     // db per octave
-    pub rolloff: [f32; 2],
+    pub rolloff: [Range; 2],
     // intensity of rolloff
-    pub q: [f32; 2],
+    pub q: [Range; 2],
     pub motion: MacroMotion,
   }
 
