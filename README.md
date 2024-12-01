@@ -29,7 +29,7 @@ This project has a few goals. It also has some explicit no-gos of conventional a
 
 ## Demos
 
-If you just want to hear what it sounds like, check out the [demos](demos).
+If you just want to hear what it sounds like, check out the [demo](demo) directory.
 
 ## Tests
 
