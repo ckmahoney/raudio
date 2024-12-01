@@ -5,7 +5,7 @@
 
 An additive synthesizer for expressive music.
 
-This is one of the backend components of [Ten Pens](htps://tenpens.ink)! 
+This is one of the backend components of [Ten Pens](https://tenpens.ink)! 
 
 ## About 
 
