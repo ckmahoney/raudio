@@ -1,0 +1,50 @@
+[
+  {
+    "title": "Unknown",
+    "durationSeconds": 103.824,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/evocative/EVOCATIVE_1.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 182.16,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/evocative/EVOCATIVE_2.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 143.376,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/evocative/EVOCATIVE_3.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 158.016,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/evocative/EVOCATIVE_4.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 112.032,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/evocative/EVOCATIVE_5.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 119.04,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/evocative/EVOCATIVE_6.mp3"
+  }
+]

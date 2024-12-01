@@ -1,0 +1,50 @@
+[
+  {
+    "title": "Unknown",
+    "durationSeconds": 93.768,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/groovy/GROOVY_1.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 95.904,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/groovy/GROOVY_2.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 56.448,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/groovy/GROOVY_3.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 69,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/groovy/GROOVY_4.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 120.6,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/groovy/GROOVY_5.mp3"
+  },
+  {
+    "title": "Unknown",
+    "durationSeconds": 181.32,
+    "sampleRate": 48000,
+    "sampleFormat": "fltp",
+    "audioCodec": "mp3",
+    "absolutePath": "/home/naltroc/Documents/ten-pens/fiv/public/music/show/groovy/GROOVY_6.mp3"
+  }
+]
