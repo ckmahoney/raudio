@@ -5,6 +5,8 @@
 
 An additive synthesizer for expressive music.
 
+This is one of the backend components of [Ten Pens](htps://tenpens.ink)! 
+
 ## About 
 
 Congratulations, you found a newer synthesizer than most synthesizers on Earth! 
