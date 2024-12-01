@@ -7,6 +7,13 @@ An additive synthesizer for expressive music.
 
 ## About 
 
+Congratulations, you found a newer synthesizer than most synthesizers on Earth! 
+
+What can you do with it? 
+
+Use it to turn math into music!!! 
+
+
 This is a synth designed specifically for Monic Theory and is intended to be applied in non-real time to render monic playbooks as audio files. 
 
 The application currently accepts Monic playbooks as input. (See [test-druidic-score.json](src/demo/test-druidic-score.json)).
@@ -22,60 +29,7 @@ This project has a few goals. It also has some explicit no-gos of conventional a
 
 ## Demos
 
-Some code writes audio files to the `audio/demo` directory. This is intended to represent applied music. Music which many people consider `"good"`.
-
-Current demos:
-  - [Percussion synths](src/demo/beat.rs)
-  - [Melodic synths](src/demo/trio.rs)
-  - [Frequency Domain DSP effects](src/demo/effects.rs)
-
-
-To render the demos, use 
-
-```
-cargo test demo
-```
-
-You will then have files output to directory `audio/demo`! Play the files with your favorite audio player, such as with `sox`:
-
-```
-play audio/demo/beat.wav repeat 3 reverb 20
-```
-
-## Music
-
-Some code writes audio files to the `audio/music` directory. This is for original (new) music! 
-
-An example application for this synthesizer, here is a video with four hours of music rendered in a "Baroque" style.
-
-https://www.youtube.com/watch?v=mFipUHqXrw0
-
-
-## Goals
-
-The Primary Objective is to have a synthesizer that creates dynamic harmonic content for any musical context. 
-
-All of the music rendered by `raudio` should feel natural or organic. It should "sound good" to a lot of people. 
-
-The supplementary objective is to provide a high level API for describing sound as a small (manageable) set of input parameters.
-
-As a list,
-
-  - Provide a high level API for creating and modulating sound in the frequency domain
-  - Provide a secure and predictable environment for rendering audio files 
-    - Aliasing is easy to manage. Just don't include the frequencies you don't want to render! 
-  - Support for per-sample paramter render 
-    - Highest resolution output with respect to synth control parameters. In other words, all computations are a-rate (no k-rate).
-  - Provide support for time domain signal **analysis** (but not modulation)
-  - Melt your heart and glowup your soul with lush sounds
-
-## Not Goals
-
-  - No support for creating compositions (bring your own score).
-  - No support for time domain signal **modulation**
-    - "Conventional" lowpass and highpass filters not welcome here!
-    - Reverb? more like stretchy harmonics
-
+If you just want to hear what it sounds like, check out the [demos](demos).
 
 ## Tests
 
@@ -86,13 +40,11 @@ To run tests:
 cargo test
 ```
 
-If it didn't already exist, this will crate a new directory `dev-audio` for writing test results.
 
 
 ### Disk space
 
 Many tests will create files. It is intentional that the files are not deleted so the tester can manually inspect the generated asset at their leisure.
-
 
 Please make sure you have 1-3GB of disk space available before running the tests. 
 
