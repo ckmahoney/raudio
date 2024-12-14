@@ -48,7 +48,7 @@ const SAMPLE_SOURCE_DIR: &str = "audio-samples";
 static SAMPLE_CACHE: Lazy<RwLock<HashMap<String, Vec<String>>>> = Lazy::new(|| RwLock::new(initialize_sample_cache()));
 
 // user configurable headroom value. defaults to -15Db
-pub const DB_HEADROOM: f32 = -8f32;
+pub const DB_HEADROOM: f32 = -3f32;
 
 /// Shared values for all presets in this mod
 static contour_resolution: usize = 1200;

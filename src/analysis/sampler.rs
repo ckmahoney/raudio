@@ -113,9 +113,9 @@ pub fn read_audio_file(path: &str) -> Result<(Vec<Vec<f32>>, u32), Box<dyn std::
     _ => return Err(format!("Unsupported bit depth: {}", spec.bits_per_sample).into()),
   };
 
-  let channel_samples:Vec<Vec<f32>> = channel_samples.iter().map(|ys| (*ys).iter().map(|x| *x * 0.5f32).collect()).collect();
+  let channel_samples_override:Vec<Vec<f32>> = channel_samples.iter().map(|ys| (*ys).iter().map(|x| *x * 0.33f32).collect()).collect();
 
-  Ok((channel_samples, spec.sample_rate))
+  Ok((channel_samples_override, spec.sample_rate))
 }
 /// Reads 24-bit samples from a WAV file.
 fn read_24bit_samples<R: std::io::Read + std::io::Seek>(

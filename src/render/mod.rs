@@ -976,7 +976,7 @@ pub fn combiner_with_reso<'render>(
         Renderable2::Mix(weighted_stems) => weighted_stems
           .iter()
           .map(|(mul, renderable2)| {
-            combiner_with_reso(&conf, &vec![renderable2.to_owned()], &vec![], None)
+            combiner_with_reso(&conf, &vec![renderable2.to_owned()], &vec![], keep_stems)
               .iter()
               .map(|v| mul * v)
               .collect()
@@ -1061,7 +1061,7 @@ pub fn combiner_with_reso2<'render>(
         Renderable2::Mix(weighted_stems) => weighted_stems
           .iter()
           .map(|(mul, renderable2)| {
-            combiner_with_reso(&conf, &vec![renderable2.to_owned()], &vec![], None)
+            combiner_with_reso(&conf, &vec![renderable2.to_owned()], &vec![], keep_stems)
               .iter()
               .map(|v| mul * v)
               .collect()

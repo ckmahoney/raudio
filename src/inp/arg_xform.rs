@@ -134,7 +134,7 @@ pub fn reverb_params(
   // decay correlates to transient preservation (blur)
   // for dur=8, the decay becomes very blury when decay >= 0.9
   let decay = match distance {
-    Distance::Far => in_range(rng, 0.8f32, 1f32),
+    Distance::Far => in_range(rng, 0.8f32, 0.95f32),
     Distance::Adjacent => in_range(rng, 0.4f32, 0.7f32),
     Distance::Near => in_range(rng, 0.05f32, 0.05f32),
   };
@@ -149,11 +149,11 @@ pub fn reverb_params(
       Enclosure::Spring => in_range(rng, 0.1f32, 0.5f32),
       Enclosure::Room => in_range(rng, 0.5f32, 1f32),
       Enclosure::Hall => in_range(rng, 1f32, 2f32),
-      Enclosure::Vast => in_range(rng, 2f32, 6f32),
+      Enclosure::Vast => in_range(rng, 2f32, 3f32),
     };
 
   ReverbParams {
-    mix: in_range(rng, 0.005, 0.12),
+    mix: in_range(rng, 0.08, 0.12),
     amp,
     dur,
     rate: decay,

@@ -56,7 +56,7 @@ fn parse_preset(s: &str) -> Option<Preset> {
       "hop" => Some(Preset::Hop),
       "valley" => Some(Preset::Valley),
       "mountain" => {
-          eprintln!("Warning! There's something wrong with the ambien preset!\nYour resulting audio file may be a noise signal. Consider 'hop' or 'valley' instead.");
+          // eprintln!("Warning! There's something wrong with the ambien preset!\nYour resulting audio file may be a noise signal. Consider 'hop' or 'valley' instead.");
           Some(Preset::Mountain)
       },
       _ => None,
