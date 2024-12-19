@@ -33,6 +33,7 @@ use rand::thread_rng;
 use std::fs::read_dir;
 
 pub mod ambien;
+pub mod bland;
 pub mod valley;
 pub mod hop;
 pub mod kuwuku;
@@ -53,6 +54,42 @@ pub const DB_HEADROOM: f32 = -3f32;
 /// Shared values for all presets in this mod
 static contour_resolution: usize = 1200;
 static unit_decay: f32 = 9.210340372;
+
+
+/// Returns a `Stem3` for the percussion preset.
+///
+/// # Parameters
+/// - `conf`: Configuration object for additional context.
+/// - `melody`: Melody structure specifying note events for the stem.
+/// - `arf`: Configuration for amplitude and visibility adjustments.
+///
+/// # Returns
+/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
+  let sample_path = get_sample_path(arf);
+
+  let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
+  let gain = visibility_gain_sample(arf.visibility);
+  let amp_expr = vec![1f32];
+
+  let mut delays_note = vec![];
+  let mut reverbs_room = vec![];
+
+  let lowpass_cutoff = NFf;
+  let ref_sample = ref_samples[0].to_owned();
+
+  Renderable2::Sample((
+    melody,
+    ref_sample,
+    amp_expr,
+    lowpass_cutoff,
+    delays_note,
+    vec![],       
+    vec![],       
+    reverbs_room, 
+  ))
+}
+
 
 pub trait Conventions<'render> {
   fn get_bp(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2;
@@ -382,7 +419,8 @@ pub struct RolePreset<'render> {
 pub enum Preset {
   Valley,
   Mountain,
-  Hop
+  Hop,
+  Bland
 }
 
 impl fmt::Display for Preset {
@@ -398,6 +436,7 @@ impl<'render> Preset {
       Preset::Valley => valley::map_role_preset(),
       Preset::Mountain => mountain::map_role_preset(),
       Preset::Hop => hop::map_role_preset(),
+      Preset::Bland => bland::map_role_preset(),
     }
   }
 

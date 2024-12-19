@@ -84,15 +84,6 @@ pub fn get_mullet(arf:&Arf) -> f32 {
 
 
 impl<'render> Conventions<'render> for ValleyCon<'render> {
-  // fn get_bp(&self, cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
-  //   match arf.presence {
-  //     Presence::Staccatto => bp_wah(cps, mel, arf),
-  //     Presence::Legato => bp_sighpad(cps, mel, arf),
-  //     Presence::Tenuto => bp_cresc(cps, mel, arf),
-  //   }
-  // }
-
-
   fn get_bp(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
     match arf.role {
       Role::Bass => match arf.visibility {
