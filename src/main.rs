@@ -56,9 +56,9 @@ fn parse_preset(s: &str) -> Option<Preset> {
       "hop" => Some(Preset::Hop),
       "valley" => Some(Preset::Valley),
       "mountain" => {
-          // eprintln!("Warning! There's something wrong with the ambien preset!\nYour resulting audio file may be a noise signal. Consider 'hop' or 'valley' instead.");
           Some(Preset::Mountain)
       },
+      "bland" => Some(Preset::Bland),
       _ => None,
   }
 }
@@ -85,7 +85,7 @@ fn render_playbook(out_dir: &str, preset_pack: &str, playbook_path: &str, asset_
 
   let preset = parse_preset(preset_pack);
   if preset.is_none() {
-    panic!("Must provide a valid preset pack. here are the options: hop, valley, mountain")
+    panic!("Must provide a valid preset pack. here are the options: hop, valley, mountain, bland. You gave me '{}'.", preset_pack)
   }
 
   match inp::arg_parse::load_score_from_file(&playbook_path) {
