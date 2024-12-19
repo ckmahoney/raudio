@@ -563,19 +563,19 @@ pub fn amod_impulse(k: usize, x: f32, d: f32) -> f32 {
 
 pub fn visibility_gain(v: Visibility) -> f32 {
   match v {
-    Visibility::Hidden => db_to_amp(-20f32),
-    Visibility::Background => db_to_amp(-16f32),
-    Visibility::Foreground => db_to_amp(-10f32),
-    Visibility::Visible => db_to_amp(-6f32),
+    Visibility::Hidden => db_to_amp(-12f32),
+    Visibility::Background => db_to_amp(-9f32),
+    Visibility::Foreground => db_to_amp(-4.5f32),
+    Visibility::Visible => db_to_amp(-3f32),
   }
 }
 
 pub fn visibility_gain_sample(v: Visibility) -> f32 {
   match v {
-    Visibility::Hidden => db_to_amp(-22f32),
+    Visibility::Hidden => db_to_amp(-24f32),
     Visibility::Background => db_to_amp(-18f32),
-    Visibility::Foreground => db_to_amp(-12f32),
-    Visibility::Visible => db_to_amp(-6f32),
+    Visibility::Foreground => db_to_amp(-15f32),
+    Visibility::Visible => db_to_amp(-12f32),
   }
 }
 

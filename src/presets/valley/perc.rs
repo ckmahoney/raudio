@@ -13,7 +13,7 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
   let sample_path = get_sample_path(arf);
 
   let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
-  let gain = visibility_gain_sample(arf.visibility);
+  let gain = 0.5f32 * visibility_gain_sample(arf.visibility);
   let amp_expr = dynamics::gen_organic_amplitude(10, 2000, arf.visibility).iter().map(|v| v * gain).collect();
 
   let mut delays_note = vec![];

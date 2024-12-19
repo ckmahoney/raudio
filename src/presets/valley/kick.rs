@@ -18,7 +18,7 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
   // Read the audio sample from the retrieved path
   let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read kick sample");
 
-  let gain = visibility_gain_sample(arf.visibility);
+  let gain = 0.5f32 * visibility_gain_sample(arf.visibility);
   let amp_expr = dynamics::gen_organic_amplitude(10, 2000, arf.visibility).iter().map(|v| v * gain).collect();
 
   let mut rng = thread_rng();
@@ -52,7 +52,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 fn synthy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   let soids = druidic_soids::upto(2);
 
-  let expr = (vec![db_to_amp(-4.5f32) * visibility_gain(arf.visibility)], vec![1f32], vec![0f32]);
+  let expr = (vec![0.5f32 * db_to_amp(-4.5f32) * visibility_gain(arf.visibility)], vec![1f32], vec![0f32]);
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
   let mut rng: ThreadRng = thread_rng();
