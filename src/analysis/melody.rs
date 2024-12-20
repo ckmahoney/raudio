@@ -41,10 +41,10 @@ pub fn find_reach(melody: &Melody<Note>) -> ((i8, usize), (i8, usize)) {
 }
 
 /// Scalar levels that correspond to parameters
-/// `stable`, `peak`, and `sustain`.
-/// `stable` is the initial or final value when not active,
-/// `peak` is the maximum value during activity,
-/// and `sustain` is the level as a percentage of `peak`.
+/// `stable`, `peak`, and `sustain`.  
+/// `stable` is the initial and final value when not active  
+/// `peak` is the maximum value
+/// `sustain` is the level as a percentage of `peak`.  
 pub struct Levels {
   /// Starting or ending position as a scalar value.
   pub stable: f32,
@@ -54,10 +54,11 @@ pub struct Levels {
   pub sustain: f32,
 }
 
-/// A struct representing the range of values for each level parameter,
-/// where each parameter (`stable`, `peak`, and `sustain`) is defined as a
-/// range with minimum and maximum bounds. These bounds are used to generate
-/// a `Levels` instance with values within these ranges.
+#[derive(Debug)]
+/// A struct representing the range of values for each level parameter,   
+/// where each parameter (`stable`, `peak`, and `sustain`) is defined as a  
+/// range with minimum and maximum bounds. These bounds are used to generate  
+/// a `Levels` instance with values within these ranges.  
 pub struct LevelMacro {
   /// Range for the `stable` scalar value [min, max].
   pub stable: [f32; 2],
@@ -69,9 +70,9 @@ pub struct LevelMacro {
 
 impl LevelMacro {
   /// Generates a new `Levels` instance with values sampled within the
-  /// provided ranges for each parameter (`stable`, `peak`, `sustain`).
+  /// provided ranges for each parameter (`stable`, `peak`, `sustain`).  
   /// This uses a random number generator to select values within each
-  /// specified range in `LevelMacro`.
+  /// specified range in `LevelMacro`.  
   pub fn gen(&self) -> Levels {
     let mut rng = rand::thread_rng();
     Levels {
@@ -299,63 +300,9 @@ impl ConvFilter {
   }
 }
 
-/// Given a line,
-/// define a lowpass contour behaving as a "wah wah" effect
-/// with respect to the given configuration.
-/// Guaranteed that a complete ODR will always fit in each noteevent's duration.
+
 pub fn mask_wah(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro: &ODRMacro) -> SampleBuffer {
-  let n_samples = time::samples_of_line(cps, line);
-  let mut contour: SampleBuffer = Vec::with_capacity(n_samples);
-
-  for (i, note) in (*line).iter().enumerate() {
-    let Levels { peak, sustain, stable } = level_macro.gen();
-    let applied_peak = peak.clamp(1f32, MAX_REGISTER as f32 - MIN_REGISTER as f32);
-
-    let n_samples_note: usize = time::samples_of_note(cps, note);
-
-    let dur_seconds = time::step_to_seconds(cps, &(*note).0);
-    let odr: ODR = (odr_macro.gen()).fit_in_samples(cps, dur_seconds);
-
-    // let n_samples_ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
-    // let n_samples_fall: usize = time::samples_of_milliseconds(cps, odr.decay);
-    // let n_samples_kill: usize = time::samples_of_milliseconds(cps, odr.release);
-    // let animation_duration_samples = n_samples_fall + n_samples_ramp + n_samples_kill;
-    // // sustain level, boxed in by the ramp/fall/kill values
-    // let n_samples_hold: usize = if animation_duration_samples > n_samples_note {
-    //   0
-    // } else {
-    //   n_samples_note - animation_duration_samples
-    // };
-
-    let (n_samples_ramp, n_samples_fall, n_samples_hold, n_samples_kill) = eval_odr(cps, n_samples_note, &odr);
-
-    let curr_freq: f32 = note_to_freq(note);
-    let stable_freq_base = stable * curr_freq.log2();
-    for j in 0..n_samples_note {
-      let cutoff_freq: f32 = if j < n_samples_ramp {
-        // onset
-        let p = j as f32 / n_samples_ramp as f32;
-        2f32.powf(applied_peak * p + stable_freq_base)
-      } else if j < n_samples_ramp + n_samples_fall {
-        // decay
-        let p = (j - n_samples_ramp) as f32 / n_samples_fall as f32;
-        let d_sustain = p * (1f32 - sustain);
-        2f32.powf((applied_peak - applied_peak * d_sustain) + stable_freq_base)
-      } else if j < n_samples_ramp + n_samples_fall + n_samples_hold {
-        let p = (j - n_samples_ramp - n_samples_fall) as f32 / n_samples_hold as f32;
-        // sustain
-        2f32.powf(applied_peak * sustain + stable_freq_base)
-      } else {
-        // release
-        let p = (j - n_samples_ramp - n_samples_fall - n_samples_hold) as f32 / n_samples_kill as f32;
-        let d_sustain = (1f32 - p) * (applied_peak * sustain);
-        2f32.powf(d_sustain + stable_freq_base)
-      };
-
-      contour.push(cutoff_freq);
-    }
-  }
-  contour
+  pointwise_lowpass(cps, line, level_macro, odr_macro)
 }
 
 fn eval_odr(cps:f32, at_n_samples:usize, odr:&ODR) -> (usize, usize, usize, usize) {
@@ -374,10 +321,10 @@ fn eval_odr(cps:f32, at_n_samples:usize, odr:&ODR) -> (usize, usize, usize, usiz
 }
 
 /// Given a line,
-/// define a lowpass contour  with a unique ODSR per-note
-/// bound by the Level and ODR macros provided.
+/// define a lowpass contour by interpolating from the provided onset/decay/release breakpoints
+/// for the provided stable (begin & end), peak, and sustain levels. 
 /// Guaranteed that a complete ODR will always fit in each noteevent's duration.
-pub fn mask_sigh(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro: &ODRMacro) -> SampleBuffer {
+pub fn pointwise_lowpass(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro: &ODRMacro) -> SampleBuffer {
   let n_samples = time::samples_of_line(cps, line);
   let mut contour: SampleBuffer = Vec::with_capacity(n_samples);
 
@@ -392,8 +339,8 @@ pub fn mask_sigh(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro
 
     let (n_samples_ramp, n_samples_fall, n_samples_hold, n_samples_kill) = eval_odr(cps, n_samples_note, &odr);
 
-
     let curr_freq: f32 = note_to_freq(note);
+
     let stable_freq_base = stable * curr_freq.log2();
     for j in 0..n_samples_note {
       let cutoff_freq: f32 = if j < n_samples_ramp {
@@ -420,6 +367,14 @@ pub fn mask_sigh(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro
     }
   }
   contour
+}
+
+/// Given a line,
+/// define a lowpass contour  with a unique ODSR per-note
+/// bound by the Level and ODR macros provided.
+/// Guaranteed that a complete ODR will always fit in each noteevent's duration.
+pub fn mask_sigh(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro: &ODRMacro) -> SampleBuffer {
+  pointwise_lowpass(cps, line, level_macro, odr_macro)
 }
 
 #[cfg(test)]

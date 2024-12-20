@@ -59,6 +59,7 @@ fn parse_preset(s: &str) -> Option<Preset> {
           Some(Preset::Mountain)
       },
       "bland" => Some(Preset::Bland),
+      "bright" => Some(Preset::Bright),
       _ => None,
   }
 }
@@ -71,7 +72,7 @@ mod test_parse {
 
     #[test]
     fn test_parse_preset_valid_lowercase() {
-        let res = parse_preset("hop");
+        let res = parse_preset("bright");
         println!("Got it {:#?}", res)
     }
 
@@ -85,7 +86,7 @@ fn render_playbook(out_dir: &str, preset_pack: &str, playbook_path: &str, asset_
 
   let preset = parse_preset(preset_pack);
   if preset.is_none() {
-    panic!("Must provide a valid preset pack. here are the options: hop, valley, mountain, bland. You gave me '{}'.", preset_pack)
+    panic!("Must provide a valid preset pack. here are the options: hop, valley, mountain, bland, bright. You gave me '{}'.", preset_pack)
   }
 
   match inp::arg_parse::load_score_from_file(&playbook_path) {

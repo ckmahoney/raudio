@@ -31,11 +31,13 @@ use rand::{thread_rng, Rng};
 pub enum Renderable<'render> {
   Instance(Stem<'render>),
   Group(Vec<Stem<'render>>),
+  Tacet(Stem<'render>)
 }
 
 #[derive(Clone, Debug)]
 pub enum Renderable2<'render> {
   Instance(Stem2<'render>),
+  Tacet(Stem2<'render>),
   Group(Vec<Stem2<'render>>),
   Sample(Stem3<'render>),
   Mix(Vec<(f32, Renderable2<'render>)>),
@@ -177,6 +179,18 @@ fn longest_delay_length(ds: &Vec<DelayParams>) -> f32 {
 
 fn longest_reverb_length(rs: &Vec<convolution::ReverbParams>) -> f32 {
   rs.iter().fold(0f32, |max, params| (params.dur).max(max))
+}
+
+fn tacet(cps: f32, (melody, soids, expr, feel, knob_mods, delays): &Stem) -> SampleBuffer {
+  let len_cycles: f32 = time::count_cycles(&melody[0]);
+  let signal_len = time::samples_of_cycles(cps, len_cycles);
+  vec![0f32; signal_len]
+}
+
+fn tacet2(cps: f32, stem: &Stem2) -> SampleBuffer {
+  let len_cycles: f32 = time::count_cycles(&stem.0[0]);
+  let signal_len = time::samples_of_cycles(cps, len_cycles);
+  vec![0f32; signal_len]
 }
 
 #[inline]
@@ -896,6 +910,9 @@ pub fn combiner<'render>(
         Renderable::Group(stems) => {
           // Process each stem in the group
           stems.iter().map(|stem| channel(cps, root, stem)).collect::<Vec<_>>()
+        },
+        Renderable::Tacet(stem) => {
+          vec![tacet(cps, stem)]
         }
       };
       if let Some(stem_dir) = keep_stems {
@@ -982,6 +999,9 @@ pub fn combiner_with_reso<'render>(
               .collect()
           })
           .collect(),
+        Renderable2::Tacet(stem) => {
+          vec![tacet2(conf.cps, stem)]
+        }
       };
 
       if let Some(stem_dir) = keep_stems {
@@ -1067,6 +1087,9 @@ pub fn combiner_with_reso2<'render>(
               .collect()
           })
           .collect(),
+        Renderable2::Tacet(stem) => {
+          vec![tacet2(conf.cps, stem)]
+        }
       };
 
       if let Some(stem_dir) = keep_stems {

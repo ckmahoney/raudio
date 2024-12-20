@@ -1,9 +1,10 @@
 use crate::analysis::{
   in_range,
-  melody::{find_reach, mask_sigh, mask_wah, LevelMacro, Levels, ODRMacro, ODR},
+  melody::{find_reach, mask_sigh, mask_wah, pointwise_lowpass, LevelMacro, Levels, ODRMacro, ODR},
   trig,
   volume::db_to_amp,
 };
+use crate::monic_theory::note_to_freq;
 use crate::phrasing::older_ranger::{Modders, OldRangerDeprecated, WOldRangerDeprecateds};
 use crate::phrasing::{dynamics, lifespan, micro};
 use crate::synth::{pi, pi2, MFf, NFf, SRf, SampleBuffer, MAX_REGISTER, MIN_REGISTER, SR};
@@ -34,6 +35,7 @@ use std::fs::read_dir;
 
 pub mod ambien;
 pub mod bland;
+pub mod bright;
 pub mod valley;
 pub mod hop;
 pub mod kuwuku;
@@ -144,7 +146,7 @@ pub fn grab_variant<T: Copy>(variants: Vec<T>) -> T {
 }
 
 pub fn get_bp<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, len_cycles: f32) -> Bp2 {
-  println!("OVerriding bp");
+  println!("OVerriding bp, using unit");
   return bp2_unit();
   // match arf.presence {
   //   Presence::Staccatto => bp_wah(cps, mel, arf, len_cycles),
@@ -202,7 +204,6 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
   let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
   let n_samples: usize = ((len_cycles / 2f32) as usize).max(1) * SR;
 
-  let levels = Levels::new(0.7f32, 4f32, 0.5f32);
 
   let level_macro: LevelMacro = LevelMacro {
     stable: match arf.energy {
@@ -237,6 +238,8 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
   } else {
     vec![MFf]
   };
+
+  println!("Using bp levels: {:#?}", level_macro);
   (
     highpass,
     mask_wah(cps, &mel[low_index], &level_macro, &odr_macro),
@@ -420,7 +423,8 @@ pub enum Preset {
   Valley,
   Mountain,
   Hop,
-  Bland
+  Bland,
+  Bright,
 }
 
 impl fmt::Display for Preset {
@@ -437,6 +441,7 @@ impl<'render> Preset {
       Preset::Mountain => mountain::map_role_preset(),
       Preset::Hop => hop::map_role_preset(),
       Preset::Bland => bland::map_role_preset(),
+      Preset::Bright => bright::map_role_preset(),
     }
   }
 
@@ -733,4 +738,20 @@ fn bp_bark<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, animation_d
     lowpass_contour,
     vec![],
   )
+}
+
+
+fn eval_odr(cps:f32, at_n_samples:usize, odr:&ODR) -> (usize, usize, usize, usize) {
+  let ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
+  let fall: usize = time::samples_of_milliseconds(cps, odr.decay);
+  let kill: usize = time::samples_of_milliseconds(cps, odr.release);
+  let animation_duration_samples = fall + ramp + kill;
+  // sustain level, boxed in by the ramp/fall/kill values
+  let hold: usize = if animation_duration_samples > at_n_samples {
+    0
+  } else {
+    at_n_samples - animation_duration_samples
+  };
+
+  (ramp, fall, hold, kill)
 }

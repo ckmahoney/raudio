@@ -31,6 +31,7 @@ fn mul_metrics(soids:&Soids) -> (f32, f32) {
 
 // }
 
+/// Methods for operating in terms of rational expressions (over multiplier) on a collection of soids
 pub mod ratio {
   use super::*;
 
@@ -201,6 +202,12 @@ pub mod amod {
     });
     new_soids
   }
+
+  pub fn gain(soids:&Soids, gain:f32) -> Soids {
+    let mut ret = soids.clone();
+    ret.0.iter_mut().for_each(|amp| *amp *=  gain);
+    ret
+  }
 }
 
 pub mod fmod {
@@ -292,39 +299,144 @@ pub mod fmod {
   }
 }
 
+pub mod ffilter {
+  use super::*;
+
+  /// Finds all indices in the input where the predicate returns `true`.
+  ///
+  /// # Example
+  /// ```
+  /// let numbers = vec![1, 2, 3, 2, 4];
+  /// let indices = find_all_indices(numbers, |&x| x == 2);
+  /// assert_eq!(indices, vec![1, 3]);
+  /// ```
+  fn find_all_indices<T>(iter: impl IntoIterator<Item = T>, predicate: impl Fn(&T) -> bool) -> Vec<usize> {
+    iter.into_iter()
+        .enumerate()
+        .filter_map(|(i, item)| if predicate(&item) { Some(i) } else { None })
+        .collect()
+  }
+
+
+  /// Removes elements from the vector at the specified sorted indices.
+  ///
+  /// # Requirements
+  /// - `indices` must be sorted in ascending order.
+  /// - If `indices` contains out-of-bounds values, they will be ignored.
+  ///
+  /// # Example
+  /// ```
+  /// let mut numbers = vec![10, 20, 30, 40, 50];
+  /// let indices_to_remove = vec![1, 3];
+  /// remove_all_at_sorted_indices(&mut numbers, &indices_to_remove);
+  /// assert_eq!(numbers, vec![10, 30, 50]);
+  /// ```
+  #[inline]
+  fn remove_all_at_sorted_indices<T>(vec: &mut Vec<T>, indices: &[usize]) {
+      for &index in indices.iter().rev() { // Process in reverse order
+          if index < vec.len() {
+              vec.remove(index);
+          }
+      }
+  }
+
+  /// Returns all soids with a multiplier larger than x
+  pub fn greater_than(soids: &Soids, x:f32) -> Soids {
+    let mut ret = soids.clone();
+    let indices_to_remove = find_all_indices(soids.1.iter(), |&m| *m > x);
+    remove_all_at_sorted_indices(&mut ret.0, &indices_to_remove);
+    remove_all_at_sorted_indices(&mut ret.1, &indices_to_remove);
+    remove_all_at_sorted_indices(&mut ret.2, &indices_to_remove);
+    ret
+  }
+
+  /// Returns all soids with a multiplier larger than x
+  pub fn less_than(soids: &Soids, x:f32) -> Soids {
+    let mut ret = soids.clone();
+    let indices_to_remove = find_all_indices(soids.1.iter(), |&m| *m < x);
+    remove_all_at_sorted_indices(&mut ret.0, &indices_to_remove);
+    remove_all_at_sorted_indices(&mut ret.1, &indices_to_remove);
+    remove_all_at_sorted_indices(&mut ret.2, &indices_to_remove);
+    ret
+  }
+}
+
 pub mod pmod {
   use super::*;
 
-  pub fn reece(soids: &Soids, n: usize) -> Soids {
-    if n == 0 {
-      panic!("Must provide a nonzero value for n")
-    }
-
-    let mut new_soids = (vec![], vec![], vec![]);
-    const v: f32 = pi_2 / 2f32;
-    let dv: f32 = v as f32 / n as f32;
-
-    // create two wet copies of each soid and reduce amplitude of each by half
-    soids.0.iter().enumerate().for_each(|(i, amp)| {
-      let gain = 0.5 * soids.0[i] / n as f32;
-      let mul = soids.1[i];
-      let offset = soids.2[i];
-
-      // add one element past and future to pi
-
-      for i in 0..n {
-        new_soids.0.push(gain / ((i + 1) as f32));
-        new_soids.1.push(mul);
-        new_soids.2.push(offset + i as f32 * dv);
-
-        new_soids.0.push(gain / ((i + 1) as f32));
-        new_soids.1.push(mul);
-        new_soids.2.push(offset - i as f32 * dv);
+  /// Given the farthest offset in terms of π, create `n` equally distributed phase offsets
+  /// with linearly falling amplitude for each SOID. Uses exponential distribution inline.
+  pub fn reece_chorus(soids: &Soids, n: usize, max_offset: f32) -> Soids {
+      if n == 0 {
+          panic!("Must provide a nonzero value for n");
       }
-    });
-    new_soids
+
+      let mut new_soids = (vec![], vec![], vec![]);
+
+      let distribute_exponential = |i: usize| -> f32 {
+          let normalized = i as f32 / n as f32;
+          normalized.powf(0.5f32) * max_offset
+      };
+
+      soids.0.iter().enumerate().for_each(|(i, amp)| {
+          let base_amp = amp / n as f32;
+          let base_mul = soids.1[i];
+          let base_offset = soids.2[i];
+
+          for j in 0..n {
+              let offset = distribute_exponential(j);
+              new_soids.0.push(base_amp);
+              new_soids.1.push(base_mul);
+              new_soids.2.push(base_offset + base_mul.log2() * offset); // Apply exponential offset
+          }
+      });
+
+      new_soids
   }
 }
+
+pub fn filter_do<F, M>(
+  soids: &Soids,
+  modulation: M,
+  predicate: F,
+) -> Soids
+where
+  F: Fn(&(f32, f32, f32)) -> bool,
+  M: Fn(&Soids) -> Soids,
+{
+  let mut passes = (vec![], vec![], vec![]);
+  let mut fails = (vec![], vec![], vec![]);
+
+  for i in 0..soids.0.len() {
+      let amp = soids.0[i];
+      let mul = soids.1[i];
+      let offset = soids.2[i];
+      let soid = (amp, mul, offset);
+
+      if predicate(&soid) {
+          passes.0.push(amp);
+          passes.1.push(mul);
+          passes.2.push(offset);
+      } else {
+          fails.0.push(amp);
+          fails.1.push(mul);
+          fails.2.push(offset);
+      }
+  }
+
+  let modulated_passes = modulation(&passes);
+
+  // Combine the modulated and unmodulated parts
+  let merged = (
+      [modulated_passes.0, fails.0].concat(),
+      [modulated_passes.1, fails.1].concat(),
+      [modulated_passes.2, fails.2].concat(),
+  );
+
+  merged
+}
+
+
 
 pub type SoidMod = (fn(&Soids, n: usize) -> Soids, f32);
 
