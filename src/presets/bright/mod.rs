@@ -81,29 +81,84 @@ pub fn pointwise_lowpass(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, o
 
 impl<'render> Conventions<'render> for BrightCon<'render> {
   fn get_bp(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
-    let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
+    match arf.role {
+      Role::Bass => {
+        let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
 
-    let level_macro: LevelMacro = LevelMacro {
-      peak: [2.5f32, 2.9f32],
-      sustain: [0.25f32, 0.3f32],
-      stable: [1f32, 1.2f32],
-    };
+        let level_macro: LevelMacro = LevelMacro {
+          peak: [2.5f32, 2.9f32],
+          sustain: [0.25f32, 0.3f32],
+          stable: [1f32, 1.2f32],
+        };
 
-    let odr_macro = ODRMacro {
-      onset: [30.0, 60f32],
-      decay: [1130.0, 1400f32],
-      release: [310.0, 600f32],
+        let odr_macro = ODRMacro {
+          onset: [30.0, 60f32],
+          decay: [1130.0, 1400f32],
+          release: [310.0, 600f32],
 
-      mo: vec![MacroMotion::Constant],
-      md: vec![MacroMotion::Constant],
-      mr: vec![MacroMotion::Constant],
-    };
+          mo: vec![MacroMotion::Constant],
+          md: vec![MacroMotion::Constant],
+          mr: vec![MacroMotion::Constant],
+        };
 
-    (
-      vec![MFf],
-      pointwise_lowpass(cps, &mel[high_index], &level_macro, &odr_macro),
-      vec![],
-    )
+        (
+          vec![MFf],
+          pointwise_lowpass(cps, &mel[high_index], &level_macro, &odr_macro),
+          vec![],
+        )
+      },
+      Role::Chords => {
+        let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
+
+        let level_macro: LevelMacro = LevelMacro {
+          peak: [1.5f32, 2.2f32],
+          sustain: [0.25f32, 0.3f32],
+          stable: [1f32, 1.2f32],
+        };
+
+        let odr_macro = ODRMacro {
+          onset: [30.0, 60f32],
+          decay: [1130.0, 2400f32],
+          release: [310.0, 400f32],
+
+          mo: vec![MacroMotion::Constant],
+          md: vec![MacroMotion::Constant],
+          mr: vec![MacroMotion::Constant],
+        };
+
+        (
+          vec![MFf],
+          pointwise_lowpass(cps, &mel[high_index], &level_macro, &odr_macro),
+          vec![],
+        )
+      },
+      Role::Lead => {
+        let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
+
+        let level_macro: LevelMacro = LevelMacro {
+          peak: [2f32, 3.2f32],
+          sustain: [0.3f32, 0.5f32],
+          stable: [1f32, 1.2f32],
+        };
+
+        let odr_macro = ODRMacro {
+          onset: [20.0, 260f32],
+          decay: [430.0, 2400f32],
+          release: [510.0, 1800f32],
+
+          mo: vec![MacroMotion::Constant],
+          md: vec![MacroMotion::Constant],
+          mr: vec![MacroMotion::Constant],
+        };
+
+        (
+          vec![MFf],
+          pointwise_lowpass(cps, &mel[high_index], &level_macro, &odr_macro),
+          vec![],
+        )
+      }, 
+      _ => (vec![MFf], vec![NFf], vec![])
+    }
   }
 }
 

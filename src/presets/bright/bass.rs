@@ -20,10 +20,16 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let soids = soid_fx::fmod::sawtooth(&soids, 3);
   let soids = soid_fx::fmod::triangle(&soids, 3);
 
-  let apply_modulation = |soids:&Soids| -> Soids {
-    soid_fx::fmod::reece(soids, 0.00001, 1)
+  let detune = |soids:&Soids| -> Soids {
+    let mut rng = thread_rng();
+    soid_fx::fmod::reece2(soids, in_range(&mut rng, 0.005, 0.01))
   };
-  let soids = soid_fx::filter_do(&soids, apply_modulation, |soid| soid.1.log2() < 2f32);
+  let detune2 = |soids:&Soids| -> Soids {
+    let mut rng = thread_rng();
+    soid_fx::fmod::reece2(soids, in_range(&mut rng, 0.01, 0.02))
+  };
+  let soids = soid_fx::filter_do(&soids, detune, |soid| soid.1.log2() < 2f32);
+  let soids = soid_fx::filter_do(&soids, detune, |soid| soid.1.log2() > 7f32);
   let soids = soid_fx::amod::gain(&soids, 0.1);
 
   // let soids = soid_fx::fmod::triangle(&soids, 3);

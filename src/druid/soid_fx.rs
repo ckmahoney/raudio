@@ -203,6 +203,25 @@ pub mod amod {
     new_soids
   }
 
+  // log2 based amplitude attenuation, scaled by k 
+  pub fn attenuate_bin_k(soids:&Soids, k:f32) -> Soids {
+    if k == 0f32 {
+      panic!("Must provide a nonzero value for k")
+    }
+    let mut new_soids = (vec![], vec![], vec![]);
+
+    soids.0.iter().enumerate().for_each(|(i, amp)| {
+      let mul = soids.1[i];
+      let offset = soids.2[i];
+
+      let modulated_amp = amp / (k * mul.log2());
+      new_soids.0.push(modulated_amp);
+      new_soids.1.push(mul);
+      new_soids.2.push(offset);
+    });
+    new_soids
+  }
+
   pub fn gain(soids:&Soids, gain:f32) -> Soids {
     let mut ret = soids.clone();
     ret.0.iter_mut().for_each(|amp| *amp *=  gain);
@@ -285,6 +304,32 @@ pub mod fmod {
       // scale the frequency modulation with the applied octave
       // for even xformation
       let mf = if octave == 0f32 { ref_b } else { ref_b / octave };
+
+      // add one element above and below f
+      new_soids.0.push(gain);
+      new_soids.1.push(mul * (1f32 - mf));
+      new_soids.2.push(offset);
+
+      new_soids.0.push(gain);
+      new_soids.1.push(mul * (1f32 + mf));
+      new_soids.2.push(offset);
+    });
+    new_soids
+  }
+
+  pub fn reece2(soids: &Soids, b: f32) -> Soids {
+    let mut new_soids = (vec![], vec![], vec![]);
+
+    // create two wet copies of each soid and reduce amplitude of each by half
+    soids.0.iter().enumerate().for_each(|(i, amp)| {
+      let gain = 0.5 * soids.0[i];
+      let mul = soids.1[i];
+      let octave = mul.log2().floor();
+      let offset = soids.2[i];
+
+      // scale the frequency modulation with the applied octave
+      // for even xformation
+      let mf = b / mul.log2();
 
       // add one element above and below f
       new_soids.0.push(gain);
@@ -431,6 +476,51 @@ where
       [modulated_passes.0, fails.0].concat(),
       [modulated_passes.1, fails.1].concat(),
       [modulated_passes.2, fails.2].concat(),
+  );
+
+  merged
+}
+
+
+pub fn filter_or<F, M, N>(
+  soids: &Soids,
+  modulation1: M,
+  modulation2: N,
+  predicate: F,
+) -> Soids
+where
+  F: Fn(&(f32, f32, f32)) -> bool,
+  M: Fn(&Soids) -> Soids,
+  N: Fn(&Soids) -> Soids,
+{
+  let mut passes = (vec![], vec![], vec![]);
+  let mut fails = (vec![], vec![], vec![]);
+
+  for i in 0..soids.0.len() {
+      let amp = soids.0[i];
+      let mul = soids.1[i];
+      let offset = soids.2[i];
+      let soid = (amp, mul, offset);
+
+      if predicate(&soid) {
+          passes.0.push(amp);
+          passes.1.push(mul);
+          passes.2.push(offset);
+      } else {
+          fails.0.push(amp);
+          fails.1.push(mul);
+          fails.2.push(offset);
+      }
+  }
+
+  let modulated_passes = modulation1(&passes);
+  let modulated_fails = modulation2(&fails);
+
+  // Combine the modulated and unmodulated parts
+  let merged = (
+      [modulated_passes.0, modulated_fails.0].concat(),
+      [modulated_passes.1, modulated_fails.1].concat(),
+      [modulated_passes.2, modulated_fails.2].concat(),
   );
 
   merged
@@ -700,4 +790,80 @@ pub mod chordlike {
 
     (amps, muls, offsets)
   }
+}
+
+use std::collections::{BTreeMap,HashMap};
+
+
+
+/// Merges redundant entries in a `Soids` tuple by combining amplitudes and removing duplicates.
+///
+/// This function reduces redundancy in the input `Soids` by grouping elements with the same
+/// multiplier (`muls`) and phase offset (`phase`). Amplitudes (`amps`) are averaged for entries
+/// in the same group. The merging process uses quantized keys to ensure precise grouping
+/// while avoiding floating-point comparison issues.
+///
+/// # Arguments
+/// - `soids`: A reference to the `Soids` tuple, containing:
+///   - `soids.0`: Vector of amplitudes (`amps`)
+///   - `soids.1`: Vector of multipliers (`muls`)
+///   - `soids.2`: Vector of phase offsets (`phase`)
+///
+/// # Returns
+/// A new `Soids` tuple with merged entries:
+/// - `merged_amps`: Averaged amplitudes for each unique `(mul, phase)` pair
+/// - `merged_muls`: Unique multipliers (`muls`)
+/// - `merged_phases`: Unique phase offsets
+///
+/// # Example
+/// ```
+/// let soids = (
+///     vec![0.25, 0.25, 0.5, 1.0],
+///     vec![440.0, 440.0, 880.0, 440.0],
+///     vec![0.0, 0.0, 0.5, 0.0],
+/// );
+///
+/// let merged = merge_soids(&soids);
+/// assert_eq!(
+///     merged,
+///     (
+///         vec![0.5, 0.5, 1.0], // Averaged amplitudes
+///         vec![440.0, 880.0, 440.0], // Unique multipliers
+///         vec![0.0, 0.5, 0.0] // Unique phase offsets
+///     )
+/// );
+/// ```
+///
+/// # Notes
+/// - Phase offsets and multipliers are quantized using a scaling factor (`scale`) to avoid
+///   floating-point precision issues when grouping entries.
+/// - Use this function to optimize the representation of a `Soids` for synthesis or processing.
+///
+/// # Panics
+/// This function does not panic, as it safely handles empty or invalid inputs.
+pub fn merge_soids(soids: &Soids) -> Soids {
+    let mut grouped: BTreeMap<(i32, i32), (f32, usize)> = BTreeMap::new();
+    let scale = 1_000_000; // Scale factor for quantization
+
+    for i in 0..soids.0.len() {
+        let amp = soids.0[i];
+        let mul_key = (soids.1[i] * scale as f32).round() as i32;
+        let phase_key = (soids.2[i] * scale as f32).round() as i32;
+
+        let entry = grouped.entry((mul_key, phase_key)).or_insert((0.0, 0));
+        entry.0 += amp; // Accumulate amplitude
+        entry.1 += 1;   // Increment count
+    }
+
+    let mut merged_amps = Vec::new();
+    let mut merged_muls = Vec::new();
+    let mut merged_phases = Vec::new();
+
+    for ((mul_key, phase_key), (total_amp, count)) in grouped {
+        merged_amps.push(total_amp / count as f32); // Average amplitude
+        merged_muls.push(mul_key as f32 / scale as f32);
+        merged_phases.push(phase_key as f32 / scale as f32);
+    }
+
+    (merged_amps, merged_muls, merged_phases)
 }

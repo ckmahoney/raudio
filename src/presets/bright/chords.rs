@@ -16,6 +16,32 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     Visibility::Visible => druidic_soids::overs_triangle(mullet),
   };
 
+
+  let thicken = |soids:&Soids| -> Soids {
+    soid_fx::fmod::triangle(&soids, 3)
+  };
+
+  let small_detune = |soids:&Soids| -> Soids {
+    let mut rng=thread_rng();
+    soid_fx::fmod::reece2(&soids, in_range(&mut rng, 0.001, 0.002))
+  };
+
+  let big_detune = |soids:&Soids| -> Soids {
+    let mut rng=thread_rng();
+    soid_fx::fmod::reece2(&soids, in_range(&mut rng, 0.005, 0.01))
+  };
+
+  let attenuate_highs = |soids:&Soids| -> Soids {
+    soid_fx::amod::attenuate_bin_k(&soids, 1f32)
+  };
+
+  let soids = soid_fx::filter_do(&soids, thicken, |soid| soid.1.log2() > 2f32);
+  let soids = soid_fx::merge_soids(&soids);
+  let soids = soid_fx::filter_or(&soids, small_detune, big_detune, |soid| soid.1.log2() < 3f32);
+  let soids = soid_fx::filter_do(&soids, attenuate_highs, |soid| soid.1.log2() > 2f32);
+  let soids = soid_fx::filter_do(&soids, attenuate_highs, |soid| soid.1.log2() > 6f32);
+  let soids = soid_fx::amod::gain(&soids, 0.1f32);
+
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
   let expr = (vec![1f32], vec![1f32], vec![0f32]);
   let delays_note = vec![];
@@ -35,5 +61,5 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     reverbs_room,
   );
 
-  Renderable2::Tacet(stem)
+  Renderable2::Instance(stem)
 }
