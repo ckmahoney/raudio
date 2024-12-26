@@ -171,11 +171,7 @@ fn demonstrate() {
   let stem_chords = chords::renderable(&conf, &chords_melody, &chords_arf());
   let stem_bass = bass::renderable(&conf, &bass_melody, &bass_arf());
 
-  let renderables: Vec<Renderable2> = vec![
-    stem_bass, 
-    stem_chords, 
-    stem_lead
-  ];
+  let renderables: Vec<Renderable2> = vec![stem_bass, stem_chords, stem_lead];
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;

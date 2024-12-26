@@ -93,7 +93,6 @@ fn generate_bass_delay_macros(visibility: Visibility, energy: Energy, presence: 
   vec![classic_mono_bass, wide_stereo_bass, rhythmic_bass_delay]
 }
 
-
 fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
   (
     KnobMacro {
@@ -122,23 +121,30 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  
+
   knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
   knob_mods.0.push(amp_knob_principal(&mut rng, &arf));
 
-  knob_mods.0.push((KnobMacro {
-    a: [0.3, 0.7],
-    b: [0.3, 0.7],
-    c: [0.3, 0.7],
-    ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
-    mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
-    mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
-  }, ranger::amod_seesaw));
+  knob_mods.0.push((
+    KnobMacro {
+      a: [0.3, 0.7],
+      b: [0.3, 0.7],
+      c: [0.3, 0.7],
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
+      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
+      mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Random]),
+    },
+    ranger::amod_seesaw,
+  ));
 
   let height = match arf.energy {
-    Energy::Low => 2, Energy::Medium => 3, Energy::High => 4
+    Energy::Low => 2,
+    Energy::Medium => 3,
+    Energy::High => 4,
   } * match arf.visibility {
-    Visibility::Visible => 3, Visibility::Foreground => 2, _ => 1
+    Visibility::Visible => 3,
+    Visibility::Foreground => 2,
+    _ => 1,
   };
 
   let soids = druidic_soids::upto(height);

@@ -37,7 +37,6 @@ fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence:
 
   let dtimes_cycles = vec![1.333, 1.5, 2.0, 3.0, 6f32, 8f32];
 
-
   // 1. Wide Stereo Pad Delay
   // Creates a wide, lush stereo spread for ambient chord textures.
   let wide_stereo_pad = DelayParamsMacro {

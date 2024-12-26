@@ -44,15 +44,15 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
     amp_expr,
     lowpass_cutoff,
     delays_note,
-    vec![],       
-    vec![],       
+    vec![],
+    vec![],
     reverbs_room,
   ))
 }
 
 /// mix of three different percs.
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
- stemmy(conf, melody, arf)
+  stemmy(conf, melody, arf)
 }
 
 /// Generates a set of delay macros for percussion in house music.

@@ -93,7 +93,6 @@ fn generate_bass_delay_macros(visibility: Visibility, energy: Energy, presence: 
   vec![classic_mono_bass, wide_stereo_bass, rhythmic_bass_delay]
 }
 
-
 fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
   (
     KnobMacro {
@@ -108,7 +107,12 @@ fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
         _ => [0.3f32, 0.5f32],
       },
       c: [0.0, 0.0],
-      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Random, MacroMotion::Constant]),
+      ma: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Random,
+        MacroMotion::Constant,
+      ]),
       mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
       mc: MacroMotion::Constant,
     },
@@ -116,12 +120,10 @@ fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
   )
 }
 
-
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   let mut rng = thread_rng();
   let len_cycles: f32 = time::count_cycles(&melody[0]);
   let n_samples = (SRf * len_cycles / 2f32) as usize;
-
 
   let soids = druidic_soids::overs_square(get_mullet(&arf));
 

@@ -5,9 +5,6 @@ use crate::phrasing::{contour::Expr, ranger::KnobMods};
 use crate::types::synthesis::{ModifiersHolder, Soids};
 use std::os::unix::thread;
 
-
-
-
 /// Generates a set of delay macros for lead lines in ambient music using VEP parameters.
 /// The macros adapt based on `Visibility`, `Energy`, and `Presence`, tailoring delay characteristics
 /// to create subtle, floating echoes that emphasize the melody.
@@ -229,12 +226,10 @@ fn freq_knob_tonal(v: Visibility, e: Energy, p: Presence) -> KnobPair {
   )
 }
 
-
-
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   let mut rng = thread_rng();
   let mullet = get_mullet(&arf);
-  
+
   let soids = match arf.visibility {
     Visibility::Hidden => druidic_soids::octave(mullet),
     Visibility::Background => druidic_soids::overs_triangle(mullet),
@@ -259,7 +254,9 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let expr = (dynamics, vec![1f32], vec![0f32]);
 
   let delays_note = generate_lead_delay_macros(arf.visibility, arf.energy, arf.presence)
-    .iter().map(|m| m.gen(&mut rng, conf.cps)).collect();
+    .iter()
+    .map(|m| m.gen(&mut rng, conf.cps))
+    .collect();
   let delays_room = vec![];
   let reverbs_note: Vec<ReverbParams> = vec![];
   let reverbs_room: Vec<ReverbParams> = vec![];

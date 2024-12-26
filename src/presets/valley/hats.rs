@@ -51,8 +51,6 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   ])
 }
 
-
-
 /// Generates a set of delay macros for hats in house music.
 ///
 /// # Parameters

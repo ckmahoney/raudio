@@ -4,7 +4,7 @@ use rand::{thread_rng, Rng};
 
 static one: f32 = 1f32;
 
-fn mul_metrics(soids:&Soids) -> (f32, f32) {
+fn mul_metrics(soids: &Soids) -> (f32, f32) {
   let mut min_mul = 100f32;
   let mut max_mul = 0f32;
   for mul in soids.1.iter() {
@@ -18,8 +18,8 @@ fn mul_metrics(soids:&Soids) -> (f32, f32) {
 //   if soids.1.len() < 8 {
 //     return soids.clone()
 //   }
-//   // the min/max percentages of elements removed. 
-//   // goes on the idea that you need 7 soids to create a distinct mask, 
+//   // the min/max percentages of elements removed.
+//   // goes on the idea that you need 7 soids to create a distinct mask,
 //   // so a 1/8 chance means 8 or more soids may start to sound degraded on each call.
 //   let (minp, maxp) = (1f32/8f32, 1f32/2f32);
 //   let (min_mul, max_mul) = mul_metrics(soids);
@@ -203,8 +203,8 @@ pub mod amod {
     new_soids
   }
 
-  // log2 based amplitude attenuation, scaled by k 
-  pub fn attenuate_bin_k(soids:&Soids, k:f32) -> Soids {
+  // log2 based amplitude attenuation, scaled by k
+  pub fn attenuate_bin_k(soids: &Soids, k: f32) -> Soids {
     if k == 0f32 {
       panic!("Must provide a nonzero value for k")
     }
@@ -222,9 +222,9 @@ pub mod amod {
     new_soids
   }
 
-  pub fn gain(soids:&Soids, gain:f32) -> Soids {
+  pub fn gain(soids: &Soids, gain: f32) -> Soids {
     let mut ret = soids.clone();
-    ret.0.iter_mut().for_each(|amp| *amp *=  gain);
+    ret.0.iter_mut().for_each(|amp| *amp *= gain);
     ret
   }
 }
@@ -356,12 +356,12 @@ pub mod ffilter {
   /// assert_eq!(indices, vec![1, 3]);
   /// ```
   fn find_all_indices<T>(iter: impl IntoIterator<Item = T>, predicate: impl Fn(&T) -> bool) -> Vec<usize> {
-    iter.into_iter()
-        .enumerate()
-        .filter_map(|(i, item)| if predicate(&item) { Some(i) } else { None })
-        .collect()
+    iter
+      .into_iter()
+      .enumerate()
+      .filter_map(|(i, item)| if predicate(&item) { Some(i) } else { None })
+      .collect()
   }
-
 
   /// Removes elements from the vector at the specified sorted indices.
   ///
@@ -378,15 +378,16 @@ pub mod ffilter {
   /// ```
   #[inline]
   fn remove_all_at_sorted_indices<T>(vec: &mut Vec<T>, indices: &[usize]) {
-      for &index in indices.iter().rev() { // Process in reverse order
-          if index < vec.len() {
-              vec.remove(index);
-          }
+    for &index in indices.iter().rev() {
+      // Process in reverse order
+      if index < vec.len() {
+        vec.remove(index);
       }
+    }
   }
 
   /// Returns all soids with a multiplier larger than x
-  pub fn greater_than(soids: &Soids, x:f32) -> Soids {
+  pub fn greater_than(soids: &Soids, x: f32) -> Soids {
     let mut ret = soids.clone();
     let indices_to_remove = find_all_indices(soids.1.iter(), |&m| *m > x);
     remove_all_at_sorted_indices(&mut ret.0, &indices_to_remove);
@@ -396,7 +397,7 @@ pub mod ffilter {
   }
 
   /// Returns all soids with a multiplier larger than x
-  pub fn less_than(soids: &Soids, x:f32) -> Soids {
+  pub fn less_than(soids: &Soids, x: f32) -> Soids {
     let mut ret = soids.clone();
     let indices_to_remove = find_all_indices(soids.1.iter(), |&m| *m < x);
     remove_all_at_sorted_indices(&mut ret.0, &indices_to_remove);
@@ -412,39 +413,35 @@ pub mod pmod {
   /// Given the farthest offset in terms of π, create `n` equally distributed phase offsets
   /// with linearly falling amplitude for each SOID. Uses exponential distribution inline.
   pub fn reece_chorus(soids: &Soids, n: usize, max_offset: f32) -> Soids {
-      if n == 0 {
-          panic!("Must provide a nonzero value for n");
+    if n == 0 {
+      panic!("Must provide a nonzero value for n");
+    }
+
+    let mut new_soids = (vec![], vec![], vec![]);
+
+    let distribute_exponential = |i: usize| -> f32 {
+      let normalized = i as f32 / n as f32;
+      normalized.powf(0.5f32) * max_offset
+    };
+
+    soids.0.iter().enumerate().for_each(|(i, amp)| {
+      let base_amp = amp / n as f32;
+      let base_mul = soids.1[i];
+      let base_offset = soids.2[i];
+
+      for j in 0..n {
+        let offset = distribute_exponential(j);
+        new_soids.0.push(base_amp);
+        new_soids.1.push(base_mul);
+        new_soids.2.push(base_offset + base_mul.log2() * offset); // Apply exponential offset
       }
+    });
 
-      let mut new_soids = (vec![], vec![], vec![]);
-
-      let distribute_exponential = |i: usize| -> f32 {
-          let normalized = i as f32 / n as f32;
-          normalized.powf(0.5f32) * max_offset
-      };
-
-      soids.0.iter().enumerate().for_each(|(i, amp)| {
-          let base_amp = amp / n as f32;
-          let base_mul = soids.1[i];
-          let base_offset = soids.2[i];
-
-          for j in 0..n {
-              let offset = distribute_exponential(j);
-              new_soids.0.push(base_amp);
-              new_soids.1.push(base_mul);
-              new_soids.2.push(base_offset + base_mul.log2() * offset); // Apply exponential offset
-          }
-      });
-
-      new_soids
+    new_soids
   }
 }
 
-pub fn filter_do<F, M>(
-  soids: &Soids,
-  modulation: M,
-  predicate: F,
-) -> Soids
+pub fn filter_do<F, M>(soids: &Soids, modulation: M, predicate: F) -> Soids
 where
   F: Fn(&(f32, f32, f32)) -> bool,
   M: Fn(&Soids) -> Soids,
@@ -453,41 +450,35 @@ where
   let mut fails = (vec![], vec![], vec![]);
 
   for i in 0..soids.0.len() {
-      let amp = soids.0[i];
-      let mul = soids.1[i];
-      let offset = soids.2[i];
-      let soid = (amp, mul, offset);
+    let amp = soids.0[i];
+    let mul = soids.1[i];
+    let offset = soids.2[i];
+    let soid = (amp, mul, offset);
 
-      if predicate(&soid) {
-          passes.0.push(amp);
-          passes.1.push(mul);
-          passes.2.push(offset);
-      } else {
-          fails.0.push(amp);
-          fails.1.push(mul);
-          fails.2.push(offset);
-      }
+    if predicate(&soid) {
+      passes.0.push(amp);
+      passes.1.push(mul);
+      passes.2.push(offset);
+    } else {
+      fails.0.push(amp);
+      fails.1.push(mul);
+      fails.2.push(offset);
+    }
   }
 
   let modulated_passes = modulation(&passes);
 
   // Combine the modulated and unmodulated parts
   let merged = (
-      [modulated_passes.0, fails.0].concat(),
-      [modulated_passes.1, fails.1].concat(),
-      [modulated_passes.2, fails.2].concat(),
+    [modulated_passes.0, fails.0].concat(),
+    [modulated_passes.1, fails.1].concat(),
+    [modulated_passes.2, fails.2].concat(),
   );
 
   merged
 }
 
-
-pub fn filter_or<F, M, N>(
-  soids: &Soids,
-  modulation1: M,
-  modulation2: N,
-  predicate: F,
-) -> Soids
+pub fn filter_or<F, M, N>(soids: &Soids, modulation1: M, modulation2: N, predicate: F) -> Soids
 where
   F: Fn(&(f32, f32, f32)) -> bool,
   M: Fn(&Soids) -> Soids,
@@ -497,20 +488,20 @@ where
   let mut fails = (vec![], vec![], vec![]);
 
   for i in 0..soids.0.len() {
-      let amp = soids.0[i];
-      let mul = soids.1[i];
-      let offset = soids.2[i];
-      let soid = (amp, mul, offset);
+    let amp = soids.0[i];
+    let mul = soids.1[i];
+    let offset = soids.2[i];
+    let soid = (amp, mul, offset);
 
-      if predicate(&soid) {
-          passes.0.push(amp);
-          passes.1.push(mul);
-          passes.2.push(offset);
-      } else {
-          fails.0.push(amp);
-          fails.1.push(mul);
-          fails.2.push(offset);
-      }
+    if predicate(&soid) {
+      passes.0.push(amp);
+      passes.1.push(mul);
+      passes.2.push(offset);
+    } else {
+      fails.0.push(amp);
+      fails.1.push(mul);
+      fails.2.push(offset);
+    }
   }
 
   let modulated_passes = modulation1(&passes);
@@ -518,15 +509,13 @@ where
 
   // Combine the modulated and unmodulated parts
   let merged = (
-      [modulated_passes.0, modulated_fails.0].concat(),
-      [modulated_passes.1, modulated_fails.1].concat(),
-      [modulated_passes.2, modulated_fails.2].concat(),
+    [modulated_passes.0, modulated_fails.0].concat(),
+    [modulated_passes.1, modulated_fails.1].concat(),
+    [modulated_passes.2, modulated_fails.2].concat(),
   );
 
   merged
 }
-
-
 
 pub type SoidMod = (fn(&Soids, n: usize) -> Soids, f32);
 
@@ -792,9 +781,7 @@ pub mod chordlike {
   }
 }
 
-use std::collections::{BTreeMap,HashMap};
-
-
+use std::collections::{BTreeMap, HashMap};
 
 /// Merges redundant entries in a `Soids` tuple by combining amplitudes and removing duplicates.
 ///
@@ -842,28 +829,28 @@ use std::collections::{BTreeMap,HashMap};
 /// # Panics
 /// This function does not panic, as it safely handles empty or invalid inputs.
 pub fn merge_soids(soids: &Soids) -> Soids {
-    let mut grouped: BTreeMap<(i32, i32), (f32, usize)> = BTreeMap::new();
-    let scale = 1_000_000; // Scale factor for quantization
+  let mut grouped: BTreeMap<(i32, i32), (f32, usize)> = BTreeMap::new();
+  let scale = 1_000_000; // Scale factor for quantization
 
-    for i in 0..soids.0.len() {
-        let amp = soids.0[i];
-        let mul_key = (soids.1[i] * scale as f32).round() as i32;
-        let phase_key = (soids.2[i] * scale as f32).round() as i32;
+  for i in 0..soids.0.len() {
+    let amp = soids.0[i];
+    let mul_key = (soids.1[i] * scale as f32).round() as i32;
+    let phase_key = (soids.2[i] * scale as f32).round() as i32;
 
-        let entry = grouped.entry((mul_key, phase_key)).or_insert((0.0, 0));
-        entry.0 += amp; // Accumulate amplitude
-        entry.1 += 1;   // Increment count
-    }
+    let entry = grouped.entry((mul_key, phase_key)).or_insert((0.0, 0));
+    entry.0 += amp; // Accumulate amplitude
+    entry.1 += 1; // Increment count
+  }
 
-    let mut merged_amps = Vec::new();
-    let mut merged_muls = Vec::new();
-    let mut merged_phases = Vec::new();
+  let mut merged_amps = Vec::new();
+  let mut merged_muls = Vec::new();
+  let mut merged_phases = Vec::new();
 
-    for ((mul_key, phase_key), (total_amp, count)) in grouped {
-        merged_amps.push(total_amp / count as f32); // Average amplitude
-        merged_muls.push(mul_key as f32 / scale as f32);
-        merged_phases.push(phase_key as f32 / scale as f32);
-    }
+  for ((mul_key, phase_key), (total_amp, count)) in grouped {
+    merged_amps.push(total_amp / count as f32); // Average amplitude
+    merged_muls.push(mul_key as f32 / scale as f32);
+    merged_phases.push(phase_key as f32 / scale as f32);
+  }
 
-    (merged_amps, merged_muls, merged_phases)
+  (merged_amps, merged_muls, merged_phases)
 }

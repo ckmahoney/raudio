@@ -110,10 +110,10 @@ fn sum_and_dynamic_normalize_layers(gain: f32, layers: &[Vec<f32>]) -> Vec<f32> 
 /// Create a varying amplitude layer providing subtle animation
 pub fn gen_organic_amplitude(n_layers: usize, n_samples: usize, v: Visibility) -> Vec<f32> {
   let (min, max): (f32, f32) = match v {
-    Visibility::Hidden => (-24f32, -18f32),
-    Visibility::Background => (-18f32, -12f32),
-    Visibility::Foreground => (-12f32, -9f32),
-    Visibility::Visible => (-9f32, -6f32),
+    Visibility::Hidden => (-24f32, -9f32),
+    Visibility::Background => (-18f32, -6f32),
+    Visibility::Foreground => (-12f32, -3f32),
+    Visibility::Visible => (-9f32, -1f32),
   };
   let gain = crate::presets::visibility_gain(v);
   let layers = generate_layers(n_layers, n_samples, min, max);

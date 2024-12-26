@@ -31,7 +31,7 @@ use rand::{thread_rng, Rng};
 pub enum Renderable<'render> {
   Instance(Stem<'render>),
   Group(Vec<Stem<'render>>),
-  Tacet(Stem<'render>)
+  Tacet(Stem<'render>),
 }
 
 #[derive(Clone, Debug)]
@@ -41,30 +41,6 @@ pub enum Renderable2<'render> {
   Group(Vec<Stem2<'render>>),
   Sample(Stem3<'render>),
   Mix(Vec<(f32, Renderable2<'render>)>),
-}
-
-pub fn rescale(samples: &[f32], original_freq: f32, target_freq: f32) -> Vec<f32> {
-  let ratio = original_freq / target_freq;
-  let new_length = (samples.len() as f32 * ratio) as usize;
-  let mut resampled = Vec::with_capacity(new_length);
-
-  for i in 0..new_length {
-    let float_idx = i as f32 / ratio;
-    let idx = float_idx as usize;
-    let next_idx = if idx + 1 < samples.len() { idx + 1 } else { idx };
-
-    // Linear interpolation
-    let sample = if idx != next_idx {
-      let fraction = float_idx.fract();
-      samples[idx] * (1.0 - fraction) + samples[next_idx] * fraction
-    } else {
-      samples[idx]
-    };
-
-    resampled.push(sample);
-  }
-
-  resampled
 }
 
 #[inline]
@@ -242,7 +218,7 @@ fn generate_value(motion: MacroMotion, min: f32, max: f32, p: f32, rng: &mut Thr
 }
 
 /// Create a knob value from a KnobMacro
-fn get_knob(kmac: &KnobMacro, p: f32, rng: &mut ThreadRng) -> Knob {
+pub fn get_knob(kmac: &KnobMacro, p: f32, rng: &mut ThreadRng) -> Knob {
   Knob {
     a: generate_value(kmac.ma, kmac.a[0], kmac.a[1], p, rng),
     b: generate_value(kmac.mb, kmac.b[0], kmac.b[1], p, rng),
@@ -910,7 +886,7 @@ pub fn combiner<'render>(
         Renderable::Group(stems) => {
           // Process each stem in the group
           stems.iter().map(|stem| channel(cps, root, stem)).collect::<Vec<_>>()
-        },
+        }
         Renderable::Tacet(stem) => {
           vec![tacet(cps, stem)]
         }
@@ -1106,8 +1082,13 @@ pub fn combiner_with_reso2<'render>(
       let rendered_channel = pad_and_mix_buffers(ch);
 
       match rendered_channel {
-        Ok(signal) => if stem_reverbs.is_empty() { signal }
-        else { convolution::of(&signal, &stem_reverbs[j]) },
+        Ok(signal) => {
+          if stem_reverbs.is_empty() {
+            signal
+          } else {
+            convolution::of(&signal, &stem_reverbs[j])
+          }
+        }
         Err(msg) => panic!("Unexpected error while mixing channels: {}", msg),
       }
     })

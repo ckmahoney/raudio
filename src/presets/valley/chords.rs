@@ -37,8 +37,16 @@ fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence:
 
   // Set delay cycle lengths based on presence, adding variety to the spatial effect
   let dtimes_cycles = match presence {
-    Presence::Staccatto => vec![1f32/8f32, 1f32/4f32, 1f32/2f32],
-    Presence::Legato => vec![1f32/8f32, 1f32/4f32, 1f32/3f32, 2f32/3f32, 1f32, 3f32/2f32, 2f32], // Medium cycles for smooth, sustained echoes
+    Presence::Staccatto => vec![1f32 / 8f32, 1f32 / 4f32, 1f32 / 2f32],
+    Presence::Legato => vec![
+      1f32 / 8f32,
+      1f32 / 4f32,
+      1f32 / 3f32,
+      2f32 / 3f32,
+      1f32,
+      3f32 / 2f32,
+      2f32,
+    ], // Medium cycles for smooth, sustained echoes
     Presence::Tenuto => vec![1.333, 1.5, 2.0, 3.0], // Longer cycles for a more spacious feel
   };
 
@@ -227,7 +235,6 @@ fn dynamics(arf: &Arf, n_samples: usize, k: f32) -> SampleBuffer {
 }
 
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  
   let mullet = get_mullet(&arf);
 
   let len_cycles: f32 = time::count_cycles(&melody[0]);
@@ -250,7 +257,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     md: vec![MacroMotion::Constant],
     mr: vec![MacroMotion::Constant],
   };
-  
+
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
   knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
   knob_mods.0.push(amp_knob_presence(arf.visibility, arf.energy, arf.presence));

@@ -300,12 +300,11 @@ impl ConvFilter {
   }
 }
 
-
 pub fn mask_wah(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro: &ODRMacro) -> SampleBuffer {
   pointwise_lowpass(cps, line, level_macro, odr_macro)
 }
 
-fn eval_odr(cps:f32, at_n_samples:usize, odr:&ODR) -> (usize, usize, usize, usize) {
+fn eval_odr(cps: f32, at_n_samples: usize, odr: &ODR) -> (usize, usize, usize, usize) {
   let ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
   let fall: usize = time::samples_of_milliseconds(cps, odr.decay);
   let kill: usize = time::samples_of_milliseconds(cps, odr.release);
@@ -322,7 +321,7 @@ fn eval_odr(cps:f32, at_n_samples:usize, odr:&ODR) -> (usize, usize, usize, usiz
 
 /// Given a line,
 /// define a lowpass contour by interpolating from the provided onset/decay/release breakpoints
-/// for the provided stable (begin & end), peak, and sustain levels. 
+/// for the provided stable (begin & end), peak, and sustain levels.
 /// Guaranteed that a complete ODR will always fit in each noteevent's duration.
 pub fn pointwise_lowpass(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro: &ODRMacro) -> SampleBuffer {
   let n_samples = time::samples_of_line(cps, line);
@@ -365,6 +364,50 @@ pub fn pointwise_lowpass(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, o
 
       contour.push(cutoff_freq);
     }
+  }
+  contour
+}
+
+/// Given a line,
+/// define a  contour by interpolating from the provided onset/decay/release breakpoints
+/// for the provided stable (begin & end), peak, and sustain levels.
+/// Guaranteed that a complete ODR will always fit in each noteevent's duration.
+/// Returns a sample buffer for the requested sample rate.
+pub fn eval_odr_level(cps: f32, n_cycles:f32, level_macro: &LevelMacro, odr_macro: &ODRMacro) -> SampleBuffer {
+    let Levels { peak, sustain, stable } = level_macro.gen();
+    let applied_peak = peak.clamp(1f32, MAX_REGISTER as f32 - MIN_REGISTER as f32);
+
+    let n_samples_note: usize = time::samples_of_cycles(cps, n_cycles);
+    let mut contour: SampleBuffer = Vec::with_capacity(n_samples_note);
+
+    let dur_seconds = time::seconds_of_cycles(cps, n_cycles);
+    let odr: ODR = (odr_macro.gen()).fit_in_samples(cps, dur_seconds);
+
+    let (n_samples_ramp, n_samples_fall, n_samples_hold, n_samples_kill) = eval_odr(cps, n_samples_note, &odr);
+
+    let stable_freq_base = stable;
+    for j in 0..n_samples_note {
+      let cutoff_freq: f32 = if j < n_samples_ramp {
+        // onset
+        let p = j as f32 / n_samples_ramp as f32;
+        2f32.powf(applied_peak * p + stable_freq_base)
+      } else if j < n_samples_ramp + n_samples_fall {
+        // decay
+        let p = (j - n_samples_ramp) as f32 / n_samples_fall as f32;
+        let d_sustain = p * (1f32 - sustain);
+        2f32.powf((applied_peak - applied_peak * d_sustain) + stable_freq_base)
+      } else if j < n_samples_ramp + n_samples_fall + n_samples_hold {
+        let p = (j - n_samples_ramp - n_samples_fall) as f32 / n_samples_hold as f32;
+        // sustain
+        2f32.powf(applied_peak * sustain + stable_freq_base)
+      } else {
+        // release
+        let p = (j - n_samples_ramp - n_samples_fall - n_samples_hold) as f32 / n_samples_kill as f32;
+        let d_sustain = (1f32 - p) * (applied_peak * sustain);
+        2f32.powf(d_sustain + stable_freq_base)
+      };
+
+      contour.push(cutoff_freq);
   }
   contour
 }

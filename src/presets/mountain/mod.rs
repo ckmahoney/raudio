@@ -6,44 +6,40 @@ pub mod kick;
 pub mod lead;
 pub mod perc;
 
-
-
 /// Generates a macro for ambient music, designed for long, evolving fades suitable for lead and pad synths.
 /// Adjusts cycle length, fade shape, and dynamic range based on visibility, energy, and presence.
 pub fn amp_onset(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
   let visibility_gain = match visibility {
-      Visibility::Hidden => [0.0, 0.2],
-      Visibility::Background => [0.2, 0.5],
-      Visibility::Foreground => [0.5, 0.8],
-      Visibility::Visible => [0.8, 1.0],
+    Visibility::Hidden => [0.0, 0.2],
+    Visibility::Background => [0.2, 0.5],
+    Visibility::Foreground => [0.5, 0.8],
+    Visibility::Visible => [0.8, 1.0],
   };
 
   let spectral_mod = match energy {
-      Energy::Low => [0.2, 0.5],
-      Energy::Medium => [0.4, 0.8],
-      Energy::High => [0.7, 1.0],
+    Energy::Low => [0.2, 0.5],
+    Energy::Medium => [0.4, 0.8],
+    Energy::High => [0.7, 1.0],
   };
 
   let duration_mod = match presence {
-      Presence::Staccatto => [0.1, 0.2],
-      Presence::Tenuto => [0.3, 0.6],
-      Presence::Legato => [0.7, 1.0],
+    Presence::Staccatto => [0.1, 0.2],
+    Presence::Tenuto => [0.3, 0.6],
+    Presence::Legato => [0.7, 1.0],
   };
 
   (
-      KnobMacro {
-          a: visibility_gain,
-          b: spectral_mod,
-          c: duration_mod,
-          ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Constant]),
-          mb: grab_variant(vec![MacroMotion::Mean, MacroMotion::Reverse]),
-          mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Constant]),
-      },
-      ranger::amod_cycle_fadein_4_16,
+    KnobMacro {
+      a: visibility_gain,
+      b: spectral_mod,
+      c: duration_mod,
+      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Constant]),
+      mb: grab_variant(vec![MacroMotion::Mean, MacroMotion::Reverse]),
+      mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Constant]),
+    },
+    ranger::amod_cycle_fadein_4_16,
   )
 }
-
-
 
 /// short delay with loud echo
 /// works best with percussive or plucky sounds
@@ -186,7 +182,6 @@ pub fn get_bp<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
     Presence::Tenuto => bp_cresc(cps, mel, arf),
   }
 }
-
 
 pub struct MountainCon<'render> {
   _marker: PhantomData<&'render ()>,

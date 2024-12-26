@@ -187,13 +187,22 @@ pub fn apply_filter(curr_freq: f32, highpass_f: f32, lowpass_f: f32, db_per_octa
     (highpass_f / curr_freq).log2()
   };
 
-  let OVERRIDE_GAIN_TO_BE_LESS_BRIGHT = if curr_freq > 2000f32 { if curr_freq < 5000f32 { db_to_amp(-6f32) } else { db_to_amp(-3f32) } } else { 1f32 };
-
-  OVERRIDE_GAIN_TO_BE_LESS_BRIGHT * if df_distance > db_distance {
-    gain.powf(db_distance)
+  let OVERRIDE_GAIN_TO_BE_LESS_BRIGHT = if curr_freq > 2000f32 {
+    if curr_freq < 5000f32 {
+      db_to_amp(-6f32)
+    } else {
+      db_to_amp(-3f32)
+    }
   } else {
-    gain.powf(df_distance)
-  }
+    1f32
+  };
+
+  OVERRIDE_GAIN_TO_BE_LESS_BRIGHT
+    * if df_distance > db_distance {
+      gain.powf(db_distance)
+    } else {
+      gain.powf(df_distance)
+    }
 }
 
 /// Applies resonance around a target frequency within a defined range, with adjustable boost in decibels.

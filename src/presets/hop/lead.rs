@@ -219,7 +219,12 @@ fn freq_knob_tonal(v: Visibility, e: Energy, p: Presence) -> KnobPair {
       a: modulation_amount,
       b: [0f32, 0f32],
       c: [0f32, 0f32],
-      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Min, MacroMotion::Constant, MacroMotion::Reverse]),
+      ma: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Min,
+        MacroMotion::Constant,
+        MacroMotion::Reverse,
+      ]),
       mb: MacroMotion::Random,
       mc: MacroMotion::Random,
     },
@@ -273,11 +278,10 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     Presence::Tenuto => druidic_soids::overs_sawtooth(mullet),
   };
 
-
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
 
   if let Visibility::Visible = arf.visibility {
-    // don't add it 
+    // don't add it
   } else {
     knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
   }
@@ -313,5 +317,3 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
   Renderable2::Instance(stem)
 }
-
-

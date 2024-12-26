@@ -36,11 +36,11 @@ use std::fs::read_dir;
 pub mod ambien;
 pub mod bland;
 pub mod bright;
-pub mod valley;
 pub mod hop;
 pub mod kuwuku;
 pub mod mountain;
 pub mod urbuntu;
+pub mod valley;
 
 pub type KnobPair = (KnobMacro, fn(&Knob, f32, f32, f32, f32, f32) -> f32);
 
@@ -56,7 +56,6 @@ pub const DB_HEADROOM: f32 = -3f32;
 /// Shared values for all presets in this mod
 static contour_resolution: usize = 1200;
 static unit_decay: f32 = 9.210340372;
-
 
 /// Returns a `Stem3` for the percussion preset.
 ///
@@ -86,19 +85,18 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
     amp_expr,
     lowpass_cutoff,
     delays_note,
-    vec![],       
-    vec![],       
-    reverbs_room, 
+    vec![],
+    vec![],
+    reverbs_room,
   ))
 }
-
 
 pub trait Conventions<'render> {
   fn get_bp(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2;
 }
 
 /// A constant microtransient onset to prevent immediate entry.
-/// This is the smallest possible for a natural entry onset. 
+/// This is the smallest possible for a natural entry onset.
 pub fn amp_microtransient(visibility: Visibility, energy: Energy, presence: Presence) -> KnobPair {
   (
     KnobMacro {
@@ -204,7 +202,6 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
   let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
   let n_samples: usize = ((len_cycles / 2f32) as usize).max(1) * SR;
 
-
   let level_macro: LevelMacro = LevelMacro {
     stable: match arf.energy {
       Energy::Low => [1f32, 3f32],
@@ -250,9 +247,11 @@ fn bp_wah<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf) -> Bp2 {
 /// Gets an applied fundamental frequency for a synth by energy
 /// and provided powers of 2,
 /// given that a high power of two is a higher fundamental is a shorter synth.
-pub fn mul_it(arf:&Arf, low:f32, medium:f32, high:f32) -> f32 {
+pub fn mul_it(arf: &Arf, low: f32, medium: f32, high: f32) -> f32 {
   2f32.powf(match arf.energy {
-    Energy::Low => low, Energy::Medium => medium, Energy::High => high
+    Energy::Low => low,
+    Energy::Medium => medium,
+    Energy::High => high,
   })
 }
 /// Create bandpass automations with respect to Arf and Melody
@@ -689,59 +688,58 @@ fn initialize_sample_cache() -> HashMap<String, Vec<String>> {
 
 /// Create bandpass automations with respect to Arf and Melody
 /// animation_duration_basis determines how long (in cycles) the effect lasts per-note.
-fn bp_bark<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, animation_duration_basis:f32) -> Bp2 {
+fn bp_bark<'render>(cps: f32, mel: &'render Melody<Note>, arf: &Arf, animation_duration_basis: f32) -> Bp2 {
   let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
   let line_samples = time::samples_of_line(cps, &mel[0]);
   let lsf = line_samples as f32;
 
   let mut lowpass_contour: SampleBuffer = Vec::with_capacity(line_samples);
 
-  // the basis of the filter; e.g. sustain level 
+  // the basis of the filter; e.g. sustain level
   let base_cap: f32 = 1.5f32.powi(match arf.energy {
-    Energy::Low => 1i32, Energy::Medium => 2i32, Energy::High => 3i32
+    Energy::Low => 1i32,
+    Energy::Medium => 2i32,
+    Energy::High => 3i32,
   });
-  // 
+  //
   let peak_cap: f32 = MAX_REGISTER as f32 - lowest_register as f32 - base_cap;
 
   let min_f: f32 = 2f32.powf(lowest_register as f32 + base_cap);
   let max_f: f32 = 2f32.powf(lowest_register as f32 + base_cap + peak_cap);
-  let df: f32 = (max_f - min_f).log2(); 
+  let df: f32 = (max_f - min_f).log2();
 
-  
-  let mut line_p:f32 = 0f32;
+  let mut line_p: f32 = 0f32;
 
   mel[0].iter().enumerate().for_each(|(i, note)| {
     let note_samples = time::samples_of_note(cps, &note);
     let note_dur_cycles = time::duration_to_cycles(note.0);
-    let animation_duration_cycles = animation_duration_basis * match arf.presence {
-      Presence::Staccatto => 1f32, Presence::Legato => 2f32, Presence::Tenuto => 3f32, 
-    };
+    let animation_duration_cycles = animation_duration_basis
+      * match arf.presence {
+        Presence::Staccatto => 1f32,
+        Presence::Legato => 2f32,
+        Presence::Tenuto => 3f32,
+      };
     let animation_duration_samples = time::samples_of_cycles(cps, animation_duration_cycles * note_dur_cycles);
     let adf = animation_duration_samples as f32;
 
     for j in 0..note_samples {
       let note_p = j / note_samples;
       let fx_p = j as f32 / adf;
-      if j > animation_duration_samples { 
+      if j > animation_duration_samples {
         lowpass_contour.push(min_f);
       } else {
         lowpass_contour.push(min_f + 2f32.powf(df * (1f32 - fx_p)));
       }
     }
-    
-    line_p = (line_p + note_samples as f32/lsf) .min(1f32);
+
+    line_p = (line_p + note_samples as f32 / lsf).min(1f32);
   });
 
   let highpass = vec![MFf];
-  (
-    highpass,
-    lowpass_contour,
-    vec![],
-  )
+  (highpass, lowpass_contour, vec![])
 }
 
-
-fn eval_odr(cps:f32, at_n_samples:usize, odr:&ODR) -> (usize, usize, usize, usize) {
+fn eval_odr(cps: f32, at_n_samples: usize, odr: &ODR) -> (usize, usize, usize, usize) {
   let ramp: usize = time::samples_of_milliseconds(cps, odr.onset);
   let fall: usize = time::samples_of_milliseconds(cps, odr.decay);
   let kill: usize = time::samples_of_milliseconds(cps, odr.release);

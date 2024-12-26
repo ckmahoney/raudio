@@ -9,7 +9,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let mut rng = thread_rng();
   // use a short mullet here and extend it with extra soids next
   let mullet = get_mullet(11i8, arf.energy);
-  
+
   let soids = match arf.visibility {
     Visibility::Hidden => druidic_soids::octave(mullet),
     Visibility::Background => druidic_soids::octave(mullet),
@@ -20,11 +20,11 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let soids = soid_fx::fmod::sawtooth(&soids, 3);
   let soids = soid_fx::fmod::triangle(&soids, 3);
 
-  let detune = |soids:&Soids| -> Soids {
+  let detune = |soids: &Soids| -> Soids {
     let mut rng = thread_rng();
     soid_fx::fmod::reece2(soids, in_range(&mut rng, 0.005, 0.01))
   };
-  let detune2 = |soids:&Soids| -> Soids {
+  let detune2 = |soids: &Soids| -> Soids {
     let mut rng = thread_rng();
     soid_fx::fmod::reece2(soids, in_range(&mut rng, 0.01, 0.02))
   };

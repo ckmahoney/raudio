@@ -23,6 +23,7 @@ pub use analysis::monic_theory;
 mod demo;
 mod druid;
 mod files;
+mod fm;
 mod inp;
 mod music;
 mod phrasing;
@@ -53,31 +54,25 @@ fn main() {
 fn parse_preset(s: &str) -> Option<Preset> {
   let src = s.to_lowercase();
   match src.as_str() {
-      "hop" => Some(Preset::Hop),
-      "valley" => Some(Preset::Valley),
-      "mountain" => {
-          Some(Preset::Mountain)
-      },
-      "bland" => Some(Preset::Bland),
-      "bright" => Some(Preset::Bright),
-      _ => None,
+    "hop" => Some(Preset::Hop),
+    "valley" => Some(Preset::Valley),
+    "mountain" => Some(Preset::Mountain),
+    "bland" => Some(Preset::Bland),
+    "bright" => Some(Preset::Bright),
+    _ => None,
   }
 }
 
-
 #[cfg(test)]
 mod test_parse {
-    use super::*;
+  use super::*;
 
-
-    #[test]
-    fn test_parse_preset_valid_lowercase() {
-        let res = parse_preset("bright");
-        println!("Got it {:#?}", res)
-    }
-
+  #[test]
+  fn test_parse_preset_valid_lowercase() {
+    let res = parse_preset("bright");
+    println!("Got it {:#?}", res)
+  }
 }
-
 
 fn render_playbook(out_dir: &str, preset_pack: &str, playbook_path: &str, asset_name: &str) {
   use std::fs;
@@ -86,7 +81,10 @@ fn render_playbook(out_dir: &str, preset_pack: &str, playbook_path: &str, asset_
 
   let preset = parse_preset(preset_pack);
   if preset.is_none() {
-    panic!("Must provide a valid preset pack. here are the options: hop, valley, mountain, bland, bright. You gave me '{}'.", preset_pack)
+    panic!(
+      "Must provide a valid preset pack. here are the options: hop, valley, mountain, bland, bright. You gave me '{}'.",
+      preset_pack
+    )
   }
 
   match inp::arg_parse::load_score_from_file(&playbook_path) {
@@ -150,7 +148,7 @@ fn score_duration_seconds(score: &DruidicScore) -> f32 {
 //     render::combiner_with_reso(&Conf {cps, root}, &stems, &group_reverbs, keep_stems);
 // }
 
-pub fn render_score(score: DruidicScore, preset:Preset, out_dir: &str, asset_name: &str, keep_stems: bool) -> String {
+pub fn render_score(score: DruidicScore, preset: Preset, out_dir: &str, asset_name: &str, keep_stems: bool) -> String {
   let mixdown_name = format!("{}/{}.wav", out_dir, asset_name);
   files::with_dir(&mixdown_name);
   let mut pre_mix_buffs: Vec<synth::SampleBuffer> = Vec::new();

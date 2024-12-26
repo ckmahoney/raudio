@@ -318,5 +318,10 @@ fn test_demo() {
 fn test_render_playbook() {
   let filepath: &str = &format!("{}/demo/amen/test_amen_playbook", crate::demo::out_dir);
 
-  crate::render_playbook(filepath, "hop", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
+  crate::render_playbook(
+    filepath,
+    "hop",
+    "src/demo/playbook-demo-ambien.json",
+    "test-preset-ambien",
+  )
 }

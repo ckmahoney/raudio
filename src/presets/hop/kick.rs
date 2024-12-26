@@ -41,13 +41,8 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
 }
 
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  Renderable2::Mix(vec![
-    (0.8, stemmy(conf, melody, arf)),
-    (0.2, synthy(conf, melody, arf)),
-  ])
+  Renderable2::Mix(vec![(0.8, stemmy(conf, melody, arf)), (0.2, synthy(conf, melody, arf))])
 }
-
-
 
 fn gain(arf: &Arf) -> f32 {
   let x = match arf.presence {
@@ -77,7 +72,7 @@ fn synthy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Ren
   knob_mods.0.push((
     KnobMacro {
       a: match arf.presence {
-        Presence::Staccatto => [0.3f32, 0.5f32], 
+        Presence::Staccatto => [0.3f32, 0.5f32],
         Presence::Legato => [0.5f32, 0.9f32],
         Presence::Tenuto => [0.9f32, 1f32],
       },
@@ -87,8 +82,13 @@ fn synthy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Ren
         Energy::Low => [0.5f32, 0.66f32],
       },
       c: [0f32, 0f32],
-      ma: grab_variant(vec![ MacroMotion::Constant]),
-      mb:  grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Random, MacroMotion::Constant]),
+      ma: grab_variant(vec![MacroMotion::Constant]),
+      mb: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Random,
+        MacroMotion::Constant,
+      ]),
       mc: MacroMotion::Random,
     },
     if let Presence::Tenuto = arf.presence {
@@ -102,7 +102,7 @@ fn synthy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Ren
   knob_mods.0.push((
     KnobMacro {
       a: match arf.presence {
-        Presence::Staccatto => [0.5f32, 0.7f32], 
+        Presence::Staccatto => [0.5f32, 0.7f32],
         Presence::Legato => [0.7f32, 0.85f32],
         Presence::Tenuto => [0.85f32, 1f32],
       },
@@ -111,9 +111,14 @@ fn synthy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Ren
         Energy::Medium => [0.11f32, 0.33f32],
         Energy::Low => [0.33f32, 0.5f32],
       },
-      c: [0f32, 0f32], 
-      ma: grab_variant(vec![ MacroMotion::Constant]),
-      mb:  grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Random, MacroMotion::Constant]),
+      c: [0f32, 0f32],
+      ma: grab_variant(vec![MacroMotion::Constant]),
+      mb: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Random,
+        MacroMotion::Constant,
+      ]),
       mc: MacroMotion::Random,
     },
     ranger::amod_burp,
@@ -123,18 +128,23 @@ fn synthy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Ren
   knob_mods.1.push((
     KnobMacro {
       a: match arf.energy {
-        Energy::High => [0f32, 0.75f32], 
+        Energy::High => [0f32, 0.75f32],
         Energy::Medium => [0f32, 0.5f32],
         Energy::Low => [0.01f32, 0.1f32],
       },
       b: match arf.presence {
-        Presence::Staccatto => [0.1f32, 0.2f32], 
-        Presence::Legato => [0.1f32, 0.2f32], 
+        Presence::Staccatto => [0.1f32, 0.2f32],
+        Presence::Legato => [0.1f32, 0.2f32],
         Presence::Tenuto => [0.1f32, 0.4f32],
       },
       c: [0f32, 0f32],
-      ma: grab_variant(vec![ MacroMotion::Constant]),
-      mb:  grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Random, MacroMotion::Constant]),
+      ma: grab_variant(vec![MacroMotion::Constant]),
+      mb: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Random,
+        MacroMotion::Constant,
+      ]),
       mc: MacroMotion::Random,
     },
     ranger::fmod_sweepdown,

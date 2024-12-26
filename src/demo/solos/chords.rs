@@ -236,7 +236,15 @@ fn test_iter() {
   let label = "hop_simple_melody";
   let melody = chords_melody_short();
   let vs = vec![Visibility::Foreground, Visibility::Hidden];
-  let arfs = prism::iter_vep(&label, Role::Chords, Mode::Melodic, &melody, &vs, &prism::ENERGYS.to_vec(), &prism::PRESENCES.to_vec());
+  let arfs = prism::iter_vep(
+    &label,
+    Role::Chords,
+    Mode::Melodic,
+    &melody,
+    &vs,
+    &prism::ENERGYS.to_vec(),
+    &prism::PRESENCES.to_vec(),
+  );
   // let arfs = prism::iter_all_vep(&label, Role::Chords, Mode::Melodic, &melody);
 
   let num_threads = get_par_thread_count().min(4);

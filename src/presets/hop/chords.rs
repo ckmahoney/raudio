@@ -37,11 +37,18 @@ fn generate_chord_delay_macros(visibility: Visibility, energy: Energy, presence:
 
   // Set delay cycle lengths based on presence, adding variety to the spatial effect
   let dtimes_cycles = match presence {
-    Presence::Staccatto => vec![1f32/8f32, 1f32/4f32, 1f32/2f32],
-    Presence::Legato => vec![1f32/8f32, 1f32/4f32, 1f32/3f32, 2f32/3f32, 1f32, 3f32/2f32, 2f32], // Medium cycles for smooth, sustained echoes
+    Presence::Staccatto => vec![1f32 / 8f32, 1f32 / 4f32, 1f32 / 2f32],
+    Presence::Legato => vec![
+      1f32 / 8f32,
+      1f32 / 4f32,
+      1f32 / 3f32,
+      2f32 / 3f32,
+      1f32,
+      3f32 / 2f32,
+      2f32,
+    ], // Medium cycles for smooth, sustained echoes
     Presence::Tenuto => vec![1.333, 1.5, 2.0, 3.0], // Longer cycles for a more spacious feel
   };
-
 
   // 1. Wide Stereo Pad Delay
   // Creates a wide, lush stereo spread for ambient chord textures.
@@ -101,8 +108,8 @@ fn amp_knob_presence(visibility: Visibility, energy: Energy, presence: Presence)
     Visibility::Background => [0.2, 0.2 + 0.2 * rng.gen::<f32>()],
     Visibility::Hidden => [0.1f32, 0.2f32],
   };
-  let sustain_level  = match energy {
-    Energy::High => [0.66f32,  0.66 + 0.33 * rng.gen::<f32>()],
+  let sustain_level = match energy {
+    Energy::High => [0.66f32, 0.66 + 0.33 * rng.gen::<f32>()],
     Energy::Medium => [0.55f32, 0.55 + 0.2f32 * rng.gen::<f32>()],
     Energy::Low => [0.33f32, 0.33 + rng.gen::<f32>() / 4f32],
   };
@@ -114,7 +121,12 @@ fn amp_knob_presence(visibility: Visibility, energy: Energy, presence: Presence)
       c: sustain_level,
       ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
       mb: MacroMotion::Constant, // unused
-      mc: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse,  MacroMotion::Random, MacroMotion::Constant]),
+      mc: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Random,
+        MacroMotion::Constant,
+      ]),
     },
     ranger::amod_fall,
   );
@@ -241,7 +253,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
   if let Visibility::Visible = arf.visibility {
-    // don't add it 
+    // don't add it
   } else {
     knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
   }

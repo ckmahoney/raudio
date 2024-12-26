@@ -42,6 +42,10 @@ pub fn samples_of_cycles(cps: f32, k: f32) -> usize {
   (samples_per_cycle(cps) as f32 * k.abs()) as usize
 }
 
+pub fn seconds_of_cycles(cps:f32, n_cycles:f32) -> f32 {
+  return samples_of_cycles(cps,n_cycles) as f32 / SRf
+}
+
 /// Provides the time in seconds for a given duration ratio.
 pub fn dur(cps: f32, ratio: &Ratio) -> f32 {
   step_to_seconds(cps, ratio)

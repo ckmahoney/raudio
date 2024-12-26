@@ -44,8 +44,8 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
     amp_expr,
     lowpass_cutoff,
     delays_note,
-    vec![],       
-    vec![],       
+    vec![],
+    vec![],
     reverbs_room,
   ))
 }

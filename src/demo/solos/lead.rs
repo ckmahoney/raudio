@@ -14,8 +14,8 @@ use crate::types::synthesis::{
   Ampl, Bandpass, Direction, Duration, Ely, FilterPoint, Freq, Frex, GlideLen, Monae, Mote, Note, Register, Soids, Tone,
 };
 
-use presets::valley;
 use presets::hop;
+use presets::valley;
 
 fn lead_melody_long() -> Melody<Note> {
   let tala: Vec<Duration> = vec![

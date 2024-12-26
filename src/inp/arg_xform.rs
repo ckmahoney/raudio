@@ -212,7 +212,7 @@ pub fn gen_reverbs(
 ) -> Vec<ReverbParams> {
   println!("Called the old reverb method. returning empty.");
 
-  vec![ ]
+  vec![]
 }
 
 fn gen_saturation(cps: f32, complexity: f32) -> ReverbParams {

@@ -8,7 +8,7 @@ use std::os::unix::thread;
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   let mut rng = thread_rng();
   let mullet = get_mullet(&arf);
-  
+
   let soids = match arf.visibility {
     Visibility::Hidden => druidic_soids::octave(mullet),
     Visibility::Background => druidic_soids::octave(mullet),

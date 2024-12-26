@@ -43,7 +43,7 @@ pub struct Position {
 /// Produce amplitude modulation for a long form lifespan
 /// Uses 1 and 0 as min and max values. May start and end on either.
 /// "Default" description is a forward contour (not reverse) starting at 0 going to 1.
-pub fn gen_contour(n_samples: usize, n_cycles: f32, contour: &AmpContour, reverse: bool) -> AmpModulation {
+pub fn gen_contour(n_samples: usize, _n_cycles: f32, contour: &AmpContour, reverse: bool) -> AmpModulation {
   use AmpContour::*;
   let mut modulator: AmpModulation = vec![0f32; n_samples];
 

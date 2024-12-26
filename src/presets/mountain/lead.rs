@@ -226,7 +226,6 @@ fn freq_knob_tonal(v: Visibility, e: Energy, p: Presence) -> KnobPair {
   )
 }
 
-
 /// Generates a vector of `DelayParams` tailored for an ambient lead synth, with different settings
 /// based on `Visibility`, `Energy`, and `Presence`.
 ///
@@ -323,7 +322,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     Energy::Medium => 2f32.powi(9i32),
     Energy::High => 2f32.powi(7i32),
   };
-  
+
   let soids = match arf.visibility {
     Visibility::Hidden => druidic_soids::octave(mullet),
     Visibility::Background => druidic_soids::overs_triangle(mullet),
@@ -334,11 +333,11 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let soids = druidic_soids::octave(mullet);
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  
+
   knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
   knob_mods.0.push(amp_knob(arf.visibility, arf.energy, arf.presence));
   knob_mods.2.push(pmod_chorus(arf.visibility, arf.energy, arf.presence));
-  
+
   let len_cycles: f32 = time::count_cycles(&melody[0]);
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 

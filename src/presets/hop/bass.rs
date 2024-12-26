@@ -64,9 +64,14 @@ fn amp_knob_principal(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
         Visibility::Foreground => [0.5f32, 0.7f32],
         _ => [0.6f32, 1f32],
       },
-      c: [0.0, 0.0], 
+      c: [0.0, 0.0],
       ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Constant]),
-      mb: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Random, MacroMotion::Constant]),
+      mb: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Random,
+        MacroMotion::Constant,
+      ]),
       mc: MacroMotion::Random,
     },
     ranger::amod_pluck2,
@@ -81,9 +86,14 @@ fn amp_knob_detune(rng: &mut ThreadRng, arf: &Arf) -> KnobPair {
         Energy::Medium => [0.23f32, 0.34f32],
         Energy::Low => [0.0f32, 0.21f32],
       },
-      b: [1f32, 1f32], 
-      c: [0.0, 0.0],   
-      ma: grab_variant(vec![MacroMotion::Forward, MacroMotion::Reverse, MacroMotion::Min, MacroMotion::Constant]),
+      b: [1f32, 1f32],
+      c: [0.0, 0.0],
+      ma: grab_variant(vec![
+        MacroMotion::Forward,
+        MacroMotion::Reverse,
+        MacroMotion::Min,
+        MacroMotion::Constant,
+      ]),
       mb: MacroMotion::Min,
       mc: MacroMotion::Min,
     },
@@ -98,11 +108,11 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
   if let Visibility::Visible = arf.visibility {
-    // don't add it 
+    // don't add it
   } else {
     knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
   }
-  knob_mods.0.push(amp_knob_principal(&mut rng, &arf)); 
+  knob_mods.0.push(amp_knob_principal(&mut rng, &arf));
   knob_mods.0.push(amp_knob_detune(&mut rng, &arf));
 
   let height = mul_it(&arf, 10f32, 9f32, 7f32);

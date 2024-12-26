@@ -8,31 +8,32 @@ pub mod kick;
 pub mod lead;
 pub mod perc;
 
-
 pub struct BrightCon<'render> {
   _marker: PhantomData<&'render ()>,
 }
 
 // some old notes
 // 8 is the optimal value for high energy because using 7 often has the same appearance but costs 2x more
-  // 10 is clearly different than 8
-  // 12 is clearly different than 10
-  // also noting that 8 and 9 not so different, 10 and 11 somewhat different
-  // edit nov 13, just used 9 instead of 8 because adding soid_fx doubled the number of soids.
+// 10 is clearly different than 8
+// 12 is clearly different than 10
+// also noting that 8 and 9 not so different, 10 and 11 somewhat different
+// edit nov 13, just used 9 instead of 8 because adding soid_fx doubled the number of soids.
 
-/// Given an arf, 
+/// Given an arf,
 /// Determine how tall its synth should be by setting a reference fundamental here.
-pub fn get_mullet(register: i8, energy:Energy) -> f32 {
-  let height = register as i32 + match energy {
-    Energy::Low => 1, Energy::Medium => 0, Energy::High => -1
-  };
+pub fn get_mullet(register: i8, energy: Energy) -> f32 {
+  let height = register as i32
+    + match energy {
+      Energy::Low => 1,
+      Energy::Medium => 0,
+      Energy::High => -1,
+    };
   2f32.powi(height.clamp(7, MAX_REGISTER - 1))
 }
 
-
 /// Given a line,
 /// define a lowpass contour by interpolating from the provided onset/decay/release breakpoints
-/// for the provided stable (begin & end), peak, and sustain levels. 
+/// for the provided stable (begin & end), peak, and sustain levels.
 /// Guaranteed that a complete ODR will always fit in each noteevent's duration.
 pub fn pointwise_lowpass(cps: f32, line: &Vec<Note>, level_macro: &LevelMacro, odr_macro: &ODRMacro) -> SampleBuffer {
   let n_samples = time::samples_of_line(cps, line);
@@ -106,7 +107,7 @@ impl<'render> Conventions<'render> for BrightCon<'render> {
           pointwise_lowpass(cps, &mel[high_index], &level_macro, &odr_macro),
           vec![],
         )
-      },
+      }
       Role::Chords => {
         let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
 
@@ -131,7 +132,7 @@ impl<'render> Conventions<'render> for BrightCon<'render> {
           pointwise_lowpass(cps, &mel[high_index], &level_macro, &odr_macro),
           vec![],
         )
-      },
+      }
       Role::Lead => {
         let ((lowest_register, low_index), (highest_register, high_index)) = find_reach(mel);
 
@@ -156,8 +157,8 @@ impl<'render> Conventions<'render> for BrightCon<'render> {
           pointwise_lowpass(cps, &mel[high_index], &level_macro, &odr_macro),
           vec![],
         )
-      }, 
-      _ => (vec![MFf], vec![NFf], vec![])
+      }
+      _ => (vec![MFf], vec![NFf], vec![]),
     }
   }
 }

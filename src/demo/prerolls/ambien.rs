@@ -337,13 +337,22 @@ fn test_demonstrate() {
 fn test_render_playbook() {
   eprintln!("There's something wrong with the mountain preset! be carefule");
   let filepath: &str = &format!("{}/demo/ambien/test_ambien_playbook", crate::demo::out_dir);
-  crate::render_playbook(filepath, "mountain", "src/demo/playbook-demo-ambien.json", "test-preset-ambien")
+  crate::render_playbook(
+    filepath,
+    "mountain",
+    "src/demo/playbook-demo-ambien.json",
+    "test-preset-ambien",
+  )
 }
-
 
 #[test]
 fn test_render_deck_the_hall() {
   eprintln!("There's something wrong with the mountain preset! be carefule");
   let filepath: &str = &format!("{}/demo/ambien/test_ambien_playbook", crate::demo::out_dir);
-  crate::render_playbook(filepath, "mountain", "src/demo/playbook-demo-ambien.json", "test-playbook-deck-the-hall")
+  crate::render_playbook(
+    filepath,
+    "mountain",
+    "src/demo/playbook-demo-ambien.json",
+    "test-playbook-deck-the-hall",
+  )
 }

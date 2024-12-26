@@ -19,13 +19,13 @@ pub fn monae_to_chrom(Monae: Monae, chroma_mod: i8) -> Chrom {
   let (rot, q, monic) = Monae;
 
   if rot < 0 {
-    // 12-ET uses 7 as modular basis of harmony. 
+    // 12-ET uses 7 as modular basis of harmony.
     // Cast this monae into the space
     return monae_to_chrom((0, q, monic), chroma_mod - 7 * rot.abs());
   }
 
   if rot > 0 {
-    // 12-ET uses 7 as modular basis of harmony. 
+    // 12-ET uses 7 as modular basis of harmony.
     return monae_to_chrom((0, q, monic), chroma_mod + 7 * rot.abs());
   }
 

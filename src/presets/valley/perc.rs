@@ -35,9 +35,9 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
     amp_expr,
     lowpass_cutoff,
     delays_note,
-    vec![],       
-    vec![],       
-    reverbs_room, 
+    vec![],
+    vec![],
+    reverbs_room,
   ))
 }
 
@@ -90,5 +90,3 @@ fn generate_delay_macros(visibility: Visibility, energy: Energy, presence: Prese
     mmix: vec![MacroMotion::Constant],
   }]
 }
-
-
