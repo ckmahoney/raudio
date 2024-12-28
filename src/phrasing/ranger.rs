@@ -555,8 +555,15 @@ fn test_eval_knob_mod() {
   let n_cycles = 12f32;
 
   let result = eval_knob_mod(
-    amod_unit,  
-    &Knob {a: 0.25f32, b:0f32, c: 0f32}, cps, freq, n_cycles
+    amod_unit,
+    &Knob {
+      a: 0.25f32,
+      b: 0f32,
+      c: 0f32,
+    },
+    cps,
+    freq,
+    n_cycles,
   );
 
   assert!(result.len() > 1000, "Must create a meaningful sized contour buffer");
@@ -566,8 +573,6 @@ fn test_eval_knob_mod() {
     prev = y;
   }
 }
-
-
 
 /// A oneshot amplitude contouring adding a linear fall in amplitude (decibel scaled)
 ///
@@ -904,21 +909,20 @@ pub fn amod_fall(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_
   db_to_amp(p * sus_target)
 }
 
-
 /// An all purpose one-shot continuous amplitude modulator.  
 /// Offers bursty plucks to burpy sustains through Knob A.  
-/// 
+///
 /// ## Controls
 /// Dynamic controls are exposed through Knob B:   
 /// - A value of 0 yields a signal that reaches 0 value and can serve as a terminal envelope.  
 /// - Values greater than 0.9 always yield 50% termination envelope for any A and are NonTerminal.   
-/// 
+///
 /// ## Behavior
-/// - For Low A and Low B, yields Terminal pluck contour. 
-/// - For Low A and High B, yields NonTerminal concave contour. 
+/// - For Low A and Low B, yields Terminal pluck contour.
+/// - For Low A and High B, yields NonTerminal concave contour.
 /// - For High A and Low B, yields Terminal linearlly falling loudness contour
 /// - For High A and High B, yields NonTerminal burpy contours.
-/// 
+///
 /// ## Knob Params
 ///
 /// `a`: Curvature of decay. Value of 0 is the shortest possible base decay, value 0.5 is a linear fall, and  and 1 is the longest fall.  
@@ -930,7 +934,7 @@ pub fn amod_fall(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_
 pub fn amod_unit(knob: &Knob, cps: f32, fund: f32, mul: f32, n_cycles: f32, pos_cycles: f32) -> f32 {
   let a = knob.a.min(0.999); // prevent noop behavior at 1
   let sustain_target = MIN_DB * (1f32 - knob.b);
-  let y = ((n_cycles - pos_cycles)/n_cycles).powf(2f32 - 2f32*a);
+  let y = ((n_cycles - pos_cycles) / n_cycles).powf(2f32 - 2f32 * a);
   db_to_amp((one - y) * sustain_target)
 }
 

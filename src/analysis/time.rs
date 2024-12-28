@@ -42,8 +42,8 @@ pub fn samples_of_cycles(cps: f32, k: f32) -> usize {
   (samples_per_cycle(cps) as f32 * k.abs()) as usize
 }
 
-pub fn seconds_of_cycles(cps:f32, n_cycles:f32) -> f32 {
-  return samples_of_cycles(cps,n_cycles) as f32 / SRf
+pub fn seconds_of_cycles(cps: f32, n_cycles: f32) -> f32 {
+  return samples_of_cycles(cps, n_cycles) as f32 / SRf;
 }
 
 /// Provides the time in seconds for a given duration ratio.
@@ -68,6 +68,12 @@ pub fn duration_to_cycles((numerator, denominator): Ratio) -> f32 {
 /// Given a line (vec of notes), determine the total number of cycles it requests.
 pub fn count_cycles(line: &Vec<Note>) -> f32 {
   line.iter().fold(0f32, |acc, (duration, _, _)| acc + duration_to_cycles(*duration))
+}
+
+/// Given a line (vec of notes), determine the total number of cycles it requests.
+pub fn note_to_cycles(note: &Note) -> f32 {
+  let (duration, _, _) = note;
+  duration_to_cycles(*duration)
 }
 
 /// Given a note, determine the total number of samples it requests.

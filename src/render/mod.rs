@@ -9,7 +9,7 @@ use crate::analysis::volume::db_to_amp;
 use crate::analysis::{delay, freq::apply_filter, freq::apply_resonance, freq::slice_signal, xform_freq};
 use crate::druid::applied_modulation::{self, update_mods};
 use crate::druid::{inflect, melody_frexer, ApplyAt, Element, Elementor};
-use crate::monic_theory::tone_to_freq;
+use crate::monic_theory::{note_to_freq, tone_to_freq};
 use crate::phrasing::contour::{apply_contour, sample, Expr, Position};
 use crate::phrasing::lifespan::{self};
 use crate::phrasing::ranger::{Knob, KnobMacro, KnobMods, KnobMods2, KnobbedRanger, Ranger};
@@ -18,14 +18,16 @@ use crate::render;
 use crate::reverb::convolution::{self, ReverbParams};
 use crate::synth::{pi, pi2, MFf, NFf, SRf, SampleBuffer, MF, NF, SR};
 use crate::time::{self, samples_per_cycle};
-use crate::types::render::{Conf, Feel, Melody, Span, Stem, Stem2, Stem3};
+use crate::types::render::{Conf, Feel, Melody, Span, Stem, Stem2, Stem3, StemFM};
 use crate::types::synthesis::{
   BoostGroup, BoostGroupMacro, Bp, Bp2, Clippers, GlideLen, MacroMotion, Modifiers, ModifiersHolder, Note, Range, Soids,
 };
+use crate::fm::{Operator, render_operators};
 use crate::types::timbre::{AmpContour, AmpLifespan, Arf};
 use rand;
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, Rng};
+use crate::{Mode, Role, Visibility, Energy, Presence};
 
 #[derive(Clone, Debug)]
 pub enum Renderable<'render> {
@@ -41,6 +43,7 @@ pub enum Renderable2<'render> {
   Group(Vec<Stem2<'render>>),
   Sample(Stem3<'render>),
   Mix(Vec<(f32, Renderable2<'render>)>),
+  FMOp(StemFM<'render>),
 }
 
 #[inline]
@@ -502,16 +505,27 @@ pub fn overlapping(base_len: usize, cps: f32, durs: Vec<f32>, samples: &Vec<Samp
   durs.iter().enumerate().fold(0, |cue, (i, dur)| {
     // Make sure there's enough room for us to add reverb/delay artifacts
     if signal.len() < cue + samples[i].len() {
-      signal.append(&mut vec![0f32; samples[i].len()]);
+      let mut adds  = vec![0f32; samples[i].len()];
+      eprintln!("Warning! 'overlapping' method needed to append {} samples to the input duration to meet the wet samples requirements.", adds.len());
+      signal.append(&mut adds);
     }
 
+    // apply the wet samples to the running buffer
     for (j, s) in samples[i].iter().enumerate() {
       signal[cue + j] += s
     }
+
+    // advance the cue not by the wet samples length, but by the defacto note duration length
     cue + time::samples_of_dur(cps, *dur)
   });
   signal
 }
+
+  // seems that we want DB_PER_OCTAVE and DB_DISTANCE to have a product of 48.
+  // (for lowpass filter)
+  const DB_PER_OCTAVE: f32 = 48f32; // vertical compression of energy (instantaneous  compression)
+  const DB_DISTANCE: f32 = 1f32; // temporal spread of energy (spread over time)
+
 
 /// Render a signal from contextual and decorative parameters.  
 /// Returns a SampleBuffer representing the moment produced from this request.  
@@ -576,11 +590,6 @@ pub fn summer<'render>(
   let resampled_aenv = slice_signal(&expr.0, curr_progress, end_p, sig_samples);
   let resampled_fenv = slice_signal(&expr.1, 0f32, 1f32, sig_samples);
   let resampled_penv = slice_signal(&expr.2, 0f32, 1f32, sig_samples);
-
-  // seems that we want DB_PER_OCTAVE and DB_DISTANCE to have a product of 48.
-  // (for lowpass filter)
-  const DB_PER_OCTAVE: f32 = 48f32; // vertical compression of energy (instantaneous  compression)
-  const DB_DISTANCE: f32 = 1f32; // temporal spread of energy (spread over time)
 
   // render the sample with the provided effects and context
   for delay_params in delays {
@@ -978,6 +987,9 @@ pub fn combiner_with_reso<'render>(
         Renderable2::Tacet(stem) => {
           vec![tacet2(conf.cps, stem)]
         }
+        Renderable2::FMOp(fm_stem) => {
+          panic!("FM Me Captaion")
+        }
       };
 
       if let Some(stem_dir) = keep_stems {
@@ -1026,6 +1038,285 @@ pub fn combiner_with_reso<'render>(
   }
 }
 
+// #[inline]
+// fn fm_channel_with_reso(
+//     conf: &Conf,
+//     operator: &Operator,
+//     delays1: &Vec<DelayParams>,
+//     delays2: &Vec<DelayParams>,
+//     reverbs1: &Vec<ReverbParams>,
+//     reverbs2: &Vec<ReverbParams>,
+// ) -> SampleBuffer {
+//     let Conf { cps, .. } = *conf;
+
+//     let n_cycles = 1.0; // Define the length of the render in cycles
+//     let signal_len = time::samples_of_cycles(cps, n_cycles);
+
+//     // Render the FM signal for the operator
+//     let mut signal = operator.render(n_cycles, cps, SR);
+
+//     // Apply primary reverbs
+//     if !reverbs1.is_empty() {
+//         signal = reverbs1.iter().fold(signal, |sig, params| {
+//             let mut processed = convolution::of(&sig, params);
+//             trim_zeros(&mut processed);
+//             processed
+//         });
+//     }
+
+//     // Apply primary delays
+//     if !delays1.is_empty() {
+//         signal = delays1.iter().fold(signal, |mut sig, params| {
+//             let delay_samples = time::samples_of_dur(1.0, params.len_seconds);
+//             for replica in 0..params.n_echoes.max(1) {
+//                 for j in 0..sig.len() {
+//                     let offset = delay_samples * replica;
+//                     if j + offset < sig.len() {
+//                         sig[j + offset] += sig[j] * delay::gain(j, replica, params);
+//                     }
+//                 }
+//             }
+//             sig
+//         });
+//     }
+
+//     // Apply secondary delays
+//     let delayed_signal = delays2.iter().fold(signal.clone(), |mut sig, params| {
+//         let delay_samples = time::samples_of_dur(1.0, params.len_seconds);
+//         for replica in 0..params.n_echoes.max(1) {
+//             for j in 0..sig.len() {
+//                 let offset = delay_samples * replica;
+//                 if j + offset < sig.len() {
+//                     sig[j + offset] += sig[j] * delay::gain(j, replica, params);
+//                 }
+//             }
+//         }
+//         sig
+//     });
+
+//     // Apply secondary reverbs
+//     let reverberated_signal = reverbs2.iter().fold(delayed_signal, |sig, params| {
+//         let mut processed = convolution::of(&sig, params);
+//         trim_zeros(&mut processed);
+//         processed
+//     });
+
+//     reverberated_signal
+// }
+
+pub fn fm_combiner_with_reso<'render>(
+  conf: &Conf,
+  stem: StemFM<'render>,
+  reverbs: &Vec<ReverbParams>,
+  keep_stems: Option<&str>,
+) -> SampleBuffer {
+  let (melody, arf, fm_fn, delay1, delay2, reverb1, reverb2) = stem;
+
+  let append_delay = time::samples_of_dur(1f32, longest_delay_length(&delay1));
+  let append_reverb = time::samples_of_dur(1f32, longest_reverb_length(&reverb1));
+
+  // Precompute signal lengths
+  let line_length_cycles = time::count_cycles(&melody[0]);
+  let total_signal_samples = time::samples_of_cycles(conf.cps, line_length_cycles) + append_delay + append_reverb;
+  let polyphony_attenuation = 1f32 / melody.len () as f32;
+
+  // Process each note in the melody
+  let line_buffs: Vec<SampleBuffer> = melody
+      .iter()
+      .map(|line| {
+          let mut channel_samples: Vec<SampleBuffer> = Vec::new();
+
+          let len_cycles = time::count_cycles(line);
+          let append_delay = time::samples_of_dur(1f32, longest_delay_length(&delay1));
+          let append_reverb = time::samples_of_dur(1f32, longest_reverb_length(&reverb1));
+
+          let pad_samples_time_effects = append_delay + append_reverb;
+          let signal_len = if pad_samples_time_effects > 0 {
+              let pad_samples_error_margin = 2 * (delay1.len() + reverb1.len());
+              time::samples_of_cycles(conf.cps, len_cycles) + pad_samples_time_effects + pad_samples_error_margin
+          } else {
+              time::samples_of_cycles(conf.cps, len_cycles)
+          };
+
+          let durs: Vec<f32> = line.iter().map(time::note_to_cycles).collect();
+          let mut curr_pos_cycles = 0f32;
+
+          line.iter().enumerate().for_each(|(idx, note)| {
+              let ((step_num, step_denom), (register, monae), amp) = *note;
+              let n_cycles = durs[idx];
+
+              let moment:Vec<f32> = if step_num.signum() < 0 || step_denom.signum() < 0 || amp == 0f32 {
+                // this is a rest
+                vec![0f32; time::samples_of_cycles(conf.cps, n_cycles)]
+              } else {
+                let freq = note_to_freq(note);
+                let high_freq_attenuation:f32 = match freq.log2().floor() as i32  {
+                  10 => 0.8f32,
+                  11 => 0.5f32,
+                  12 => 0.4f32,
+                  13 => 0.4f32,
+                  14 => 0.6f32,
+                  15 => 0.6f32,
+                  _ => 1f32
+                };
+
+                let velocity = amp * apply_filter(crate::monic_theory::note_to_freq(note), MFf, NFf, DB_PER_OCTAVE, DB_DISTANCE);
+                let gain = polyphony_attenuation * high_freq_attenuation;
+                let operators = fm_fn(conf, &arf, note, conf.cps, n_cycles, curr_pos_cycles, gain * velocity);
+
+                // Render the operators to a single channel
+                let mut moment = render_operators(operators, n_cycles, conf.cps, SR);
+
+                // Apply per-note reverb effects
+                if !reverb1.is_empty() {
+                    moment = reverb1.iter().fold(moment, |sig, params| {
+                        let mut processed = convolution::of(&sig, params);
+                        trim_zeros(&mut processed);
+                        processed
+                    });
+                }
+                moment
+              };
+              channel_samples.push(moment);
+              curr_pos_cycles += n_cycles;
+          });
+
+          overlapping(signal_len, conf.cps, durs, &channel_samples)
+      })
+      .collect();
+
+  // Pad and mix the note-level channels
+  let mixed_signal = match pad_and_mix_buffers(line_buffs) {
+      Ok(signal) => signal,
+      Err(msg) => panic!("Failed to mix FM channels: {}", msg),
+  };
+
+  // Apply line-level delay effects
+  let chan_wet_delays = if delay2.is_empty() {
+      mixed_signal
+  } else {
+      delay2.iter().fold(mixed_signal, |mut sig, params| {
+          let samples_per_echo = time::samples_from_dur(1f32, params.len_seconds);
+          for replica_n in 0..=params.n_echoes.max(1) {
+              for j in 0..sig.len() {
+                  let v = sig[j];
+                  let offset_j = samples_per_echo * replica_n;
+                  let gain = delay::gain(j, replica_n, params);
+                  let clip_thresh = 1f32;
+                  let gate_thresh = 0f32;
+
+                  // Apply gating and clipping
+                  if gain * v.abs() > clip_thresh {
+                      sig[j + offset_j] += gain * v.signum() * clip_thresh;
+                  } else if gain * v.abs() >= gate_thresh {
+                      sig[j + offset_j] += gain * v;
+                  }
+              }
+          }
+          sig
+      })
+  };
+
+  // Apply line-level reverb effects
+  let mut final_signal = if reverb2.is_empty() {
+      chan_wet_delays
+  } else {
+      reverb2.iter().fold(chan_wet_delays, |sig, params| {
+          let mut processed = convolution::of(&sig, params);
+          trim_zeros(&mut processed);
+          processed
+      })
+  };
+
+  // Save the final mixed signal if stems are requested
+  if let Some(stem_dir) = keep_stems {
+      let filename = format!("{}/final-fm-stem.wav", stem_dir);
+      render::engrave::samples(SR, &final_signal, &filename);
+  }
+
+  // Apply global reverbs
+  if !reverbs.is_empty() {
+      final_signal = reverbs.iter().fold(final_signal, |sig, params| {
+          let mut processed = convolution::of(&sig, params);
+          trim_zeros(&mut processed);
+          processed
+      });
+  }
+
+  final_signal
+}
+
+
+
+#[cfg(test)]
+mod test_fm_render {
+  use crate::Visibility;
+
+use super::*;
+
+  // #[test]
+  // fn test_fm_channel_generation() {
+  //     let conf = Conf { cps: 440.0, root: 1.0 };
+  //     let operator = Operator::carrier(440.0);
+
+  //     let signal = fm_channel_with_reso(&conf, &operator, &vec![], &vec![], &vec![], &vec![]);
+
+  //     assert!(!signal.is_empty(), "FM channel signal should not be empty");
+  // }
+
+  #[test]
+  fn test_fm_combiner_generation() {
+      let conf = Conf { cps: 1.5, root: 1.23 };
+      let melody: Melody<Note> = vec![vec![
+        ((3, 2), (6, (1, 0, 3)), 1.0),
+        ((3, 2), (6, (1, 0, 1)), 1.0),
+        ((2, 2), (6, (1, 0, 5)), 1.0),
+        
+        ((3, 2), (7, (1, 0, 3)), 1.0),
+        ((3, 2), (7, (1, 0, 1)), 1.0),
+        ((2, 2), (7, (1, 0, 5)), 1.0),
+
+        ((3, 2), (8, (1, 0, 3)), 1.0),
+        ((3, 2), (8, (1, 0, 1)), 1.0),
+        ((2, 2), (8, (1, 0, 5)), 1.0),
+
+
+        ((2, 2), (9, (1, 0, 3)), 1.0),
+        ((2, 2), (8, (1, 0, 5)), 1.0),
+        ((2, 2), (7, (1, 0, 1)), 1.0),
+        ((2, 2), (6, (1, 0, 3)), 1.0),
+      ]];
+  
+      let stem_fm: StemFM = (
+          &melody,
+          Arf {
+              mode: Mode::Melodic,
+              role: Role::Lead,
+              register: 7,
+              visibility: Visibility::Foreground,
+              energy: Energy::Medium,
+              presence: Presence::Legato,
+          },
+          crate::presets::fum::lead::dexed_brass, // Use the correct FM function
+          vec![], // Delay1
+          vec![], // Delay2
+          vec![], // Reverb1
+          vec![], // Reverb2
+      );
+  
+      // Add empty reverbs if not needed
+      let reverbs = vec![];
+  
+      let signal = fm_combiner_with_reso(&conf, stem_fm, &reverbs, None);
+  
+      assert!(!signal.is_empty(), "FM combined signal should not be empty");
+      let filename=format!("dev-audio/test-fm_render-stemfm");
+      crate::render::engrave::samples(SR, &signal, &filename);
+  }
+  
+
+}
+
 /// Given a list of renderables (either instances or groups) and how to represent them in space,
 /// Generate the signals and apply reverberation. Return the new signal.
 /// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
@@ -1056,15 +1347,19 @@ pub fn combiner_with_reso2<'render>(
 
         Renderable2::Mix(weighted_stems) => weighted_stems
           .iter()
-          .map(|(mul, renderable2)| {
-            combiner_with_reso(&conf, &vec![renderable2.to_owned()], &vec![], keep_stems)
+          .map(|(gain, renderable2)| {
+            combiner_with_reso2(&conf, &vec![renderable2.to_owned()], &vec![], &vec![], keep_stems)
               .iter()
-              .map(|v| mul * v)
+              .map(|v| gain * v)
               .collect()
           })
           .collect(),
         Renderable2::Tacet(stem) => {
           vec![tacet2(conf.cps, stem)]
+        }
+
+        Renderable2::FMOp(fm_stem) => {
+          vec![fm_combiner_with_reso(conf, fm_stem.clone(), &vec![], keep_stems)]
         }
       };
 

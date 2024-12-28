@@ -5,6 +5,8 @@ use crate::analysis::{
   volume::db_to_amp,
 };
 use crate::monic_theory::note_to_freq;
+use crate::types::render::{StemFM, ArfFM};
+use crate::fm::Operator;
 use crate::phrasing::older_ranger::{Modders, OldRangerDeprecated, WOldRangerDeprecateds};
 use crate::phrasing::{dynamics, lifespan, micro};
 use crate::synth::{pi, pi2, MFf, NFf, SRf, SampleBuffer, MAX_REGISTER, MIN_REGISTER, SR};
@@ -22,7 +24,7 @@ use crate::phrasing::contour::Expr;
 use crate::phrasing::ranger::{self, Knob, KnobMacro, KnobMods, KnobMods2};
 use crate::render::{Renderable, Renderable2};
 use crate::reverb::convolution::ReverbParams;
-use crate::time;
+use crate::time::{self,note_to_cycles};
 use crate::types::render::{Conf, Feel, Melody, Stem, Stem2, Stem3};
 use crate::types::synthesis::{
   bp2_unit, BoostGroup, Bp2, Direction, Ely, Freq, ModulationEffect, Note, PhaseModParams,
@@ -36,6 +38,7 @@ use std::fs::read_dir;
 pub mod ambien;
 pub mod bland;
 pub mod bright;
+pub mod fum;
 pub mod hop;
 pub mod kuwuku;
 pub mod mountain;
@@ -57,6 +60,21 @@ pub const DB_HEADROOM: f32 = -3f32;
 static contour_resolution: usize = 1200;
 static unit_decay: f32 = 9.210340372;
 
+pub fn simple_tacet<'render>(melody:&'render Melody<Note>) -> Renderable2<'render> {
+  let s:Stem2 = (
+    melody,
+    (vec![], vec![], vec![], ),
+    expr_none(),
+    bp2_unit(),
+    KnobMods2::unit(),
+    vec![],
+    vec![],
+    vec![],
+    vec![],
+  );
+  Renderable2::Tacet(s)
+}
+
 /// Returns a `Stem3` for the percussion preset.
 ///
 /// # Parameters
@@ -73,12 +91,12 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
   let gain = visibility_gain_sample(arf.visibility);
   let amp_expr = vec![1f32];
 
-  let mut delays_note = vec![];
-  let mut reverbs_room = vec![];
+  // let mut delays_note = vec![];
+  // let mut reverbs_room = vec![];
 
   let lowpass_cutoff = NFf;
-  let ref_sample = ref_samples[0].to_owned();
-
+  let ref_sample = ref_samples[0].to_owned()
+  
   Renderable2::Sample((
     melody,
     ref_sample,
@@ -424,6 +442,7 @@ pub enum Preset {
   Hop,
   Bland,
   Bright,
+  Fum,
 }
 
 impl fmt::Display for Preset {
@@ -441,6 +460,7 @@ impl<'render> Preset {
       Preset::Hop => hop::map_role_preset(),
       Preset::Bland => bland::map_role_preset(),
       Preset::Bright => bright::map_role_preset(),
+      Preset::Fum => fum::map_role_preset(),
     }
   }
 

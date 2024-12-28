@@ -1,22 +1,27 @@
-use crate::render::engrave;
-use crate::synth::{pi, pi2, NFf, SRf, SR, NF};
-use rand::{self, thread_rng, Rng};
+use crate::analysis::in_range;
 use crate::phrasing::ranger::{self, Knob};
+use crate::render::engrave;
+use crate::synth::{pi, pi2, NFf, SRf, NF, SR};
+use rand::{self, thread_rng, Rng};
 
-mod operator;
 mod dex;
+mod operator;
+mod presets;
+mod gen;
 mod testhelp;
-use testhelp::*;
-use operator::*;
-use crate::render::get_knob;
-use crate::phrasing::ranger::KnobMacro;
-use crate::types::synthesis::{MacroMotion};
+use crate::analysis::monic_theory::note_to_freq;
 use crate::analysis::freq::slice_signal;
-use crate::analysis::melody::{eval_odr_level, LevelMacro, Levels, ODR, ODRMacro};
+use crate::analysis::melody::{eval_odr_level, LevelMacro, Levels, ODRMacro, ODR};
+use crate::phrasing::ranger::KnobMacro;
+use crate::render::get_knob;
+use crate::types::synthesis::MacroMotion;
+pub use dex::*;
+pub use operator::*;
+pub use presets::*;
+pub use testhelp::*;
 
-pub fn mul_envelopes(a:Vec<f32>, b:Vec<f32>, compress:bool) -> Vec<f32> {
-  
-  let target_size = if compress { 
+pub fn mul_envelopes(a: Vec<f32>, b: Vec<f32>, compress: bool) -> Vec<f32> {
+  let target_size = if compress {
     a.len().min(b.len())
   } else {
     a.len().max(b.len())
@@ -178,6 +183,8 @@ fn render_many(cps: f32, freq: f32, n_cycles: f32, depth: u32) -> (Vec<f32>, Vec
 
   (nested_signal, reverse_signal, combined_signal)
 }
+
+
 fn remaining_bandwidth(
   nf: f32,                     // Nyquist frequency
   carrier: f32,                // Carrier frequency
@@ -264,109 +271,6 @@ fn the_fm_song() {
   engrave::samples(SR, &song, &filename);
 }
 
-#[test]
-fn m3ain() {
-  let nf = NFf;
-  let car_f = 333.3 / 3f32;
-
-  let mut song: Vec<f32> = vec![];
-  for j in vec![1.5f32.powi(2i32), 4f32, 1.5f32, 1f32, 2f32 / 3f32, 1f32 / 2f32].iter() {
-    let min = 8;
-    let max = 2;
-    let r = min..=max;
-    let carrier = car_f * *j as f32;
-
-    let modulator_playback_rate = 1f32 / 4f32;
-
-    let r = if j % 2f32 != 0f32 {
-      step_range(min, max)
-    } else {
-      step_range(max, min)
-    };
-    for n in r {
-      let w = n as f32;
-      let n_cycles = 2f32.powi((n - 4) as i32);
-      let modulators: Vec<(f32, f32)> = vec![
-        (w, 2.0), // (mod_index, mod_freq)
-        (w, 2.0),
-        (w, 2.0),
-        (w, 2.0),
-        (w, 2.0),
-      ];
-
-      let modulators: Vec<(f32, f32)> = vec![
-        (w, 1f32), // (mod_index, mod_freq)
-        (w, 1f32 / 2f32.powi(3i32)),
-        (w, 2f32),
-        (w, 1f32 / 2f32.powi(5i32)),
-      ];
-
-      let www = modulator_playback_rate;
-      let modulators: Vec<(f32, f32)> = vec![
-        (w, www * 1f32), // (mod_index, mod_freq)
-        (w, www * 1f32 / 2f32.powi(3i32)),
-        (w, www * 2f32),
-        (w, www * 1f32 / 2f32.powi(5i32)),
-      ];
-
-      let www = 1f32;
-      let modulators: Vec<(f32, f32)> = vec![
-        (w, www * 3f32), // (mod_index, mod_freq)
-        (w, www * 2f32 / 2f32.powi(3i32)),
-        (w, www * 5f32),
-        (w, www * 2f32 / 2f32.powi(5i32)),
-      ];
-
-      // .iter().enumerate().map(|(j, (w, mul))| {
-      //     // let weight = w * (j+1) as f32;
-      //     (w, *mul)
-      // }).collect();
-
-      let remaining = remaining_bandwidth(nf, carrier, modulators.clone());
-      println!("Remaining Bandwidth: {}", remaining);
-
-      if remaining > 0.0 {
-        println!("Safe for more modulation.");
-      } else {
-        println!("Exceeded Nyquist. Adjust parameters.");
-      }
-
-      let sig = generate_compound_signal(1f32, 0.1f32, carrier, modulators.clone(), n_cycles);
-      let filename = format!("dev-audio/test-mod-chain-{}-n-{}", carrier, n);
-      engrave::samples(SR, &sig, &filename);
-      song.extend(sig)
-    }
-  }
-  let filename = format!("dev-audio/mod-song");
-  engrave::samples(SR, &song, &filename);
-}
-
-#[test]
-fn ma2in() {
-  let n = 5; // Depth of the nested sine
-  let x = std::f32::consts::PI / 4.0; // Example input value
-
-  // Largest term as outermost
-  let result_outermost = nested_sine_up_to_n(n, x);
-  println!("Result (largest as outermost): {}", result_outermost);
-
-  // Largest term as innermost
-  let result_innermost = nested_sine_reverse_n(n, x);
-  println!("Result (largest as innermost): {}", result_innermost);
-  let car_freq = 330f32;
-
-  for n in (114..118) {
-    let (one, two, three) = render_many(1f32, car_freq, 9f32, n);
-
-    let filename = format!("dev-audio/test-recur-forward-freq-{}-n-{}", car_freq, n);
-
-    // engrave::samples(SR, &one, &filename);
-    let filename = format!("dev-audio/test-recur-reverse-freq-{}-n-{}", car_freq, n);
-    engrave::samples(SR, &two, &filename);
-    // let filename = format!("dev-audio/test-recur-combined-freq-{}-n-{}", car_freq,n);
-    //     engrave::samples(SR, &three, &filename);
-  }
-}
 
 #[test]
 fn test_fm() {

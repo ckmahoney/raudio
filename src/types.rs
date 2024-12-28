@@ -363,6 +363,8 @@ pub mod render {
 
   use rand::seq::SliceRandom;
   use rand::{thread_rng, Rng};
+  use crate::fm::Operator;
+  use crate::Arf;
 
   impl Feel {
     pub fn unit() -> Self {
@@ -491,6 +493,7 @@ pub mod render {
     Vec<crate::reverb::convolution::ReverbParams>,
     Vec<crate::reverb::convolution::ReverbParams>,
   );
+  
 
   /// SampleBuffer from input samples (like perc)
   /// Tuple represents
@@ -500,6 +503,22 @@ pub mod render {
     SampleBuffer,
     Vec<Range>,
     f32,
+    Vec<crate::analysis::delay::DelayParams>,
+    Vec<crate::analysis::delay::DelayParams>,
+    Vec<crate::reverb::convolution::ReverbParams>,
+    Vec<crate::reverb::convolution::ReverbParams>,
+  );
+
+
+  pub type ArfFM = fn(&Conf, &Arf, &Note, f32, f32, f32, f32) -> Vec<Operator>;
+
+  /// SampleBuffer from input samples (like perc)
+  /// Tuple represents
+  /// (melody, reference sample buffer, amplitude contour, lowpass_cutoff_freq, delay1 (per noteevent), delay2 (total line)), reverb1 (per noteevent), reverb2 (total line))
+  pub type StemFM<'render> = (
+    &'render Melody<synthesis::Note>,
+    Arf,
+    ArfFM,
     Vec<crate::analysis::delay::DelayParams>,
     Vec<crate::analysis::delay::DelayParams>,
     Vec<crate::reverb::convolution::ReverbParams>,

@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 #![allow(unused_variables)]
 #![allow(dead_code)]
 #![allow(unused_imports)]
@@ -59,6 +60,7 @@ fn parse_preset(s: &str) -> Option<Preset> {
     "mountain" => Some(Preset::Mountain),
     "bland" => Some(Preset::Bland),
     "bright" => Some(Preset::Bright),
+    "fum" => Some(Preset::Fum),
     _ => None,
   }
 }
@@ -203,8 +205,8 @@ fn test_render_playbook() {
   let filepath: &str = &format!("{}/demo/test_render_playbook", crate::demo::out_dir);
   render_playbook(
     filepath,
-    "valley",
-    "src/demo/playbooks/playbook-ambien.json",
-    "test-ambien-render",
+    "fum",
+    "src/demo/playbooks/house_short_1.json",
+    "house_short_1_fum",
   )
 }

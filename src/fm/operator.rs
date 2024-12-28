@@ -1,10 +1,87 @@
-use crate::synth::{SR,SRf};
+use super::*;
+use crate::synth::{SRf, SR};
 use crate::types::timbre::Visibility;
 use std::sync::Arc;
-use super::*;
+use std::fmt;
+
+
+impl fmt::Debug for Operator {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(
+          f,
+          "Operator {{ frequency: {}, modulation_index: {}, modulators: [",
+          self.frequency, self.modulation_index
+      )?;
+      for (i, modulator) in self.modulators.iter().enumerate() {
+          if i > 0 {
+              write!(f, ", ")?;
+          }
+          match modulator {
+              ModulationSource::Operator(op) => {
+                  write!(f, "Mod{{ freq: {}, index: {} }}", op.frequency, op.modulation_index)?;
+              }
+              ModulationSource::Feedback(gain) => {
+                  write!(f, "Feedback({})", gain)?;
+              }
+          }
+      }
+      write!(
+          f,
+          "], mod_index_env_mul: {:?}, mod_index_env_sum: {:?}, mod_freq_env_mul: {:?}, mod_freq_env_sum: {:?}, mod_gain_env_mul: {:?}, mod_gain_env_sum: {:?}, termination: {:?} }}",
+          self.mod_index_env_mul,
+          self.mod_index_env_sum,
+          self.mod_freq_env_mul,
+          self.mod_freq_env_sum,
+          self.mod_gain_env_mul,
+          self.mod_gain_env_sum,
+          self.termination
+      )
+  }
+}
+
+
+
+impl fmt::Debug for Envelope {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Envelope::Constant(value) => write!(f, "Constant({})", value),
+            Envelope::Parametric {
+                attack,
+                decay,
+                sustain,
+                release,
+                min,
+                max,
+                mean,
+            } => write!(
+                f,
+                "Parametric {{ attack: {}, decay: {}, sustain: {}, release: {}, min: {}, max: {}, mean: {} }}",
+                attack, decay, sustain, release, min, max, mean
+            ),
+            Envelope::SampleBased { samples } => {
+                let sample_count = samples.len();
+                if sample_count < 11 {
+                    write!(f, "SampleBased {{ samples: {:?} }}", samples)
+                } else {
+                    let step = sample_count / 10;
+                    let displayed_samples: Vec<_> = samples
+                        .iter()
+                        .step_by(step.max(1))
+                        .take(10)
+                        .copied()
+                        .collect();
+                    write!(f, "SampleBased {{ samples: {:?} }}", displayed_samples)
+                }
+            }
+        }
+    }
+}
+
 
 #[derive(Clone)]
 /// Represents an individual FM synthesis operator.
+/// Generally if modulatoin index is 0 the Operator identifies as a carrier and has a nonzero mod_gain
+/// Else if modulation_index is nonzero, it is a modulator and mod_gain is not 
 pub struct Operator {
   /// Base frequency of the operator in Hz.
   pub frequency: f32,
@@ -16,51 +93,39 @@ pub struct Operator {
   pub mod_index_env_mul: Envelope,
   /// Amplitude envelope for additive modulation index.
   pub mod_index_env_sum: Envelope,
-  /// Callback for multiplicative modulation index.
-  pub mod_index_mul: Option<Callback>,
-  /// Callback for additive modulation index.
-  pub mod_index_sum: Option<Callback>,
   /// Amplitude envelope for multiplicative modulation frequency.
   pub mod_freq_env_mul: Envelope,
   /// Amplitude envelope for additive modulation frequency.
   pub mod_freq_env_sum: Envelope,
   pub mod_gain_env_sum: Envelope,
   pub mod_gain_env_mul: Envelope,
-  /// Callback for multiplicative modulation frequency.
-  pub mod_freq_mul: Option<Callback>,
-  /// Callback for additive modulation frequency.
-  pub mod_freq_sum: Option<Callback>,
   /// Termination logic parameters.
   pub termination: TerminationParams,
 }
 
 impl Default for Operator {
   fn default() -> Self {
-      Operator {
-          frequency: 440.0, // Default frequency (A4)
-          modulation_index: 0.0, // No modulation index by default
-          modulators: Vec::new(), // No modulators by default
-          mod_index_env_mul: Envelope::unit_mul(),
-          mod_index_env_sum: Envelope::empty_sum(),
-          mod_index_mul: None,
-          mod_index_sum: None,
-          mod_freq_env_mul: Envelope::unit_mul(),
-          mod_freq_env_sum: Envelope::empty_sum(),
-          mod_freq_mul: None,
-          mod_freq_sum: None,
-          mod_gain_env_mul: Envelope::unit_mul(),
-          mod_gain_env_sum: Envelope::unit_sum(),
-          termination: TerminationParams::instant_death(),
-      }
+    Operator {
+      frequency: 330.0,      
+      modulation_index: 0.0, 
+      modulators: Vec::new(),
+      mod_index_env_mul: Envelope::Constant(1f32),
+      mod_index_env_sum: Envelope::Constant(0f32),
+      mod_freq_env_mul: Envelope::Constant(1f32),
+      mod_freq_env_sum: Envelope::Constant(0f32),
+      mod_gain_env_mul: Envelope::Constant(1f32),
+      mod_gain_env_sum: Envelope::Constant(1f32),
+      termination: TerminationParams::instant_death(),
+    }
   }
 }
 
 fn to_modulators(mods: &Vec<(f32, f32)>, modulator_playback_rate: f32) -> Vec<ModulationSource> {
-  mods.iter().map(|(w, m)| ModulationSource::Operator(
-    Operator::modulator(*m * modulator_playback_rate, *w)
-  )).collect()
+  mods
+    .iter()
+    .map(|(w, m)| ModulationSource::Operator(Operator::modulator(*m * modulator_playback_rate, *w)))
+    .collect()
 }
-
 
 #[derive(Clone)]
 pub enum ModulationSource {
@@ -68,46 +133,60 @@ pub enum ModulationSource {
   Feedback(f32), // Feedback gain
 }
 
-fn count_feedbacks(mod_sources: &[ModulationSource]) -> usize {
-  mod_sources.iter().map(|m| match m {
-      ModulationSource::Feedback(_) => 1,
-      ModulationSource::Operator(op) => count_feedbacks(&op.modulators),
-  }).sum()
-}
-
-fn initialize_feedback_states(mod_sources: &[ModulationSource], feedback_states: &mut Vec<f32>, offset: &mut usize) {
-  for mod_source in mod_sources {
-      match mod_source {
-          ModulationSource::Feedback(_) => {
-              // Initialize the feedback state for this modulator
-              feedback_states[*offset] = 0.0;
-              *offset += 1;
+impl fmt::Debug for ModulationSource {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      match self {
+          ModulationSource::Operator(operator) => {
+              write!(f, "Operator({:?})", operator)
           }
-          ModulationSource::Operator(op) => {
-              // Recursively initialize feedback states for nested operators
-              initialize_feedback_states(&op.modulators, feedback_states, offset);
+          ModulationSource::Feedback(gain) => {
+              write!(f, "Feedback({})", gain)
           }
       }
   }
 }
 
+fn count_feedbacks(mod_sources: &[ModulationSource]) -> usize {
+  mod_sources
+    .iter()
+    .map(|m| match m {
+      ModulationSource::Feedback(_) => 1,
+      ModulationSource::Operator(op) => count_feedbacks(&op.modulators),
+    })
+    .sum()
+}
+
+fn initialize_feedback_states(mod_sources: &[ModulationSource], feedback_states: &mut Vec<f32>, offset: &mut usize) {
+  for mod_source in mod_sources {
+    match mod_source {
+      ModulationSource::Feedback(_) => {
+        // Initialize the feedback state for this modulator
+        feedback_states[*offset] = 0.0;
+        *offset += 1;
+      }
+      ModulationSource::Operator(op) => {
+        // Recursively initialize feedback states for nested operators
+        initialize_feedback_states(&op.modulators, feedback_states, offset);
+      }
+    }
+  }
+}
 
 impl Operator {
-  
-pub fn render(&self, n_cycles: f32, cps: f32, sample_rate: usize) -> Vec<f32> {
-  let n_samples = crate::time::samples_of_cycles(cps, n_cycles);
-  let mut signal: Vec<f32> = Vec::with_capacity(n_samples);
+  pub fn render(&self, n_cycles: f32, cps: f32, sample_rate: usize) -> Vec<f32> {
+    let n_samples = crate::time::samples_of_cycles(cps, n_cycles);
+    let mut signal: Vec<f32> = Vec::with_capacity(n_samples);
 
-  // Count all feedback modulators in the hierarchy
-  let n_feedbacks = count_feedbacks(&self.modulators);
+    // Count all feedback modulators in the hierarchy
+    let n_feedbacks = count_feedbacks(&self.modulators);
 
-  // Allocate and initialize feedback states
-  let mut feedback_states = vec![0.0; n_feedbacks];
-  let mut offset = 0;
-  initialize_feedback_states(&self.modulators, &mut feedback_states, &mut offset);
+    // Allocate and initialize feedback states
+    let mut feedback_states = vec![0.0; n_feedbacks];
+    let mut offset = 0;
+    initialize_feedback_states(&self.modulators, &mut feedback_states, &mut offset);
 
-  // Generate the signal
-  for i in 0..n_samples {
+    // Generate the signal
+    for i in 0..n_samples {
       let t = i as f32 / sample_rate as f32;
 
       // Evaluate the operator for the current sample, passing shared feedback states
@@ -115,117 +194,80 @@ pub fn render(&self, n_cycles: f32, cps: f32, sample_rate: usize) -> Vec<f32> {
 
       // Append the result to the signal
       signal.push(output);
+    }
+
+    signal
   }
 
-  signal
-}
+  pub fn eval(&self, t: f32, feedback_states: &mut [f32]) -> f32 {
+    // Calculate the effective frequency considering modulation and envelopes
+    let effective_frequency = self.frequency
+      * self.mod_freq_env_mul.get_at(t, SR) 
+      + self.mod_freq_env_sum.get_at(t, SR) ;
 
-pub fn eval(&self, t: f32, feedback_states: &mut [f32]) -> f32 {
-  // Calculate the effective frequency considering modulation and envelopes
-  let effective_frequency = self.frequency
-      * (self.mod_freq_env_mul.get_at(t, SR)
-          * self.mod_freq_mul.as_ref().map_or(1.0, |callback| callback.evaluate(t)))
-      + (self.mod_freq_env_sum.get_at(t, SR)
-          + self.mod_freq_sum.as_ref().map_or(0.0, |callback| callback.evaluate(t)));
-  
-  let angular_frequency = pi2 * effective_frequency;
+    let angular_frequency = pi2 * effective_frequency;
 
-  let mut feedback_offset = 0;
-  let mut phase_offset = 0.0;
+    let mut feedback_offset = 0;
+    let mut phase_offset = 0.0;
 
-  // Iterate over modulators and apply feedback/modulation
-  for mod_source in &self.modulators {
+    // Iterate over modulators and apply feedback/modulation
+    for mod_source in &self.modulators {
       phase_offset += match mod_source {
           ModulationSource::Operator(mod_op) => {
               let sub_feedback_states = &mut feedback_states[feedback_offset..];
               let feedback_count = count_feedbacks(&mod_op.modulators);
               feedback_offset += feedback_count;
-
-              // Compute modulation index with envelopes and callbacks
-              let modulation_index = mod_op.modulation_index;
-              let env_mul = mod_op.mod_index_env_mul.get_at(t, SR);
-              let callback_mul = mod_op.mod_index_mul.as_ref().map_or(1.0, |callback| callback.evaluate(t));
-              let env_sum = mod_op.mod_index_env_sum.get_at(t, SR);
-              let callback_sum = mod_op.mod_index_sum.as_ref().map_or(0.0, |callback| callback.evaluate(t));
-
-              let mod_index = modulation_index * env_mul * callback_mul * (env_sum + callback_sum);
-
-              if (3f32*t) % 1f32 < 0.001f32 {
-                // println!("t: {}", t);
-                // println!("modulation_index {} mod_index: {}", modulation_index, mod_index);
-                // println!("env_mul component: {}", env_mul);
-                // println!("callback_mul component: {}", callback_mul);
-                // println!("env_sum component: {}", env_sum);
-                // println!("callback_sum component: {}", callback_sum);
-                // println!("final mod_index: {}", mod_index);
-            }
-
-              mod_op.eval(t, sub_feedback_states) * mod_index
+  
+              let modulation_index = mod_op.modulation_index
+                  * mod_op.mod_index_env_mul.get_at(t, SR)
+                  + mod_op.mod_index_env_sum.get_at(t, SR);
+  
+              mod_op.eval(t, sub_feedback_states) * modulation_index
           }
           ModulationSource::Feedback(gain) => {
-            // Retrieve the previous feedback state
-            let prev_feedback_value = feedback_states[feedback_offset];
-
-            // Compute the current feedback signal
-            let feedback_mod_index = self.modulation_index 
-                * self.mod_index_env_mul.get_at(t, SR)
-                * self.mod_index_mul.as_ref().map_or(1.0, |callback| callback.evaluate(t))
-                + self.mod_index_env_sum.get_at(t, SR)
-                + self.mod_index_sum.as_ref().map_or(0.0, |callback| callback.evaluate(t));
-
-            let current_feedback_signal = (angular_frequency * t + prev_feedback_value).sin();
-
-            // Apply feedback modulation
-            let modulated_feedback = *gain * current_feedback_signal * feedback_mod_index;
-
-            // Update feedback state for the next iteration
-            feedback_states[feedback_offset] = current_feedback_signal;
-
-            feedback_offset += 1; 
-            modulated_feedback
-        }
+              // Handle feedback correctly and accumulate phase
+              let feedback_signal = feedback_states[feedback_offset];
+              let feedback_mod_index = self.modulation_index
+                  * self.mod_index_env_mul.get_at(t, SR)
+                  + self.mod_index_env_sum.get_at(t, SR);
+  
+              let modulated_feedback = *gain * feedback_signal * feedback_mod_index;
+              feedback_states[feedback_offset] = (angular_frequency * t + feedback_signal).sin();
+  
+              feedback_offset += 1;
+              modulated_feedback
+          }
       };
   }
 
+    // Compute the signal gain with envelopes
+    let gain = self.mod_gain_env_mul.get_at(t, SR) * self.mod_gain_env_sum.get_at(t, SR);
 
-  // Compute the signal gain with envelopes
-  let gain = self.mod_gain_env_mul.get_at(t, SR)
-      * self.mod_gain_env_sum.get_at(t, SR);
+    // if t % 1f32 < 0.0001f32 {
+    //   let is_carrier = self.modulation_index  == 0f32;
+    //   println!("t {} curfreq {} gain {} phase_offset {} is_carrier {} is_modulator {}", t, self.frequency, gain , phase_offset, is_carrier, !is_carrier);
+    // }
 
-      if (1f32*t) % 1f32 <  0.0004 && (t < 1f32 || t > 7f32 ){
-        // println!("t: {} gain {} freq {}", t, gain, angular_frequency);
-        // println!("modulation_index {} mod_index: {}", modulation_index, mod_index);
-        // println!("env_mul component: {}", env_mul);
-        // println!("callback_mul component: {}", callback_mul);
-        // println!("env_sum component: {}", env_sum);
-        // println!("callback_sum component: {}", callback_sum);
-        // println!("final mod_index: {}", mod_index);
-    }
-  let y = (angular_frequency * t + phase_offset).sin();
-  y * gain
-}
-
-
-
-
+    let y = (angular_frequency * t + phase_offset).sin();
+    y * gain
+  }
 
   /// Constructs a standalone carrier operator (no modulators, no modulation index).
   pub fn carrier(frequency: f32) -> Self {
     Operator {
       frequency,
-      modulation_index: 0.0, 
-      modulators: Vec::new(),
-      mod_index_env_mul: Envelope::unit_mul(),
-      mod_index_env_sum: Envelope::empty_sum(),
-      mod_index_mul: None,
-      mod_index_sum: None,
-      mod_freq_env_mul: Envelope::unit_mul(),
-      mod_freq_env_sum: Envelope::unit_sum(),
-      mod_freq_mul: None,
-      mod_freq_sum: None,
-      mod_gain_env_mul: Envelope::unit_mul(),
-      mod_gain_env_sum: Envelope::unit_sum(),
-      termination: TerminationParams::instant_death(),
+      modulation_index: 0.0,
+      ..Default::default()
+    }
+  }
+
+  /// Constructs a standalone carrier operator (no modulators, no modulation index).
+  pub fn carrier2(frequency: f32, gain:f32) -> Self {
+    Operator {
+      frequency,
+      modulation_index: 0.0,
+      mod_gain_env_sum: Envelope::Constant(gain),
+      ..Default::default()
     }
   }
 
@@ -234,18 +276,7 @@ pub fn eval(&self, t: f32, feedback_states: &mut [f32]) -> f32 {
     Operator {
       frequency,
       modulation_index,
-      modulators: Vec::new(),
-      mod_index_env_mul: Envelope::unit_mul(),
-      mod_index_env_sum: Envelope::empty_sum(),
-      mod_index_mul: None,
-      mod_index_sum: None,
-      mod_freq_env_mul: Envelope::unit_mul(),
-      mod_freq_env_sum: Envelope::empty_sum(),
-      mod_freq_mul: None,
-      mod_freq_sum: None,
-      mod_gain_env_mul: Envelope::unit_mul(),
-      mod_gain_env_sum: Envelope::unit_sum(),
-      termination: TerminationParams::instant_death(),
+      ..Default::default()
     }
   }
 }
@@ -253,24 +284,24 @@ pub fn eval(&self, t: f32, feedback_states: &mut [f32]) -> f32 {
 /// Defines a callback for modulation, which can either be a function pointer or a cloneable closure.
 #[derive(Clone)]
 pub enum Callback {
-    /// A function pointer taking time `t` as input and returning a modulation value.
-    Pointer(fn(f32) -> f32),
-    /// A cloneable closure taking time `t` as input and returning a modulation value.
-    Closure(Arc<dyn Fn(f32) -> f32 + Send + Sync>),
+  /// A function pointer taking time `t` as input and returning a modulation value.
+  Pointer(fn(f32) -> f32),
+  /// A cloneable closure taking time `t` as input and returning a modulation value.
+  Closure(Arc<dyn Fn(f32) -> f32 + Send + Sync>),
 }
 
 impl Callback {
-    /// Evaluates the callback at a given time `t`.
-    pub fn evaluate(&self, t: f32) -> f32 {
-      match self {
-        Callback::Pointer(func) => func(t),
-        Callback::Closure(closure) => closure(t),
-      }
+  /// Evaluates the callback at a given time `t`.
+  pub fn evaluate(&self, t: f32) -> f32 {
+    match self {
+      Callback::Pointer(func) => func(t),
+      Callback::Closure(closure) => closure(t),
     }
   }
-  
+}
+
 /// Represents an amplitude or modulation envelope for operators.
-#[derive(Clone,Debug)]
+#[derive(Clone)]
 pub enum Envelope {
   /// A parametric envelope defined by ADSR parameters.
   Parametric {
@@ -284,6 +315,7 @@ pub enum Envelope {
   },
   /// A sample-based envelope defined by a series of precomputed samples.
   SampleBased { samples: Vec<f32> },
+  Constant(f32)
 }
 
 impl Envelope {
@@ -326,6 +358,19 @@ impl Envelope {
     }
   }
 
+  pub fn unary(gain:f32) -> Self {
+    Envelope::Parametric {
+      attack: 0.0,
+      decay: 0.0,
+      sustain: gain,
+      release: 0.0,
+      min: gain,
+      max: gain,
+      mean: gain,
+    }
+  }
+
+
   /// Creates a unit parametric envelope for multiplicative modulation.
   pub fn unit_mul() -> Self {
     Envelope::Parametric {
@@ -349,6 +394,7 @@ impl Envelope {
   /// Evaluates the envelope at a given sample index.
   pub fn evaluate(&self, sample_index: usize) -> f32 {
     match self {
+      Envelope::Constant(v) => *v,
       Envelope::Parametric {
         attack,
         decay,
@@ -377,6 +423,7 @@ impl Envelope {
   pub fn get_at(&self, t: f32, sr: usize) -> f32 {
     let sample_rate = sr as f32;
     match self {
+      Envelope::Constant(v) => *v,
       Envelope::Parametric {
         attack,
         decay,
@@ -418,7 +465,7 @@ impl Envelope {
 }
 
 /// Represents the termination value for operators.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TerminalValue {
   Negative,
   Positive,
@@ -426,7 +473,7 @@ pub enum TerminalValue {
   C(f32),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 /// Handles termination behavior for operators in terms of signal energy and time.
 pub struct TerminationParams {
   /// Minimum signal magnitude for termination.
@@ -448,99 +495,96 @@ impl TerminationParams {
   }
 }
 
+/// Counts the total number of unique sidebands for this operator and its modulators.
+/// Includes carrier and accounts for cascading modulators.
+// pub fn count_sidebands(&self) -> usize {
+//   // Recursive function to count sidebands for a given modulator chain
+//   fn count_modulator_sidebands(operator: &Operator, depth: usize) -> usize {
+//     // Number of sidebands introduced by this operator
+//     let sidebands = 1 << depth; // 2^depth sidebands
+//                                 // Recurse through each modulator
+//     operator.modulators.iter().fold(sidebands, |acc, modulator| {
+//       acc + count_modulator_sidebands(modulator, depth + 1)
+//     })
+//   }
 
+//   // Start with the carrier (depth 0)
+//   count_modulator_sidebands(self, 0)
+// }
 
-  /// Counts the total number of unique sidebands for this operator and its modulators.
-  /// Includes carrier and accounts for cascading modulators.
-  // pub fn count_sidebands(&self) -> usize {
-  //   // Recursive function to count sidebands for a given modulator chain
-  //   fn count_modulator_sidebands(operator: &Operator, depth: usize) -> usize {
-  //     // Number of sidebands introduced by this operator
-  //     let sidebands = 1 << depth; // 2^depth sidebands
-  //                                 // Recurse through each modulator
-  //     operator.modulators.iter().fold(sidebands, |acc, modulator| {
-  //       acc + count_modulator_sidebands(modulator, depth + 1)
-  //     })
-  //   }
+// pub fn identify_sideband_frequencies_with_order(&self, sideband_order: i32) -> Vec<f32> {
+//   fn recursive_sidebands(operator: &Operator, accumulated_carrier: f32, sideband_order: i32) -> Vec<f32> {
+//     // Start by enumerating sidebands for the *current* operator
+//     // relative to the accumulated carrier frequency.
+//     let mut freq_list = Vec::new();
+//     for n in -sideband_order..=sideband_order {
+//       // For each integer n, we shift by n × f_op × index
+//       let offset = n as f32 * operator.frequency * operator.modulation_index;
+//       freq_list.push(accumulated_carrier + offset);
+//     }
 
-  //   // Start with the carrier (depth 0)
-  //   count_modulator_sidebands(self, 0)
-  // }
+//     // Recursively handle each child modulator
+//     for child in &operator.modulators {
+//       // Instead of calling `recursive_sidebands(child, child.frequency, ...)`
+//       // we pass the parent's *accumulated* frequency to preserve
+//       // the nested offset. We do it per existing frequency in freq_list.
+//       let mut new_freqs = Vec::new();
+//       for &freq in &freq_list {
+//         // Compute child sidebands starting from `freq` as the new base.
+//         let child_sidebands = recursive_sidebands(child, freq, sideband_order);
 
-  // pub fn identify_sideband_frequencies_with_order(&self, sideband_order: i32) -> Vec<f32> {
-  //   fn recursive_sidebands(operator: &Operator, accumulated_carrier: f32, sideband_order: i32) -> Vec<f32> {
-  //     // Start by enumerating sidebands for the *current* operator
-  //     // relative to the accumulated carrier frequency.
-  //     let mut freq_list = Vec::new();
-  //     for n in -sideband_order..=sideband_order {
-  //       // For each integer n, we shift by n × f_op × index
-  //       let offset = n as f32 * operator.frequency * operator.modulation_index;
-  //       freq_list.push(accumulated_carrier + offset);
-  //     }
+//         // Optionally fold them into `new_freqs` more elaborately:
+//         new_freqs.extend(child_sidebands);
+//       }
+//       // Merge new child frequencies into our current operator's freq list
+//       freq_list.extend(new_freqs);
+//     }
 
-  //     // Recursively handle each child modulator
-  //     for child in &operator.modulators {
-  //       // Instead of calling `recursive_sidebands(child, child.frequency, ...)`
-  //       // we pass the parent's *accumulated* frequency to preserve
-  //       // the nested offset. We do it per existing frequency in freq_list.
-  //       let mut new_freqs = Vec::new();
-  //       for &freq in &freq_list {
-  //         // Compute child sidebands starting from `freq` as the new base.
-  //         let child_sidebands = recursive_sidebands(child, freq, sideband_order);
+//     freq_list
+//   }
 
-  //         // Optionally fold them into `new_freqs` more elaborately:
-  //         new_freqs.extend(child_sidebands);
-  //       }
-  //       // Merge new child frequencies into our current operator's freq list
-  //       freq_list.extend(new_freqs);
-  //     }
+//   let mut freqs = recursive_sidebands(self, self.frequency, sideband_order);
+//   freqs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+//   freqs.dedup();
+//   freqs
+// }
 
-  //     freq_list
-  //   }
+// /// Computes the bandwidth for a given modulator index.
+// pub fn lookup_bandwidth(&self, modulator_index: usize) -> Option<(f32, f32)> {
+//   fn compute_bandwidth(operator: &Operator, t: f32) -> (f32, f32) {
+//     if operator.modulators.is_empty() {
+//       return (operator.eval(t), 0.0);
+//     }
 
-  //   let mut freqs = recursive_sidebands(self, self.frequency, sideband_order);
-  //   freqs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-  //   freqs.dedup();
-  //   freqs
-  // }
+//     let mut min_freq = operator.eval(t);
+//     let mut max_freq = operator.eval(t);
 
-  // /// Computes the bandwidth for a given modulator index.
-  // pub fn lookup_bandwidth(&self, modulator_index: usize) -> Option<(f32, f32)> {
-  //   fn compute_bandwidth(operator: &Operator, t: f32) -> (f32, f32) {
-  //     if operator.modulators.is_empty() {
-  //       return (operator.eval(t), 0.0);
-  //     }
+//     for modulator in &operator.modulators {
+//       let (sub_center, sub_bandwidth) = compute_bandwidth(modulator, t);
+//       let modulation_depth = operator.modulation_index;
 
-  //     let mut min_freq = operator.eval(t);
-  //     let mut max_freq = operator.eval(t);
+//       let sub_min = sub_center - sub_bandwidth / 2.0;
+//       let sub_max = sub_center + sub_bandwidth / 2.0;
 
-  //     for modulator in &operator.modulators {
-  //       let (sub_center, sub_bandwidth) = compute_bandwidth(modulator, t);
-  //       let modulation_depth = operator.modulation_index;
+//       min_freq -= modulation_depth * sub_max;
+//       max_freq += modulation_depth * sub_max;
+//     }
 
-  //       let sub_min = sub_center - sub_bandwidth / 2.0;
-  //       let sub_max = sub_center + sub_bandwidth / 2.0;
+//     let center = (min_freq + max_freq) / 2.0;
+//     let bandwidth = max_freq - min_freq;
 
-  //       min_freq -= modulation_depth * sub_max;
-  //       max_freq += modulation_depth * sub_max;
-  //     }
+//     (center, bandwidth)
+//   }
 
-  //     let center = (min_freq + max_freq) / 2.0;
-  //     let bandwidth = max_freq - min_freq;
-
-  //     (center, bandwidth)
-  //   }
-
-  //   if modulator_index == 0 {
-  //     Some(compute_bandwidth(self, 0.0))
-  //   } else if modulator_index <= self.modulators.len() {
-  //     Some(compute_bandwidth(&self.modulators[modulator_index - 1], 0.0))
-  //   } else {
-  //     None
-  //   }
-  // }
-impl Operator {
-}
+//   if modulator_index == 0 {
+//     Some(compute_bandwidth(self, 0.0))
+//   } else if modulator_index <= self.modulators.len() {
+//     Some(compute_bandwidth(&self.modulators[modulator_index - 1], 0.0))
+//   } else {
+//     None
+//   }
+// }
+impl Operator {}
 
 #[cfg(test)]
 mod tests {
@@ -684,8 +728,6 @@ mod tests {
   // }
 }
 
-
-
 mod demo {
   use super::*;
   use crate::render::engrave;
@@ -764,44 +806,42 @@ mod demo {
   }
 }
 
-
 mod demo2 {
 
-  use crate::render::engrave;
   use super::*;
+  use crate::render::engrave;
 
   #[test]
   fn example_usage() {
     let freqs: Vec<f32> = (1..11).map(|i| i as f32 * 44f32).collect();
     for i in 0..5 {
-    let mut melody: Vec<f32> = vec![];
-        let cps = 1.0; // Playback rate in cycles per second
-        let n_cycles = 2f32 * cps;
-        let modulators :Vec<ModulationSource> = generate_modulators_with_envelopes(4, cps, n_cycles, 100f32)
-          .iter().map(|o|ModulationSource::Operator((*o).clone())).collect();
+      let mut melody: Vec<f32> = vec![];
+      let cps = 1.0; // Playback rate in cycles per second
+      let n_cycles = 2f32 * cps;
+      let modulators: Vec<ModulationSource> = generate_modulators_with_envelopes(4, cps, n_cycles, 100f32)
+        .iter()
+        .map(|o| ModulationSource::Operator((*o).clone()))
+        .collect();
 
-        for fund in &freqs {
-            let modulator_playback_rate = 1.0;
+      for fund in &freqs {
+        let modulator_playback_rate = 1.0;
 
-            // Create a carrier and attach the modulators
-            let carrier = Operator {
-              modulators: modulators.clone(),
-              ..Operator::carrier(*fund)
-            };
-            let mut signal =  carrier.render(n_cycles, cps, SR);
-            melody.extend(signal)
+        // Create a carrier and attach the modulators
+        let carrier = Operator {
+          modulators: modulators.clone(),
+          ..Operator::carrier(*fund)
+        };
+        let mut signal = carrier.render(n_cycles, cps, SR);
+        melody.extend(signal)
 
-            // Now `carrier` is ready for synthesis
-        }
+        // Now `carrier` is ready for synthesis
+      }
 
-        let mut rng = thread_rng();
-        let value = rng.gen::<f32>();
-        
-        let filename = format!(
-            "dev-audio/test-random-fm-synth-{}", value
-        );
-        engrave::samples(SR, &melody, &filename);
-    }    
+      let mut rng = thread_rng();
+      let value = rng.gen::<f32>();
 
+      let filename = format!("dev-audio/test-random-fm-synth-{}", value);
+      engrave::samples(SR, &melody, &filename);
     }
+  }
 }

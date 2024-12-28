@@ -282,7 +282,6 @@ fn test_hypnosis() {
   files::with_dir(&path);
 
   let mut track: SampleBuffer = vec![];
-  let mut ring: SampleBuffer = vec![];
 
   let n_versions = 8;
   let n_loops = 4;
@@ -295,7 +294,7 @@ fn test_hypnosis() {
   let mut cpss: f32 = base_cps;
 
   for i in 0..n_versions {
-    ring = samp(cpss, root);
+    let mut ring= samp(cpss, root);
     for j in 0..n_loops {
       track.extend(&ring)
     }
