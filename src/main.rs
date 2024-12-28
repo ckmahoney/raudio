@@ -11,7 +11,7 @@ use rand::{self, rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use reverb::convolution::ReverbParams;
 use std::env;
 use std::process;
-
+use crate::synth::{SR,SRf};
 use crate::render::{Renderable, Renderable2};
 use crate::types::render::*;
 use crate::types::synthesis;
@@ -24,6 +24,7 @@ pub use analysis::monic_theory;
 mod demo;
 mod druid;
 mod files;
+mod fastmast;
 mod fm;
 mod inp;
 mod music;
@@ -41,16 +42,82 @@ fn main() {
   let args: Vec<String> = env::args().collect();
 
   if args.len() < 3 {
-    eprintln!(r#"Usage: raudio "/abspath/in/to/playbook.json" "preset-pack" "/abspath/to/dir" "asset-filename""#);
-    process::exit(1);
+      eprintln!(r#"Usage:
+  raudio playbook.json preset-name asset-dir asset-name
+  raudio apply-danceability input.wav output.wav"#);
+      process::exit(1);
   }
 
-  let file_path = &args[1];
-  let preset_pack = &args[2];
-  let out_dir = &args[3];
-  let mixdown_name = &args[4];
-  render_playbook(out_dir, preset_pack, file_path, mixdown_name);
+  match args[1].as_str() {
+      "apply-danceability" => {
+          if args.len() != 4 {
+              eprintln!(r#"Usage: raudio apply-danceability input.wav output.wav"#);
+              process::exit(1);
+          }
+          let input_path = &args[2];
+          let output_path = &args[3];
+          fastmast::apply_danceability(input_path, output_path);
+      }
+      _ => {
+          // Default behavior: render_playbook
+          if args.len() < 5 {
+              eprintln!(r#"Usage: raudio playbook.json preset-name asset-dir asset-name"#);
+              process::exit(1);
+          }
+          let file_path = &args[1];
+          let preset_pack = &args[2];
+          let out_dir = &args[3];
+          let mixdown_name = &args[4];
+          render_playbook(out_dir, preset_pack, file_path, mixdown_name);
+      }
+  }
 }
+
+
+// fn resample_audio(
+//     audio: Vec<Vec<f32>>,
+//     input_sample_rate: usize,
+//     target_sample_rate: usize,
+// ) -> Vec<Vec<f32>> {
+//     // Calculate the resampling ratio
+//     let resample_ratio = target_sample_rate as f64 / input_sample_rate as f64;
+
+//     // Define SincInterpolationParameters
+//     let sinc_params = SincInterpolationParameters {
+//         sinc_len: 128,                  // Filter length
+//         f_cutoff: 0.95,                 // Cutoff frequency
+//         interpolation: SincInterpolationType::Cubic, // Interpolation type
+//         oversampling_factor: 32,        // Oversampling factor
+//         window: WindowFunction::BlackmanHarris2, // Window function
+//     };
+
+//     // Define chunk size
+//     let chunk_size = 1024;
+//     let max_resample_ratio_relative = 3.0;
+
+//     // Create a SincFixedIn resampler
+//     let mut resampler = SincFixedIn::<f32>::new(
+//         resample_ratio,
+//         max_resample_ratio_relative,
+//         sinc_params,
+//         chunk_size,
+//         audio.len(), // Number of channels
+//     )
+//     .unwrap();
+
+//     // Resample each channel independently
+//     audio
+//         .into_iter()
+//         .map(|channel| {
+//             resampler
+//                 .process(&[channel], None)
+//                 .unwrap() // The result is a Vec<Vec<f32>>; extract the first channel
+//                 .remove(0)
+//         })
+//         .collect()
+// }
+
+
 
 fn parse_preset(s: &str) -> Option<Preset> {
   let src = s.to_lowercase();

@@ -3,6 +3,12 @@ use rubato::{FftFixedInOut, Resampler};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+pub enum AudioFormat {
+  Mono(Vec<f32>),                 // Single-channel audio
+  Stereo(Vec<f32>, Vec<f32>),     // Separate left and right channels
+  Interleaved(Vec<f32>),          // Interleaved stereo samples
+}
+
 /// Reads metadata from a WAV file.
 ///
 /// # Parameters
