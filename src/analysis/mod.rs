@@ -6,6 +6,7 @@ pub mod sampler;
 pub mod sine_cache;
 pub mod time;
 pub mod transient;
+pub mod groovability;
 pub mod trig;
 pub mod volume;
 pub mod xform_freq;

@@ -91,11 +91,11 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
   let gain = visibility_gain_sample(arf.visibility);
   let amp_expr = vec![1f32];
 
-  // let mut delays_note = vec![];
-  // let mut reverbs_room = vec![];
+  let mut delays_note = vec![];
+  let mut reverbs_room = vec![];
 
   let lowpass_cutoff = NFf;
-  let ref_sample = ref_samples[0].to_owned()
+  let ref_sample = ref_samples[0].to_owned();
   
   Renderable2::Sample((
     melody,
