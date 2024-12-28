@@ -130,7 +130,7 @@ pub fn apply_danceability(input_path: &str, output_path: &str) {
 /// Test function for apply_danceability
 #[test]
 fn test_apply_danceability_function() {
-    let input_path = "/home/naltroc/Music/Music/Wallpaper/Bowzer.mp3";
+    let input_path = "/home/naltroc/Music/Music/Wallpaper/RoomFeel/Polunkite.wav";
     let output_path = "test-output-danceability2.wav";
 
     println!("Testing apply_danceability from '{}' to '{}'", input_path, output_path);

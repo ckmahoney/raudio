@@ -5,6 +5,7 @@ pub mod monic_theory;
 pub mod sampler;
 pub mod sine_cache;
 pub mod time;
+pub mod eng;
 pub mod transient;
 pub mod groovability;
 pub mod trig;
