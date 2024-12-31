@@ -411,7 +411,7 @@ fn channel_with_reso(
           let mut sig = convolution::of(&sig, params);
           trim_zeros(&mut sig);
           sig
-        })
+        }) 
       };
       chan_wet_reverbs
     }

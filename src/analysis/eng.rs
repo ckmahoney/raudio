@@ -16,6 +16,18 @@ use crate::synth::{SR, SRf};
 use std::error::Error;
 use biquad::{Biquad, Coefficients, DirectForm1, Hertz, Type as FilterType};
 use itertools::izip;
+use crate::phrasing::ranger::{MIN_DB, MAX_DB, DYNAMIC_RANGE_DB};
+use crate::timbre::Role;
+
+use crate::analysis::sampler::read_audio_file;
+use crate::render::engrave::write_audio;
+use rand::Rng;
+
+
+pub fn dev_audio_asset(label:&str) -> String {
+    format!("dev-audio/{}", label)
+}
+
 
 /// Enumeration for different envelope detection methods.
 #[derive(Debug, Clone, Copy)]
@@ -104,6 +116,30 @@ pub struct CompressorParams {
     pub envelope_shaping: Option<EnvelopeShapingParams>,
 }
 
+
+impl Default for CompressorParams {
+    fn default() -> Self {
+        CompressorParams {
+            threshold: -24.0,
+            ratio: 4.0,
+            knee_width: 0.5,
+            makeup_gain: 1.0,
+            attack_time: 0.01,
+            release_time: 0.1,
+            lookahead_time: None,
+            detection_method: EnvelopeMethod::Peak,
+            hold_time: None,
+            wet_dry_mix: 1.0,
+            sidechain_filter: None,
+            auto_gain: false,
+            ratio_slope: RatioSlope::Linear,
+            enable_limiter: false,
+            limiter_threshold: None,
+            envelope_shaping: None,
+        }
+    }
+}
+
 /// Struct to hold companding parameters.
 #[derive(Debug, Clone, Copy)]
 pub struct CompanderParams {
@@ -112,7 +148,6 @@ pub struct CompanderParams {
     /// Expander parameters for expansion stage.
     pub expander: ExpanderParams,
 }
-
 
 /// Struct to hold expander parameters.
 #[derive(Debug, Clone, Copy)]
@@ -171,6 +206,165 @@ pub enum FilterSlope {
     TwoPole,
     // Extend with more complex slopes if needed
 }
+
+
+/// Performs role-based dynamic compression.
+///
+/// # Parameters:
+/// - `role1`: Role of the primary signal (dominant).
+/// - `role2`: Role of the secondary signal (subservient).
+/// - `signal1`: Samples of `role1` as Vec<Vec<f32>>.
+/// - `signal2`: Samples of `role2` as Vec<Vec<f32>>.
+/// - `intensity`: Effect strength [0.0, 1.0].
+///
+/// # Returns:
+/// - `Result<Vec<Vec<f32>>, String>`: Processed signal or an error.
+pub fn role_based_compression(
+    role1: Role, 
+    role2: Role, 
+    signal1: Vec<Vec<f32>>, 
+    signal2: Vec<Vec<f32>>, 
+    intensity: f32,
+) -> Result<Vec<Vec<f32>>, String> {
+    // Define compression parameters based on roles
+    let compressor_params = match (role1, role2) {
+        (Role::Kick, Role::Bass) => CompressorParams {
+            threshold: -24.0,
+            ratio: 1f32/4.0,
+            attack_time: 0.01,
+            release_time: 0.3,
+            wet_dry_mix: 1.0,
+            ..Default::default()
+        },
+        (Role::Bass, Role::Lead) => CompressorParams {
+            threshold: -18.0,
+            ratio: 3.0,
+            attack_time: 0.02,
+            release_time: 0.2,
+            wet_dry_mix: 0.8,
+            ..Default::default()
+        },
+        _ => CompressorParams::default(), // Generic settings
+    };
+
+    // Call the core compression function
+    Ok(dynamic_compression(signal1, signal2, compressor_params, intensity))
+}
+
+
+
+/// Applies dynamic range compression with sidechain support, adapting to channel configurations.
+///
+/// # Parameters:
+/// - `input`: Input audio samples (e.g., bass).
+/// - `sidechain`: Sidechain audio samples (e.g., kick).
+/// - `compressor_params`: Compressor parameters.
+/// - `intensity`: Range [0.0, 1.0], scaling the effect strength.
+///
+/// # Returns:
+/// - `Vec<Vec<f32>>`: Processed audio channels.
+pub fn dynamic_compression(
+    input: Vec<Vec<f32>>,
+    sidechain: Vec<Vec<f32>>,
+    compressor_params: CompressorParams,
+    intensity: f32,
+) -> Vec<Vec<f32>> {
+    let n_input = input.len();
+    let n_sidechain = sidechain.len();
+
+    // Ensure intensity is within bounds
+    let intensity = intensity.clamp(0.0, 1.0);
+
+    // Helper function to process and scale a single channel
+    let compress_and_scale = |input_channel: &[f32], sidechain_channel: &[f32]| -> Vec<f32> {
+        let compressed = compressor(input_channel, compressor_params, Some(sidechain_channel))
+            .expect("Compression failed.");
+        compressed
+            .iter()
+            .zip(input_channel.iter())
+            .map(|(&compressed_sample, &original_sample)| {
+                compressed_sample * intensity + original_sample * (1.0 - intensity)
+            })
+            .collect()
+    };
+
+    match (n_input, n_sidechain) {
+        // Mono input and mono sidechain
+        (1, 1) => vec![compress_and_scale(&input[0], &sidechain[0])],
+
+        // Mono input and stereo sidechain
+        (1, 2) => {
+            let downmixed_sidechain = downmix_stereo_to_mono(&sidechain[0], &sidechain[1])
+                .expect("Failed to downmix sidechain.");
+            vec![compress_and_scale(&input[0], &downmixed_sidechain)]
+        }
+
+        // Stereo input and mono sidechain
+        (2, 1) => vec![
+            compress_and_scale(&input[0], &sidechain[0]),
+            compress_and_scale(&input[1], &sidechain[0]),
+        ],
+
+        // Stereo input and stereo sidechain
+        (2, 2) => {
+            let downmixed_sidechain = downmix_stereo_to_mono(&sidechain[0], &sidechain[1])
+                .expect("Failed to downmix sidechain.");
+            vec![
+                compress_and_scale(&input[0], &downmixed_sidechain),
+                compress_and_scale(&input[1], &downmixed_sidechain),
+            ]
+        }
+
+        // Mono or stereo input with no sidechain
+        (_, 0) => input, // Pass-through
+
+        // Unsupported configurations
+        _ => panic!(
+            "Unsupported channel configuration: input = {}, sidechain = {}",
+            n_input, n_sidechain
+        ),
+    }
+}
+
+
+
+/// Returns the attack time based on the role.
+fn attack_time_for_role(role: Role) -> f32 {
+    match role {
+        Role::Kick | Role::Bass => 0.01,
+        Role::Perc | Role::Hats => 0.005,
+        Role::Lead | Role::Chords => 0.02,
+    }
+}
+
+/// Returns the release time based on the role.
+fn release_time_for_role(role: Role) -> f32 {
+    match role {
+        Role::Kick | Role::Bass => 0.2,
+        Role::Perc | Role::Hats => 0.1,
+        Role::Lead | Role::Chords => 0.3,
+    }
+}
+
+/// Downmixes a stereo signal to mono, maintaining equal power.
+///
+/// # Parameters
+/// - `left`: Left channel samples.
+/// - `right`: Right channel samples.
+///
+/// # Returns
+/// - `Vec<f32>`: Mono samples with equal power from both channels.
+pub fn downmix_stereo_to_mono(left: &[f32], right: &[f32]) -> Result<Vec<f32>, String> {
+    if left.len() != right.len() {
+        return Err("Channel length mismatch.".to_string());
+    }
+
+    let factor = 1.0 / (2.0f32.sqrt());
+    Ok(left.iter().zip(right.iter()).map(|(&l, &r)| factor * (l + r)).collect())
+}
+
+
+
 
 
 /// Converts time in seconds to a smoothing coefficient.
@@ -764,23 +958,6 @@ fn apply_compression(sample: f32, threshold: f32, ratio: f32) -> f32 {
 }
 
 
-/// Applies dynamic range compression with sidechain support.
-///
-/// # Parameters
-/// - `samples`: Input audio samples.
-/// - `params`: Compressor parameters.
-/// - `sidechain`: Sidechain input samples to control compression.
-///
-/// # Returns
-/// - `Result<Vec<f32>, String>`: Compressed samples or an error if parameters are invalid.
-pub fn compressor_with_sidechain(
-    samples: &[f32],
-    params: CompressorParams,
-    sidechain: &[f32],
-) -> Result<Vec<f32>, String> {
-    compressor(samples, params, Some(sidechain))
-}
-
 /// Applies dynamic range expansion with sidechain support.
 ///
 /// # Parameters
@@ -896,6 +1073,11 @@ pub fn soft_clipper(samples: &[f32], clip_threshold: f32) -> Result<Vec<f32>, St
         .collect())
 }
 
+
+
+
+
+
 /// Normalizes the samples to a target maximum amplitude.
 ///
 /// # Parameters
@@ -959,6 +1141,50 @@ pub fn gate_with_sidechain(
 mod tests {
     use super::*;
 
+    #[test]
+    fn test_compress_bass_to_kick() {
+        // Define file paths for static assets
+        let input_path = &dev_audio_asset("bass.wav");  
+        let sidechain_path = &dev_audio_asset("beat.wav"); 
+        let output_path = &dev_audio_asset("test-compressed_bass_beat.wav");
+
+        // Load signals
+        let (input_audio, input_sample_rate) =
+            read_audio_file(input_path).expect("Failed to read input file.");
+        let (sidechain_audio, sidechain_sample_rate) =
+            read_audio_file(sidechain_path).expect("Failed to read sidechain file.");
+
+        // Ensure sample rates match
+        assert_eq!(
+            input_sample_rate, sidechain_sample_rate,
+            "Input and sidechain sample rates must match."
+        );
+
+        // Perform role-based compression
+        let processed_audio = role_based_compression(
+            Role::Bass,
+            Role::Kick,
+            input_audio,
+            sidechain_audio,
+            0.8, // Intensity
+        )
+        .expect("Role-based compression failed.");
+
+        // Write the output to a file
+        write_audio(input_sample_rate as usize, processed_audio, output_path);
+
+        // Verify output file exists
+        assert!(
+            std::path::Path::new(output_path).exists(),
+            "Output file not found: {}",
+            output_path
+        );
+
+        println!("Test passed! Compressed audio written to '{}'", output_path);
+    }
+
+    
+
     /// Helper function to create default CompressorParams for testing.
     fn default_compressor_params() -> CompressorParams {
         CompressorParams {
@@ -978,6 +1204,7 @@ mod tests {
             enable_limiter: false,
             limiter_threshold: None,
             envelope_shaping: None,
+            ..Default::default()
         }
     }
 
@@ -1044,32 +1271,7 @@ mod tests {
             );
         }
     }
-
-    #[test]
-    fn test_compressor_with_sidechain() {
-        let input_samples = vec![0.0f32, 0.5f32, 1.0f32, 1.5f32, 2.0f32];
-        let sidechain_samples = vec![0.0f32, 0.2f32, 0.4f32, 0.6f32, 0.8f32];
-        let mut compressor_params = default_compressor_params();
-        compressor_params.threshold = 1.0f32;
-        compressor_params.ratio = 2.0f32;
-        compressor_params.attack_time = 0.0f32; // Instantaneous
-        compressor_params.release_time = 0.0f32; // Instantaneous
-        compressor_params.wet_dry_mix = 1.0f32; // Fully wet
-        compressor_params.enable_limiter = false;
-
-        let compressed = compressor_with_sidechain(&input_samples, compressor_params, &sidechain_samples).unwrap();
-
-        let expected_samples = vec![0.0f32, 0.5f32, 1.0f32, 1.5f32, 2.0f32];
-
-        for (output, expected) in compressed.iter().zip(expected_samples.iter()) {
-            assert!(
-                (*output - *expected).abs() < 1e-6,
-                "Output: {}, Expected: {}",
-                output,
-                expected
-            );
-        }
-    }
+    
 
     #[test]
     fn test_envelope_follower_peak() {
@@ -1206,14 +1408,39 @@ pub fn make_beat_bussin_with_roll(input_path: &str, output_path: &str) {
         processed_audio.push(compressed);
     }
 
-    write_audio(output_path, &processed_audio, sample_rate);
+    write_audio(sample_rate as usize, processed_audio, output_path);
 }
 
+/// Generate randomized compressor parameters within defined ranges.
+fn roll_compressor_params(min_threshold: f32, max_threshold: f32, 
+                          min_ratio: f32, max_ratio: f32,
+                          min_attack: f32, max_attack: f32,
+                          min_release: f32, max_release: f32) -> CompressorParams {
+    let mut rng = rand::thread_rng();
+    CompressorParams {
+        threshold: rng.gen_range(min_threshold..max_threshold),
+        ratio: rng.gen_range(min_ratio..max_ratio),
+        knee_width: rng.gen_range(0.0..1.0), // Default range for knee width
+        makeup_gain: rng.gen_range(0.5..2.0), // Amplify or attenuate post-compression
+        attack_time: rng.gen_range(min_attack..max_attack),
+        release_time: rng.gen_range(min_release..max_release),
+        lookahead_time: None, // Can add lookahead randomization if desired
+        detection_method: EnvelopeMethod::Peak,
+        hold_time: None,
+        wet_dry_mix: rng.gen_range(0.5..1.0), // Ensure mostly wet signal
+        sidechain_filter: None,
+        auto_gain: false,
+        ratio_slope: RatioSlope::Linear,
+        enable_limiter: false,
+        limiter_threshold: None,
+        envelope_shaping: None,
+    }
+}
 
 #[test]
 fn test_make_beat_bussin_with_roll() {
-    let input_path = "beat.wav";
-    let output_path = "test-output-bussin-roll.wav";
+    let input_path = &dev_audio_asset("beat.wav");
+    let output_path = &dev_audio_asset("test-output-bussin-roll.wav");
 
     println!("Testing make_beat_bussin_with_roll from '{}' to '{}'", input_path, output_path);
 
@@ -1243,8 +1470,8 @@ fn test_make_beat_bussin_with_roll() {
 #[test]
 fn test_make_beat_bussin() {
     use crate::analysis::sampler::{read_audio_file, write_audio_file, AudioFormat};
-    let input_path = "beat.wav";
-    let output_path = "test-output-bussin.wav";
+    let input_path = &dev_audio_asset("beat.wav");
+    let output_path = &dev_audio_asset("test-output-bussin.wav");
 
     println!("Testing make_beat_bussin from '{}' to '{}'", input_path, output_path);
 

@@ -13,9 +13,9 @@ use crate::types::synthesis::{MacroMotion, Range};
 static one: f32 = 1f32;
 static half: f32 = 0.5f32;
 
-const MIN_DB: f32 = -60f32;
-const MAX_DB: f32 = 0f32;
-const DYNAMIC_RANGE_DB: f32 = MAX_DB - MIN_DB;
+pub const MIN_DB: f32 = -60f32;
+pub const MAX_DB: f32 = 0f32;
+pub const DYNAMIC_RANGE_DB: f32 = MAX_DB - MIN_DB;
 
 #[derive(Copy, Clone, Debug)]
 /// A set of three dials for managing the parameters of these predefined methods.
