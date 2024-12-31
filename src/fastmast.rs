@@ -5,7 +5,7 @@ use rubato::{SincFixedIn, SincInterpolationParameters, Resampler, SincInterpolat
 use crate::synth::SR;
 
 /// Load and resample audio if necessary
-fn load_and_resample_audio(input_path: &str, target_sample_rate: u32) -> (Vec<Vec<f32>>, u32) {
+pub fn load_and_resample_audio(input_path: &str, target_sample_rate: u32) -> (Vec<Vec<f32>>, u32) {
     let (audio, input_sample_rate) = read_audio_file(input_path)
         .unwrap_or_else(|err| panic!("Failed to read input file '{}': {}", input_path, err));
 
