@@ -1,19 +1,19 @@
 use super::*;
-use crate::fm::*;
 use crate::analysis::melody::{eval_odr_level, LevelMacro, Levels, ODRMacro, ODR};
+use crate::fm::*;
 
 /// Creates a renderable stem using FM synthesis
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-    Renderable2::FMOp((
-        melody,
-        arf.clone(),
-        dexed_bass,
-        vec![], // Delay1
-        vec![], // Delay2
-        vec![], // Reverb1
-        vec![], // Reverb2
-    )) ;
-    simple_tacet(melody)
+  Renderable2::FMOp((
+    melody,
+    arf.clone(),
+    dexed_bass,
+    vec![], // Delay1
+    vec![], // Delay2
+    vec![], // Reverb1
+    vec![], // Reverb2
+  ));
+  simple_tacet(melody)
 }
 
 /// A rich bass synth evoking distorted bassoon.  
@@ -24,22 +24,16 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 /// op3 offers the upper body of the woodwind timbre
 /// op4 gives it the bite on attack
 pub fn dexed_bass(
-  conf:&Conf, 
-  arf:&Arf,
-  note:&Note, 
-  cps: f32, 
-  line_length_cycles:f32, 
-  curr_pos_cycles:f32,
-  velocity: f32
+  conf: &Conf, arf: &Arf, note: &Note, cps: f32, line_length_cycles: f32, curr_pos_cycles: f32, velocity: f32,
 ) -> Vec<Operator> {
   let amp = note.2;
 
-  let p:f32 = curr_pos_cycles / line_length_cycles;
+  let p: f32 = curr_pos_cycles / line_length_cycles;
   let freq = note_to_freq(note);
-  let n_cycles:f32 = note_to_cycles(note);
+  let n_cycles: f32 = note_to_cycles(note);
 
   // The percentage p that will be completed from start to end of this note
-  let note_inc_p:f32 = n_cycles / curr_pos_cycles;
+  let note_inc_p: f32 = n_cycles / curr_pos_cycles;
   let mut rng = thread_rng();
 
   let op3_detune_cents = get_dexed_detune(freq, 2);
@@ -51,9 +45,10 @@ pub fn dexed_bass(
   let mod_gain = mod_index_by_moment(note, arf);
   let gain = amp * visibility_gain(arf.visibility);
 
-  let mut gen_mul= || -> Envelope {
+  let mut gen_mul = || -> Envelope {
     let mut rng = thread_rng();
-    Envelope::SampleBased { samples: ranger::eval_knob_mod(
+    Envelope::SampleBased {
+      samples: ranger::eval_knob_mod(
         ranger::amod_unit,
         &Knob {
           a: match arf.presence {
@@ -72,11 +67,9 @@ pub fn dexed_bass(
         cps,
         op_freq,
         n_cycles,
-      )
+      ),
     }
   };
-
-
 
   let mut op2 = Operator {
     mod_index_env_sum: Envelope::SampleBased {
@@ -103,7 +96,7 @@ pub fn dexed_bass(
           },
           cps,
           freq,
-          n_cycles
+          n_cycles,
         ),
       },
       mod_index_env_sum: Envelope::SampleBased {
@@ -121,7 +114,10 @@ pub fn dexed_bass(
       },
       ..Operator::modulator(3f32, cascaded_gain(mod_gain, 2) * dx_to_mod_index(75.0))
     }),
-    ..Operator::modulator(in_range(&mut rng, 1f32, 3f32), cascaded_gain(mod_gain, 1) * dx_to_mod_index(75.0))
+    ..Operator::modulator(
+      in_range(&mut rng, 1f32, 3f32),
+      cascaded_gain(mod_gain, 1) * dx_to_mod_index(75.0),
+    )
   };
 
   let op3 = Operator {
@@ -148,13 +144,13 @@ pub fn dexed_bass(
         },
         cps,
         freq,
-        n_cycles
+        n_cycles,
       ),
     },
     modulators: vec![ModulationSource::Feedback(0.75)],
     ..Operator::modulator(
-      in_range(&mut rng,  2.9, 3.013) + op3_detune_cents,
-      cascaded_gain(mod_gain, 1) *  dx_to_mod_index(61.0),
+      in_range(&mut rng, 2.9, 3.013) + op3_detune_cents,
+      cascaded_gain(mod_gain, 1) * dx_to_mod_index(61.0),
     )
   };
 
@@ -179,11 +175,14 @@ pub fn dexed_bass(
         },
       ),
     },
-    ..Operator::modulator(op_freq * 2.0f32 + op6_detune_cents,  cascaded_gain(mod_gain, 2) * dx_to_mod_index(70.0))
+    ..Operator::modulator(
+      op_freq * 2.0f32 + op6_detune_cents,
+      cascaded_gain(mod_gain, 2) * dx_to_mod_index(70.0),
+    )
   };
 
   let op5 = Operator {
-    mod_index_env_mul: gen_mul(), 
+    mod_index_env_mul: gen_mul(),
     mod_index_env_sum: Envelope::SampleBased {
       samples: eval_odr_level(
         cps,
@@ -204,7 +203,10 @@ pub fn dexed_bass(
       ),
     },
     modulators: single_modulator(op6),
-    ..Operator::modulator(op_freq * 2.0f32 + op5_detune_cents, cascaded_gain(mod_gain, 1) * dx_to_mod_index(60.0))
+    ..Operator::modulator(
+      op_freq * 2.0f32 + op5_detune_cents,
+      cascaded_gain(mod_gain, 1) * dx_to_mod_index(60.0),
+    )
   };
 
   // burst of harmonics on note entry
@@ -219,11 +221,14 @@ pub fn dexed_bass(
         },
         cps,
         freq,
-        n_cycles
+        n_cycles,
       ),
     },
     modulators: single_modulator(op5.clone()),
-    ..Operator::modulator(op_freq * in_range(&mut rng,  0.997, 1.003), cascaded_gain(mod_gain, 0) *  dx_to_mod_index(75.0))
+    ..Operator::modulator(
+      op_freq * in_range(&mut rng, 0.997, 1.003),
+      cascaded_gain(mod_gain, 0) * dx_to_mod_index(75.0),
+    )
   };
   // burst of harmonics on note entry
   let op7 = Operator {
@@ -237,10 +242,13 @@ pub fn dexed_bass(
         },
         cps,
         freq,
-        n_cycles
+        n_cycles,
       ),
     },
-    ..Operator::modulator(in_range(&mut rng,  0.997, 1.003), cascaded_gain(mod_gain, 0) *  dx_to_mod_index(75.0))
+    ..Operator::modulator(
+      in_range(&mut rng, 0.997, 1.003),
+      cascaded_gain(mod_gain, 0) * dx_to_mod_index(75.0),
+    )
   };
 
   let mut op1 = Operator {
@@ -250,7 +258,7 @@ pub fn dexed_bass(
       ModulationSource::Operator(op7),
     ],
     ..Operator::carrier2(freq, gain)
-  }; 
+  };
 
   if let Energy::High = arf.energy {
     op1.modulators.push(ModulationSource::Operator(op3));

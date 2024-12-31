@@ -857,35 +857,34 @@ mod tests {
     }
   }
 
+  fn dx7_simplified_5_8(base_frequency: f32) -> Vec<Operator> {
+    // Carrier 1 (op1) and its modulator (op2)
+    let op2 = Operator::modulator(base_frequency * 1.0, dx_to_mod_index(84.0)); // Ratio: 1.0, Mod Index: 84
+    let op1 = Operator {
+      frequency: base_frequency * 1.0, // Carrier: 1.0 Hz
+      modulators: single_modulator(op2),
+      ..Operator::carrier(base_frequency * 1.0)
+    };
 
-fn dx7_simplified_5_8(base_frequency: f32) -> Vec<Operator> {
-  // Carrier 1 (op1) and its modulator (op2)
-  let op2 = Operator::modulator(base_frequency * 1.0, dx_to_mod_index(84.0)); // Ratio: 1.0, Mod Index: 84
-  let op1 = Operator {
-    frequency: base_frequency * 1.0, // Carrier: 1.0 Hz
-    modulators: single_modulator(op2),
-    ..Operator::carrier(base_frequency * 1.0)
-  };
+    // Carrier 2 (op3) and its modulator (op4)
+    let op4 = Operator::modulator(base_frequency * 2.0, dx_to_mod_index(84.0)); // Ratio: 2.0, Mod Index: 84
+    let op3 = Operator {
+      frequency: base_frequency * 1.288, // Carrier: 1.288 Hz
+      modulators: single_modulator(op4),
+      ..Operator::carrier(base_frequency * 1.288)
+    };
 
-  // Carrier 2 (op3) and its modulator (op4)
-  let op4 = Operator::modulator(base_frequency * 2.0, dx_to_mod_index(84.0)); // Ratio: 2.0, Mod Index: 84
-  let op3 = Operator {
-    frequency: base_frequency * 1.288, // Carrier: 1.288 Hz
-    modulators: single_modulator(op4),
-    ..Operator::carrier(base_frequency * 1.288)
-  };
+    // Carrier 3 (op5) and its modulator (op6)
+    let op6 = Operator::modulator(base_frequency * 3.0, dx_to_mod_index(84.0)); // Ratio: 3.0, Mod Index: 84
+    let op5 = Operator {
+      frequency: base_frequency * 2.042, // Carrier: 2.042 Hz
+      modulators: single_modulator(op6),
+      ..Operator::carrier(base_frequency * 2.042)
+    };
 
-  // Carrier 3 (op5) and its modulator (op6)
-  let op6 = Operator::modulator(base_frequency * 3.0, dx_to_mod_index(84.0)); // Ratio: 3.0, Mod Index: 84
-  let op5 = Operator {
-    frequency: base_frequency * 2.042, // Carrier: 2.042 Hz
-    modulators: single_modulator(op6),
-    ..Operator::carrier(base_frequency * 2.042)
-  };
-
-  // Return all carriers as independent patches
-  vec![op1, op3, op5]
-}
+    // Return all carriers as independent patches
+    vec![op1, op3, op5]
+  }
 
   #[test]
   fn test_dx_clone() {

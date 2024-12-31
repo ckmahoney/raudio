@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub enum AudioFormat {
-  Mono(Vec<f32>),                 // Single-channel audio
-  Stereo(Vec<f32>, Vec<f32>),     // Separate left and right channels
-  Interleaved(Vec<f32>),          // Interleaved stereo samples
+  Mono(Vec<f32>),             // Single-channel audio
+  Stereo(Vec<f32>, Vec<f32>), // Separate left and right channels
+  Interleaved(Vec<f32>),      // Interleaved stereo samples
 }
 
 /// Reads metadata from a WAV file.
@@ -92,44 +92,43 @@ pub fn read_audio_file(path: &str) -> Result<(Vec<Vec<f32>>, u32), Box<dyn std::
   let mut channel_samples: Vec<Vec<f32>> = vec![vec![]; num_channels];
 
   match spec.sample_format {
-      hound::SampleFormat::Int => match spec.bits_per_sample {
-          8 => {
-              for (i, sample) in reader.samples::<i8>().enumerate() {
-                  let sample = (sample.unwrap() as f32 - 128.0) / 128.0; // Normalize [-1, 1]
-                  channel_samples[i % num_channels].push(sample);
-              }
-          }
-          16 => {
-              for (i, sample) in reader.samples::<i16>().enumerate() {
-                  let sample = sample.unwrap() as f32 / i16::MAX as f32;
-                  channel_samples[i % num_channels].push(sample);
-              }
-          }
-          24 => {
-              let raw_samples = read_24bit_samples(reader.into_inner())?;
-              for (i, sample) in raw_samples.iter().enumerate() {
-                  channel_samples[i % num_channels].push(*sample);
-              }
-          }
-          32 => {
-              for (i, sample) in reader.samples::<i32>().enumerate() {
-                  let sample = sample.unwrap() as f32 / i32::MAX as f32;
-                  channel_samples[i % num_channels].push(sample);
-              }
-          }
-          _ => return Err(format!("Unsupported bit depth: {}", spec.bits_per_sample).into()),
-      },
-      hound::SampleFormat::Float => {
-          for (i, sample) in reader.samples::<f32>().enumerate() {
-              let sample = sample.unwrap(); // Floating-point samples are already normalized
-              channel_samples[i % num_channels].push(sample);
-          }
+    hound::SampleFormat::Int => match spec.bits_per_sample {
+      8 => {
+        for (i, sample) in reader.samples::<i8>().enumerate() {
+          let sample = (sample.unwrap() as f32 - 128.0) / 128.0; // Normalize [-1, 1]
+          channel_samples[i % num_channels].push(sample);
+        }
       }
+      16 => {
+        for (i, sample) in reader.samples::<i16>().enumerate() {
+          let sample = sample.unwrap() as f32 / i16::MAX as f32;
+          channel_samples[i % num_channels].push(sample);
+        }
+      }
+      24 => {
+        let raw_samples = read_24bit_samples(reader.into_inner())?;
+        for (i, sample) in raw_samples.iter().enumerate() {
+          channel_samples[i % num_channels].push(*sample);
+        }
+      }
+      32 => {
+        for (i, sample) in reader.samples::<i32>().enumerate() {
+          let sample = sample.unwrap() as f32 / i32::MAX as f32;
+          channel_samples[i % num_channels].push(sample);
+        }
+      }
+      _ => return Err(format!("Unsupported bit depth: {}", spec.bits_per_sample).into()),
+    },
+    hound::SampleFormat::Float => {
+      for (i, sample) in reader.samples::<f32>().enumerate() {
+        let sample = sample.unwrap(); // Floating-point samples are already normalized
+        channel_samples[i % num_channels].push(sample);
+      }
+    }
   };
 
   Ok((channel_samples, spec.sample_rate))
 }
-
 
 /// Reads 24-bit samples from a WAV file.
 fn read_24bit_samples<R: std::io::Read + std::io::Seek>(

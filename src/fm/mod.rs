@@ -5,13 +5,13 @@ use crate::synth::{pi, pi2, NFf, SRf, NF, SR};
 use rand::{self, thread_rng, Rng};
 
 mod dex;
+mod gen;
 mod operator;
 mod presets;
-mod gen;
 mod testhelp;
-use crate::analysis::monic_theory::note_to_freq;
 use crate::analysis::freq::slice_signal;
 use crate::analysis::melody::{eval_odr_level, LevelMacro, Levels, ODRMacro, ODR};
+use crate::analysis::monic_theory::note_to_freq;
 use crate::phrasing::ranger::KnobMacro;
 use crate::render::get_knob;
 use crate::types::synthesis::MacroMotion;
@@ -184,7 +184,6 @@ fn render_many(cps: f32, freq: f32, n_cycles: f32, depth: u32) -> (Vec<f32>, Vec
   (nested_signal, reverse_signal, combined_signal)
 }
 
-
 fn remaining_bandwidth(
   nf: f32,                     // Nyquist frequency
   carrier: f32,                // Carrier frequency
@@ -270,7 +269,6 @@ fn the_fm_song() {
   let filename = format!("dev-audio/mod-song");
   engrave::samples(SR, &song, &filename);
 }
-
 
 #[test]
 fn test_fm() {

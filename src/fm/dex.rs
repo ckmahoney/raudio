@@ -74,7 +74,6 @@ mod tests {
   }
 }
 
-
 /// Render and mix signals for multiple operators into a single output signal.
 ///
 /// # Parameters
@@ -101,7 +100,6 @@ pub fn render_operators(operators: Vec<Operator>, n_cycles: f32, cps: f32, sampl
   mixed_signal
 }
 
-
 /// Render and mix signals for multiple operators into a single output signal.
 ///
 /// # Parameters
@@ -112,7 +110,9 @@ pub fn render_operators(operators: Vec<Operator>, n_cycles: f32, cps: f32, sampl
 ///
 /// # Returns
 /// - A single vector of mixed samples.
-pub fn render_operators_gain(operators: Vec<Operator>, gain:f32, n_cycles: f32, cps: f32, sample_rate: usize) -> Vec<f32> {
+pub fn render_operators_gain(
+  operators: Vec<Operator>, gain: f32, n_cycles: f32, cps: f32, sample_rate: usize,
+) -> Vec<f32> {
   let n_samples = crate::time::samples_of_cycles(cps, n_cycles); // Total number of samples
   let operator_signals: Vec<Vec<f32>> =
     operators.iter().map(|operator| operator.render(n_cycles, cps, sample_rate)).collect();
@@ -135,7 +135,6 @@ pub fn dx_to_mod_index(dx_level: f32) -> f32 {
 pub fn single_modulator(op: Operator) -> Vec<ModulationSource> {
   vec![ModulationSource::Operator(op)]
 }
-
 
 /// Computes the effective center frequency and total resulting bandwidth of an operator.
 ///
@@ -183,15 +182,14 @@ pub fn single_modulator(op: Operator) -> Vec<ModulationSource> {
 pub fn compute_bandwidth(operator: &Operator, offset_frequency: f32, t: f32) -> (f32, f32) {
   // Calculate the effective frequency of the operator
   let f = operator.frequency + offset_frequency;
-  // Calculate the base modulation index  
+  // Calculate the base modulation index
   let mut base_mod_index = operator.modulation_index;
 
   // Apply envelopes for modulation index
   base_mod_index += operator.mod_index_env_sum.get_at(t, SR);
-  
+
   base_mod_index *= operator.mod_index_env_mul.get_at(t, SR);
 
-  
   // Handle the case where there are no modulators
   if operator.modulators.is_empty() {
     if base_mod_index > 0.0 {
@@ -259,11 +257,7 @@ pub fn compute_bandwidth(operator: &Operator, offset_frequency: f32, t: f32) -> 
 /// }
 /// ```
 pub fn get_remaining_range(
-  operator: &Operator,
-  offset_frequency: f32,
-  t: f32,
-  min_freq: f32,
-  max_freq: f32,
+  operator: &Operator, offset_frequency: f32, t: f32, min_freq: f32, max_freq: f32,
 ) -> Option<(f32, f32)> {
   // 1. Compute center frequency and total bandwidth using the existing function.
   let (center_freq, total_bw) = compute_bandwidth(operator, offset_frequency, t);
@@ -275,32 +269,31 @@ pub fn get_remaining_range(
 
   // Debug output for edges and operator information.
   println!(
-      "[DEBUG] get_remaining_range: operator={:?}, lower_edge={:.2}, upper_edge={:.2}",
-      operator, lower_edge, upper_edge
+    "[DEBUG] get_remaining_range: operator={:?}, lower_edge={:.2}, upper_edge={:.2}",
+    operator, lower_edge, upper_edge
   );
 
   // 3. Check if the band is strictly within bounds.
   if lower_edge <= min_freq || upper_edge >= max_freq {
-      println!(
-          "[DEBUG] get_remaining_range: Out of bounds! min_freq={:.2}, max_freq={:.2}",
-          min_freq, max_freq
-      );
-      return None;
+    println!(
+      "[DEBUG] get_remaining_range: Out of bounds! min_freq={:.2}, max_freq={:.2}",
+      min_freq, max_freq
+    );
+    return None;
   }
 
   // 4. Compute distances from edges to bounds.
-  let dist_below = lower_edge - min_freq;  // strictly > 0 if in range
-  let dist_above = max_freq - upper_edge;  // strictly > 0 if in range
+  let dist_below = lower_edge - min_freq; // strictly > 0 if in range
+  let dist_above = max_freq - upper_edge; // strictly > 0 if in range
 
   // Debug output for distances.
   println!(
-      "[DEBUG] get_remaining_range: distances below={:.2}, above={:.2}",
-      dist_below, dist_above
+    "[DEBUG] get_remaining_range: distances below={:.2}, above={:.2}",
+    dist_below, dist_above
   );
 
   Some((dist_below, dist_above))
 }
-
 
 fn scale_volume(operator: &Operator, gain: f32) -> Operator {
   // Clone the operator to create a new one with the updated values
@@ -360,9 +353,9 @@ pub fn get_remaining_bandwidth(operator: &Operator, max_bandwidth: f32, t: f32) 
 
     let mut base_mod_index = operator.modulation_index;
     base_mod_index += operator.mod_index_env_sum.get_at(t, SR);
-    
+
     base_mod_index *= operator.mod_index_env_mul.get_at(t, SR);
-    
+
     let mut total_bandwidth = 2.0 * base_mod_index * f;
 
     for modulator in &operator.modulators {

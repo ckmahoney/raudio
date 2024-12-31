@@ -361,10 +361,10 @@ pub mod render {
     pub clippers: Clippers,
   }
 
-  use rand::seq::SliceRandom;
-  use rand::{thread_rng, Rng};
   use crate::fm::Operator;
   use crate::Arf;
+  use rand::seq::SliceRandom;
+  use rand::{thread_rng, Rng};
 
   impl Feel {
     pub fn unit() -> Self {
@@ -493,7 +493,6 @@ pub mod render {
     Vec<crate::reverb::convolution::ReverbParams>,
     Vec<crate::reverb::convolution::ReverbParams>,
   );
-  
 
   /// SampleBuffer from input samples (like perc)
   /// Tuple represents
@@ -508,7 +507,6 @@ pub mod render {
     Vec<crate::reverb::convolution::ReverbParams>,
     Vec<crate::reverb::convolution::ReverbParams>,
   );
-
 
   pub type ArfFM = fn(&Conf, &Arf, &Note, f32, f32, f32, f32) -> Vec<Operator>;
 

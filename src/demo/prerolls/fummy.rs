@@ -27,7 +27,7 @@ fn bass_melody() -> Melody<Note> {
     (2i32, 1i32),
   ];
 
-  let amps: Vec<Ampl> = vec![1f32,  0.66f32, 1f32, 0.66f32, 1f32, 0.66f32, 0.75f32]
+  let amps: Vec<Ampl> = vec![1f32, 0.66f32, 1f32, 0.66f32, 1f32, 0.66f32, 0.75f32]
     .iter()
     .map(|x| x * db_to_amp(-6f32))
     .collect::<Vec<f32>>();
@@ -304,7 +304,7 @@ fn demonstrate() {
   let bass_melody = bass_melody();
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
-  let conf:Conf =  Conf { cps, root };
+  let conf: Conf = Conf { cps, root };
 
   let stem_lead = lead::renderable(&conf, &lead_melody, &lead_arf());
   let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf());
@@ -315,12 +315,12 @@ fn demonstrate() {
 
   use Renderable::{Group, Instance};
   let renderables: Vec<Renderable2> = vec![
-    // stem_kick, 
-    // stem_perc, 
-    // stem_hats, 
-    stem_bass, 
-    stem_chords, 
-    stem_lead
+    // stem_kick,
+    // stem_perc,
+    // stem_hats,
+    stem_bass,
+    stem_chords,
+    stem_lead,
   ];
 
   use crate::types::timbre::Enclosure;
@@ -330,10 +330,10 @@ fn demonstrate() {
   let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Room, complexity);
   let keep_stems = Some(path.as_str());
   let group_reverbs = vec![];
-  let mix = render::combiner_with_reso2(&conf, &renderables, &vec![],  &group_reverbs, keep_stems);
+  let mix = render::combiner_with_reso2(&conf, &renderables, &vec![], &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", location(demo_name), demo_name);
   render::engrave::samples(SR, &mix, &filename);
-} 
+}
 
 #[test]
 fn test_demonstrate() {

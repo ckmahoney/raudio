@@ -7,24 +7,24 @@
 #![allow(unused_must_use)]
 #![allow(non_upper_case_globals)]
 
-use rand::{self, rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
-use reverb::convolution::ReverbParams;
-use std::env;
-use std::process;
-use crate::synth::{SR,SRf};
 use crate::render::{Renderable, Renderable2};
+use crate::synth::{SRf, SR};
 use crate::types::render::*;
 use crate::types::synthesis;
 use crate::types::synthesis::*;
 use crate::types::timbre;
 use crate::types::timbre::*;
+use rand::{self, rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
+use reverb::convolution::ReverbParams;
+use std::env;
+use std::process;
 
 mod analysis;
 pub use analysis::monic_theory;
 mod demo;
 mod druid;
-mod files;
 mod fastmast;
+mod files;
 mod fm;
 mod inp;
 mod music;
@@ -42,37 +42,38 @@ fn main() {
   let args: Vec<String> = env::args().collect();
 
   if args.len() < 3 {
-      eprintln!(r#"Usage:
+    eprintln!(
+      r#"Usage:
   raudio playbook.json preset-name asset-dir asset-name
-  raudio apply-danceability input.wav output.wav"#);
-      process::exit(1);
+  raudio apply-danceability input.wav output.wav"#
+    );
+    process::exit(1);
   }
 
   match args[1].as_str() {
-      "apply-danceability" => {
-          if args.len() != 4 {
-              eprintln!(r#"Usage: raudio apply-danceability input.wav output.wav"#);
-              process::exit(1);
-          }
-          let input_path = &args[2];
-          let output_path = &args[3];
-          fastmast::apply_danceability(input_path, output_path);
+    "apply-danceability" => {
+      if args.len() != 4 {
+        eprintln!(r#"Usage: raudio apply-danceability input.wav output.wav"#);
+        process::exit(1);
       }
-      _ => {
-          // Default behavior: render_playbook
-          if args.len() < 5 {
-              eprintln!(r#"Usage: raudio playbook.json preset-name asset-dir asset-name"#);
-              process::exit(1);
-          }
-          let file_path = &args[1];
-          let preset_pack = &args[2];
-          let out_dir = &args[3];
-          let mixdown_name = &args[4];
-          render_playbook(out_dir, preset_pack, file_path, mixdown_name);
+      let input_path = &args[2];
+      let output_path = &args[3];
+      fastmast::apply_danceability(input_path, output_path);
+    }
+    _ => {
+      // Default behavior: render_playbook
+      if args.len() < 5 {
+        eprintln!(r#"Usage: raudio playbook.json preset-name asset-dir asset-name"#);
+        process::exit(1);
       }
+      let file_path = &args[1];
+      let preset_pack = &args[2];
+      let out_dir = &args[3];
+      let mixdown_name = &args[4];
+      render_playbook(out_dir, preset_pack, file_path, mixdown_name);
+    }
   }
 }
-
 
 // fn resample_audio(
 //     audio: Vec<Vec<f32>>,
@@ -116,8 +117,6 @@ fn main() {
 //         })
 //         .collect()
 // }
-
-
 
 fn parse_preset(s: &str) -> Option<Preset> {
   let src = s.to_lowercase();

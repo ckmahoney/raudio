@@ -1,31 +1,30 @@
 use super::*;
 use crate::synth::{SRf, SR};
 use crate::types::timbre::Visibility;
-use std::sync::Arc;
 use std::fmt;
-
+use std::sync::Arc;
 
 impl fmt::Debug for Operator {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      write!(
-          f,
-          "Operator {{ frequency: {}, modulation_index: {}, modulators: [",
-          self.frequency, self.modulation_index
-      )?;
-      for (i, modulator) in self.modulators.iter().enumerate() {
-          if i > 0 {
-              write!(f, ", ")?;
-          }
-          match modulator {
-              ModulationSource::Operator(op) => {
-                  write!(f, "Mod{{ freq: {}, index: {} }}", op.frequency, op.modulation_index)?;
-              }
-              ModulationSource::Feedback(gain) => {
-                  write!(f, "Feedback({})", gain)?;
-              }
-          }
+    write!(
+      f,
+      "Operator {{ frequency: {}, modulation_index: {}, modulators: [",
+      self.frequency, self.modulation_index
+    )?;
+    for (i, modulator) in self.modulators.iter().enumerate() {
+      if i > 0 {
+        write!(f, ", ")?;
       }
-      write!(
+      match modulator {
+        ModulationSource::Operator(op) => {
+          write!(f, "Mod{{ freq: {}, index: {} }}", op.frequency, op.modulation_index)?;
+        }
+        ModulationSource::Feedback(gain) => {
+          write!(f, "Feedback({})", gain)?;
+        }
+      }
+    }
+    write!(
           f,
           "], mod_index_env_mul: {:?}, mod_index_env_sum: {:?}, mod_freq_env_mul: {:?}, mod_freq_env_sum: {:?}, mod_gain_env_mul: {:?}, mod_gain_env_sum: {:?}, termination: {:?} }}",
           self.mod_index_env_mul,
@@ -39,49 +38,41 @@ impl fmt::Debug for Operator {
   }
 }
 
-
-
 impl fmt::Debug for Envelope {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Envelope::Constant(value) => write!(f, "Constant({})", value),
-            Envelope::Parametric {
-                attack,
-                decay,
-                sustain,
-                release,
-                min,
-                max,
-                mean,
-            } => write!(
-                f,
-                "Parametric {{ attack: {}, decay: {}, sustain: {}, release: {}, min: {}, max: {}, mean: {} }}",
-                attack, decay, sustain, release, min, max, mean
-            ),
-            Envelope::SampleBased { samples } => {
-                let sample_count = samples.len();
-                if sample_count < 11 {
-                    write!(f, "SampleBased {{ samples: {:?} }}", samples)
-                } else {
-                    let step = sample_count / 10;
-                    let displayed_samples: Vec<_> = samples
-                        .iter()
-                        .step_by(step.max(1))
-                        .take(10)
-                        .copied()
-                        .collect();
-                    write!(f, "SampleBased {{ samples: {:?} }}", displayed_samples)
-                }
-            }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Envelope::Constant(value) => write!(f, "Constant({})", value),
+      Envelope::Parametric {
+        attack,
+        decay,
+        sustain,
+        release,
+        min,
+        max,
+        mean,
+      } => write!(
+        f,
+        "Parametric {{ attack: {}, decay: {}, sustain: {}, release: {}, min: {}, max: {}, mean: {} }}",
+        attack, decay, sustain, release, min, max, mean
+      ),
+      Envelope::SampleBased { samples } => {
+        let sample_count = samples.len();
+        if sample_count < 11 {
+          write!(f, "SampleBased {{ samples: {:?} }}", samples)
+        } else {
+          let step = sample_count / 10;
+          let displayed_samples: Vec<_> = samples.iter().step_by(step.max(1)).take(10).copied().collect();
+          write!(f, "SampleBased {{ samples: {:?} }}", displayed_samples)
         }
+      }
     }
+  }
 }
-
 
 #[derive(Clone)]
 /// Represents an individual FM synthesis operator.
 /// Generally if modulatoin index is 0 the Operator identifies as a carrier and has a nonzero mod_gain
-/// Else if modulation_index is nonzero, it is a modulator and mod_gain is not 
+/// Else if modulation_index is nonzero, it is a modulator and mod_gain is not
 pub struct Operator {
   /// Base frequency of the operator in Hz.
   pub frequency: f32,
@@ -106,8 +97,8 @@ pub struct Operator {
 impl Default for Operator {
   fn default() -> Self {
     Operator {
-      frequency: 330.0,      
-      modulation_index: 0.0, 
+      frequency: 330.0,
+      modulation_index: 0.0,
       modulators: Vec::new(),
       mod_index_env_mul: Envelope::Constant(1f32),
       mod_index_env_sum: Envelope::Constant(0f32),
@@ -135,14 +126,14 @@ pub enum ModulationSource {
 
 impl fmt::Debug for ModulationSource {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      match self {
-          ModulationSource::Operator(operator) => {
-              write!(f, "Operator({:?})", operator)
-          }
-          ModulationSource::Feedback(gain) => {
-              write!(f, "Feedback({})", gain)
-          }
+    match self {
+      ModulationSource::Operator(operator) => {
+        write!(f, "Operator({:?})", operator)
       }
+      ModulationSource::Feedback(gain) => {
+        write!(f, "Feedback({})", gain)
+      }
+    }
   }
 }
 
@@ -201,9 +192,8 @@ impl Operator {
 
   pub fn eval(&self, t: f32, feedback_states: &mut [f32]) -> f32 {
     // Calculate the effective frequency considering modulation and envelopes
-    let effective_frequency = self.frequency
-      * self.mod_freq_env_mul.get_at(t, SR) 
-      + self.mod_freq_env_sum.get_at(t, SR) ;
+    let effective_frequency =
+      self.frequency * self.mod_freq_env_mul.get_at(t, SR) + self.mod_freq_env_sum.get_at(t, SR);
 
     let angular_frequency = pi2 * effective_frequency;
 
@@ -213,32 +203,30 @@ impl Operator {
     // Iterate over modulators and apply feedback/modulation
     for mod_source in &self.modulators {
       phase_offset += match mod_source {
-          ModulationSource::Operator(mod_op) => {
-              let sub_feedback_states = &mut feedback_states[feedback_offset..];
-              let feedback_count = count_feedbacks(&mod_op.modulators);
-              feedback_offset += feedback_count;
-  
-              let modulation_index = mod_op.modulation_index
-                  * mod_op.mod_index_env_mul.get_at(t, SR)
-                  + mod_op.mod_index_env_sum.get_at(t, SR);
-  
-              mod_op.eval(t, sub_feedback_states) * modulation_index
-          }
-          ModulationSource::Feedback(gain) => {
-              // Handle feedback correctly and accumulate phase
-              let feedback_signal = feedback_states[feedback_offset];
-              let feedback_mod_index = self.modulation_index
-                  * self.mod_index_env_mul.get_at(t, SR)
-                  + self.mod_index_env_sum.get_at(t, SR);
-  
-              let modulated_feedback = *gain * feedback_signal * feedback_mod_index;
-              feedback_states[feedback_offset] = (angular_frequency * t + feedback_signal).sin();
-  
-              feedback_offset += 1;
-              modulated_feedback
-          }
+        ModulationSource::Operator(mod_op) => {
+          let sub_feedback_states = &mut feedback_states[feedback_offset..];
+          let feedback_count = count_feedbacks(&mod_op.modulators);
+          feedback_offset += feedback_count;
+
+          let modulation_index =
+            mod_op.modulation_index * mod_op.mod_index_env_mul.get_at(t, SR) + mod_op.mod_index_env_sum.get_at(t, SR);
+
+          mod_op.eval(t, sub_feedback_states) * modulation_index
+        }
+        ModulationSource::Feedback(gain) => {
+          // Handle feedback correctly and accumulate phase
+          let feedback_signal = feedback_states[feedback_offset];
+          let feedback_mod_index =
+            self.modulation_index * self.mod_index_env_mul.get_at(t, SR) + self.mod_index_env_sum.get_at(t, SR);
+
+          let modulated_feedback = *gain * feedback_signal * feedback_mod_index;
+          feedback_states[feedback_offset] = (angular_frequency * t + feedback_signal).sin();
+
+          feedback_offset += 1;
+          modulated_feedback
+        }
       };
-  }
+    }
 
     // Compute the signal gain with envelopes
     let gain = self.mod_gain_env_mul.get_at(t, SR) * self.mod_gain_env_sum.get_at(t, SR);
@@ -262,7 +250,7 @@ impl Operator {
   }
 
   /// Constructs a standalone carrier operator (no modulators, no modulation index).
-  pub fn carrier2(frequency: f32, gain:f32) -> Self {
+  pub fn carrier2(frequency: f32, gain: f32) -> Self {
     Operator {
       frequency,
       modulation_index: 0.0,
@@ -314,8 +302,10 @@ pub enum Envelope {
     mean: f32,
   },
   /// A sample-based envelope defined by a series of precomputed samples.
-  SampleBased { samples: Vec<f32> },
-  Constant(f32)
+  SampleBased {
+    samples: Vec<f32>,
+  },
+  Constant(f32),
 }
 
 impl Envelope {
@@ -358,7 +348,7 @@ impl Envelope {
     }
   }
 
-  pub fn unary(gain:f32) -> Self {
+  pub fn unary(gain: f32) -> Self {
     Envelope::Parametric {
       attack: 0.0,
       decay: 0.0,
@@ -369,7 +359,6 @@ impl Envelope {
       mean: gain,
     }
   }
-
 
   /// Creates a unit parametric envelope for multiplicative modulation.
   pub fn unit_mul() -> Self {

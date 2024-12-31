@@ -294,7 +294,7 @@ fn test_hypnosis() {
   let mut cpss: f32 = base_cps;
 
   for i in 0..n_versions {
-    let mut ring= samp(cpss, root);
+    let mut ring = samp(cpss, root);
     for j in 0..n_loops {
       track.extend(&ring)
     }

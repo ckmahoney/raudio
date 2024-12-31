@@ -1,13 +1,13 @@
 pub mod delay;
+pub mod eng;
 pub mod freq;
+pub mod groovability;
 pub mod melody;
 pub mod monic_theory;
 pub mod sampler;
 pub mod sine_cache;
 pub mod time;
-pub mod eng;
 pub mod transient;
-pub mod groovability;
 pub mod trig;
 pub mod volume;
 pub mod xform_freq;

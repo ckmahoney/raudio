@@ -4,12 +4,12 @@ use crate::analysis::{
   trig,
   volume::db_to_amp,
 };
-use crate::monic_theory::note_to_freq;
-use crate::types::render::{StemFM, ArfFM};
 use crate::fm::Operator;
+use crate::monic_theory::note_to_freq;
 use crate::phrasing::older_ranger::{Modders, OldRangerDeprecated, WOldRangerDeprecateds};
 use crate::phrasing::{dynamics, lifespan, micro};
 use crate::synth::{pi, pi2, MFf, NFf, SRf, SampleBuffer, MAX_REGISTER, MIN_REGISTER, SR};
+use crate::types::render::{ArfFM, StemFM};
 use crate::{render, AmpLifespan};
 use rand;
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
@@ -24,7 +24,7 @@ use crate::phrasing::contour::Expr;
 use crate::phrasing::ranger::{self, Knob, KnobMacro, KnobMods, KnobMods2};
 use crate::render::{Renderable, Renderable2};
 use crate::reverb::convolution::ReverbParams;
-use crate::time::{self,note_to_cycles};
+use crate::time::{self, note_to_cycles};
 use crate::types::render::{Conf, Feel, Melody, Stem, Stem2, Stem3};
 use crate::types::synthesis::{
   bp2_unit, BoostGroup, Bp2, Direction, Ely, Freq, ModulationEffect, Note, PhaseModParams,
@@ -60,10 +60,10 @@ pub const DB_HEADROOM: f32 = -3f32;
 static contour_resolution: usize = 1200;
 static unit_decay: f32 = 9.210340372;
 
-pub fn simple_tacet<'render>(melody:&'render Melody<Note>) -> Renderable2<'render> {
-  let s:Stem2 = (
+pub fn simple_tacet<'render>(melody: &'render Melody<Note>) -> Renderable2<'render> {
+  let s: Stem2 = (
     melody,
-    (vec![], vec![], vec![], ),
+    (vec![], vec![], vec![]),
     expr_none(),
     bp2_unit(),
     KnobMods2::unit(),
@@ -96,7 +96,7 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
 
   let lowpass_cutoff = NFf;
   let ref_sample = ref_samples[0].to_owned();
-  
+
   Renderable2::Sample((
     melody,
     ref_sample,
