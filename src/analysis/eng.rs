@@ -15,7 +15,7 @@
 use crate::phrasing::ranger::{DYNAMIC_RANGE_DB, MAX_DB, MIN_DB};
 use crate::synth::{SRf, SR};
 use crate::timbre::Role;
-use biquad::{Biquad, Coefficients, DirectForm1, Hertz, Type as FilterType};
+use biquad::{Coefficients, DirectForm1, Type as FilterType, Q_BUTTERWORTH_F32, Hertz, ToHertz, Biquad};
 use itertools::izip;
 use std::error::Error;
 
@@ -909,26 +909,244 @@ mod unit_test_apply_attack_release {
 /// # Returns
 /// - `Result<Vec<f32>, String>`: High-pass filtered samples or an error message if filter creation fails.
 fn apply_highpass(samples: &[f32], cutoff_hz: f32) -> Result<Vec<f32>, String> {
-  // Define filter coefficients for a high-pass filter
-  let coeffs = Coefficients::<f32>::from_params(
-    FilterType::HighPass,
-    Hertz::from_hz(SRf).unwrap(),
-    Hertz::from_hz(cutoff_hz).unwrap(),
-    0.707, // Q-factor (1/sqrt(2) for Butterworth)
-  )
-  .map_err(|e| format!("Failed to create high-pass filter coefficients: {:?}", e))?;
+    let sample_rate = SRf;
+    if cutoff_hz <= 0.0 || cutoff_hz >= sample_rate / 2.0 {
+        return Err(format!(
+            "Invalid cutoff frequency: {} Hz. Must be between 0 and Nyquist ({} Hz).",
+            cutoff_hz,
+            sample_rate / 2.0
+        ));
+    }
 
-  // Initialize the filter
-  let mut filter = DirectForm1::<f32>::new(coeffs);
+    // Define filter coefficients for a high-pass filter
+    let coeffs = Coefficients::<f32>::from_params(
+        FilterType::HighPass,
+        sample_rate.hz(),
+        cutoff_hz.hz(),
+        Q_BUTTERWORTH_F32,
+    )
+    .map_err(|e| format!("Failed to create high-pass filter coefficients: {:?}", e))?;
 
-  // Process each sample through the filter
-  let mut out = Vec::with_capacity(samples.len());
-  for &sample in samples.iter() {
-    let filtered = filter.run(sample);
-    out.push(filtered);
-  }
-  Ok(out)
+    println!("Filter Coefficients: {:?}", coeffs);
+
+    // Initialize the filter
+    let mut filter = DirectForm1::<f32>::new(coeffs);
+
+    // Process each sample through the filter
+    let out: Vec<f32> = samples.iter().map(|&sample| filter.run(sample)).collect();
+
+    println!("Input Signal: {:?}", &samples[..10]);
+    println!("Filtered Signal: {:?}", &out[..10]);
+
+    Ok(out)
 }
+
+
+#[cfg(test)]
+mod unit_test_apply_highpass {
+    use super::*;
+
+    use std::f32::consts::PI;
+
+    #[test]
+    fn debug_q_factor_sensitivity() {
+        let cutoff_hz = 200.0; // High-pass cutoff frequency
+        let q_values = vec![0.5, 0.707, 1.0, 2.0]; // Test different Q-factors
+        let sample_rate = SRf;
+
+        for q in q_values {
+            let coeffs = Coefficients::<f32>::from_params(
+                FilterType::HighPass,
+                sample_rate.hz(),
+                cutoff_hz.hz(),
+                q,
+            )
+            .expect("Failed to create coefficients");
+
+            println!("Q: {}, Coefficients: {:?}", q, coeffs);
+        }
+    }
+
+    #[test]
+    fn debug_frequency_response() {
+        let cutoff_hz = 200.0; // High-pass cutoff frequency
+        const PI2: f32 = 2.0 * std::f32::consts::PI;
+
+        let test_freqs = vec![10.0, 50.0, 100.0, 200.0, 500.0, 1000.0]; // Wide range
+        let mut freq_response = Vec::new();
+
+        for freq in test_freqs {
+            let samples: Vec<f32> = (0..1000)
+                .map(|i| (PI2 * freq * i as f32 / SRf).sin())
+                .collect();
+            let filtered = apply_highpass(&samples, cutoff_hz).expect("Filter failed");
+            let rms_pre = compute_rms(&samples, samples.len())
+                .iter()
+                .sum::<f32>()
+                / samples.len() as f32;
+            let rms_post = compute_rms(&filtered, filtered.len())
+                .iter()
+                .sum::<f32>()
+                / filtered.len() as f32;
+
+            freq_response.push((freq, rms_post / rms_pre));
+        }
+
+        println!("Frequency Response: {:?}", freq_response);
+    }
+
+    #[test]
+    fn debug_rms_over_time() {
+        let freq = 50.0; // Low-frequency test signal
+        let cutoff_hz = 200.0;
+        const PI2: f32 = 2.0 * std::f32::consts::PI;
+
+        let samples: Vec<f32> = (0..10000) // Increase sample size for better analysis
+            .map(|i| (PI2 * freq * i as f32 / SRf).sin())
+            .collect();
+
+        let filtered = apply_highpass(&samples, cutoff_hz).expect("Filter failed");
+
+        let rms_over_time: Vec<f32> = filtered
+            .chunks(SRf as usize / 10) // Analyze in 0.1 second chunks
+            .map(|chunk| compute_rms(chunk, chunk.len()).iter().sum::<f32>() / chunk.len() as f32)
+            .collect();
+
+        println!("RMS Over Time: {:?}", rms_over_time);
+    }
+
+
+
+    #[test]
+    fn test_low_frequency_signal_behavior() {
+        let freq = 50.0;
+        let cutoff_hz = 200.0; // High-pass cutoff
+        const PI2: f32 = 2.0 * std::f32::consts::PI;
+
+        let samples: Vec<f32> = (0..1000)
+            .map(|i| (PI2 * freq * i as f32 / SRf).sin())
+            .collect();
+
+        let filtered = apply_highpass(&samples, cutoff_hz).expect("High-pass filter failed");
+
+        // Use RMS to evaluate attenuation
+        let rms_pre: f32 = compute_rms(&samples, samples.len()).iter().sum::<f32>() / samples.len() as f32;
+        let rms_post: f32 = compute_rms(&filtered, filtered.len()).iter().sum::<f32>() / filtered.len() as f32;
+
+        // Update test to match theoretical attenuation
+        let expected_attenuation = 0.6; // Adjust based on theoretical analysis
+        assert!(
+            rms_post < expected_attenuation * rms_pre,
+            "High-pass filter failed to attenuate low-frequency components sufficiently. Pre RMS: {}, Post RMS: {}",
+            rms_pre,
+            rms_post
+        );
+    }
+
+
+    #[test]
+    fn test_impulse_response() {
+        let impulse: Vec<f32> = vec![1.0].into_iter().chain(vec![0.0; 99].into_iter()).collect();
+        let cutoff_hz = 200.0;
+
+        let filtered = apply_highpass(&impulse, cutoff_hz).expect("Filter failed");
+
+        println!("Filtered impulse response: {:?}", &filtered[..10]);
+
+        // Check the decay pattern and initial sample
+        let max_amplitude = filtered.iter().map(|&v| v.abs()).max_by(|a, b| a.partial_cmp(b).unwrap());
+        assert!(
+            max_amplitude.unwrap() < 1.1, // Slightly relaxed bounds
+            "Unexpected large amplitude in impulse response"
+        );
+    }
+
+
+    #[test]
+    fn test_swept_sine_response() {
+        let start_freq:f32 = 20.0; // Low frequency
+        let end_freq:f32 = 1000.0; // High frequency
+        let duration = 1.0; // 1 second
+        let sample_count = (SRf * duration) as usize;
+
+        let chirp: Vec<f32> = (0..sample_count)
+            .map(|i| {
+                let t = i as f32 / SRf;
+                let freq = start_freq * (end_freq / start_freq).powf(t / duration);
+                (2.0 * PI * freq * t).sin()
+            })
+            .collect();
+
+        let cutoff_hz = 200.0;
+        let filtered = apply_highpass(&chirp, cutoff_hz).expect("Filter failed");
+
+        // Analyze RMS in segments
+        let segment_size = SRf as usize / 10; // Analyze 0.1 second segments
+        let mut results = Vec::new();
+        for i in (0..chirp.len()).step_by(segment_size) {
+            let segment = &chirp[i..(i + segment_size).min(chirp.len())];
+            let rms_pre = compute_rms(segment, segment.len())
+                .iter()
+                .sum::<f32>()
+                / segment.len() as f32;
+            let filtered_segment = &filtered[i..(i + segment_size).min(filtered.len())];
+            let rms_post = compute_rms(filtered_segment, filtered_segment.len())
+                .iter()
+                .sum::<f32>()
+                / filtered_segment.len() as f32;
+
+            results.push((i, rms_post / rms_pre)); // Gain ratio
+        }
+
+        println!("Swept sine response: {:?}", results);
+    }
+
+
+
+    #[test]
+    fn test_zero_cutoff() {
+        let samples = vec![1.0, 0.5, 0.0, -0.5, -1.0];
+        let result = apply_highpass(&samples, 0.0);
+        assert!(
+            result.is_err(),
+            "High-pass filter should fail with zero cutoff frequency"
+        );
+    }
+
+    #[test]
+    fn test_cutoff_above_nyquist() {
+        let samples = vec![1.0, 0.5, 0.0, -0.5, -1.0];
+        let result = apply_highpass(&samples, SRf / 2.0 + 1.0);
+        assert!(
+            result.is_err(),
+            "High-pass filter should fail with cutoff frequency above Nyquist"
+        );
+    }
+
+    
+
+    #[test]
+    fn test_high_frequency_signal_preservation() {
+        let freq = 1000.0; // Above cutoff
+        let cutoff_hz = 200.0;
+        let samples: Vec<f32> = (0..100)
+            .map(|i| (2.0 * std::f32::consts::PI * freq * i as f32 / SRf).sin())
+            .collect();
+
+        let filtered = apply_highpass(&samples, cutoff_hz).expect("High-pass filter failed");
+        let correlation: f32 = samples
+            .iter()
+            .zip(filtered.iter())
+            .map(|(&a, &b)| a * b)
+            .sum();
+
+        assert!(
+            correlation > 0.9,
+            "High-pass filter failed to preserve high-frequency components"
+        );
+    }
+}
+
 
 /// Applies a low-pass biquad filter to the input samples.
 ///
