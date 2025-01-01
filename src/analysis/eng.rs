@@ -1131,135 +1131,128 @@ fn apply_lookahead(samples: &[f32], lookahead_samples: usize) -> Vec<f32> {
 /// # Returns
 /// - `Result<Vec<f32>, String>`: Envelope-followed samples or an error if parameters are invalid.
 pub fn envelope_follower(
-    samples: &[f32],
-    attack_time: f32,
-    release_time: f32,
-    hold_time: Option<f32>,
-    method: Option<EnvelopeMethod>,
-    pre_emphasis: Option<f32>,
-    mix: Option<f32>,
+  samples: &[f32], attack_time: f32, release_time: f32, hold_time: Option<f32>, method: Option<EnvelopeMethod>,
+  pre_emphasis: Option<f32>, mix: Option<f32>,
 ) -> Result<Vec<f32>, String> {
-    if attack_time < 0.0 || release_time < 0.0 {
-        return Err("Attack and release times must be non-negative.".to_string());
-    }
+  if attack_time < 0.0 || release_time < 0.0 {
+    return Err("Attack and release times must be non-negative.".to_string());
+  }
 
-    let envelope_method = method.unwrap_or(EnvelopeMethod::Peak);
-    let hold_samps = (hold_time.unwrap_or(0.0) * SRf).round() as usize;
-    let attack_coeff = time_to_coefficient(attack_time);
-    let release_coeff = time_to_coefficient(release_time);
-    let mix_ratio = mix.unwrap_or(1.0).clamp(0.0, 1.0);
+  let envelope_method = method.unwrap_or(EnvelopeMethod::Peak);
+  let hold_samps = (hold_time.unwrap_or(0.0) * SRf).round() as usize;
+  let attack_coeff = time_to_coefficient(attack_time);
+  let release_coeff = time_to_coefficient(release_time);
+  let mix_ratio = mix.unwrap_or(1.0).clamp(0.0, 1.0);
 
-    // Apply pre-emphasis filter if specified and mix
-    let processed_samples = if let Some(cutoff_hz) = pre_emphasis {
-        let filtered = apply_highpass(samples, cutoff_hz)?;
+  // Apply pre-emphasis filter if specified and mix
+  let processed_samples = if let Some(cutoff_hz) = pre_emphasis {
+    let filtered = apply_highpass(samples, cutoff_hz)?;
 
-        // Normalize to the maximum absolute value of the filtered signal
-        let max_abs = filtered.iter().map(|&x| x.abs()).fold(0.0, f32::max);
-        let normalized = filtered.iter().map(|&s| s / max_abs.max(1e-6)).collect::<Vec<_>>();
+    // Normalize to the maximum absolute value of the filtered signal
+    let max_abs = filtered.iter().map(|&x| x.abs()).fold(0.0, f32::max);
+    let normalized = filtered.iter().map(|&s| s / max_abs.max(1e-6)).collect::<Vec<_>>();
 
-        normalized
-            .iter()
-            .zip(samples.iter())
-            .map(|(&highpassed, &dry)| mix_ratio * highpassed + (1.0 - mix_ratio) * dry)
-            .collect::<Vec<_>>()
-    } else {
-        samples.to_vec()
-    };
+    normalized
+      .iter()
+      .zip(samples.iter())
+      .map(|(&highpassed, &dry)| mix_ratio * highpassed + (1.0 - mix_ratio) * dry)
+      .collect::<Vec<_>>()
+  } else {
+    samples.to_vec()
+  };
 
-    let mut env = Vec::with_capacity(processed_samples.len());
-    let mut current_env = 0.0;
-    let mut hold_counter = 0usize;
+  let mut env = Vec::with_capacity(processed_samples.len());
+  let mut current_env = 0.0;
+  let mut hold_counter = 0usize;
 
-    // Envelope detection logic
-    match envelope_method {
-        EnvelopeMethod::Peak => {
-            for &sample in processed_samples.iter() {
-                let val = sample.abs();
-                let new_env = apply_attack_release(current_env, val, attack_coeff, release_coeff, hold_counter < hold_samps);
+  // Envelope detection logic
+  match envelope_method {
+    EnvelopeMethod::Peak => {
+      for &sample in processed_samples.iter() {
+        let val = sample.abs();
+        let new_env = apply_attack_release(current_env, val, attack_coeff, release_coeff, hold_counter < hold_samps);
 
-                if val > current_env {
-                    hold_counter = 0;
-                } else if hold_counter < hold_samps {
-                    hold_counter += 1;
-                }
-
-                current_env = new_env;
-                env.push(current_env);
-            }
+        if val > current_env {
+          hold_counter = 0;
+        } else if hold_counter < hold_samps {
+          hold_counter += 1;
         }
-        EnvelopeMethod::Rms(window_time) | EnvelopeMethod::Hybrid(window_time) => {
-            let window_size = (window_time * SRf).round() as usize;
-            let rms_values = compute_rms(&processed_samples, window_size);
 
-            for (i, &sample) in processed_samples.iter().enumerate() {
-                let val = match envelope_method {
-                    EnvelopeMethod::Rms(_) => rms_values[i],
-                    EnvelopeMethod::Hybrid(_) => (sample.abs() + rms_values[i]) / 2.0,
-                    _ => unreachable!(),
-                };
-
-                let new_env = apply_attack_release(current_env, val, attack_coeff, release_coeff, hold_counter < hold_samps);
-
-                if val > current_env {
-                    hold_counter = 0;
-                } else if hold_counter < hold_samps {
-                    hold_counter += 1;
-                }
-
-                current_env = new_env;
-                env.push(current_env);
-            }
-        }
+        current_env = new_env;
+        env.push(current_env);
+      }
     }
+    EnvelopeMethod::Rms(window_time) | EnvelopeMethod::Hybrid(window_time) => {
+      let window_size = (window_time * SRf).round() as usize;
+      let rms_values = compute_rms(&processed_samples, window_size);
 
-    Ok(env)
+      for (i, &sample) in processed_samples.iter().enumerate() {
+        let val = match envelope_method {
+          EnvelopeMethod::Rms(_) => rms_values[i],
+          EnvelopeMethod::Hybrid(_) => (sample.abs() + rms_values[i]) / 2.0,
+          _ => unreachable!(),
+        };
+
+        let new_env = apply_attack_release(current_env, val, attack_coeff, release_coeff, hold_counter < hold_samps);
+
+        if val > current_env {
+          hold_counter = 0;
+        } else if hold_counter < hold_samps {
+          hold_counter += 1;
+        }
+
+        current_env = new_env;
+        env.push(current_env);
+      }
+    }
+  }
+
+  Ok(env)
 }
-
 
 #[cfg(test)]
 mod unit_test_envelope_follower {
-    use super::*;
+  use super::*;
 
+  #[test]
+  fn test_mix_ratio_range() {
+    let dry_signal = vec![0.5, 1.0, -1.0, -0.5, 0.0];
+    let cutoff_hz = 200.0;
+    let mix_ratios = [0.0, 0.5, 1.0];
 
-    #[test]
-    fn test_mix_ratio_range() {
-        let dry_signal = vec![0.5, 1.0, -1.0, -0.5, 0.0];
-        let cutoff_hz = 200.0;
-        let mix_ratios = [0.0, 0.5, 1.0];
+    for &mix_ratio in &mix_ratios {
+      let filtered = apply_highpass(&dry_signal, cutoff_hz).expect("Highpass failed");
+      let mixed_signal: Vec<f32> = filtered
+        .iter()
+        .zip(dry_signal.iter())
+        .map(|(&wet, &dry)| mix_ratio * wet + (1.0 - mix_ratio) * dry)
+        .collect();
 
-        for &mix_ratio in &mix_ratios {
-            let filtered = apply_highpass(&dry_signal, cutoff_hz).expect("Highpass failed");
-            let mixed_signal: Vec<f32> = filtered
-                .iter()
-                .zip(dry_signal.iter())
-                .map(|(&wet, &dry)| mix_ratio * wet + (1.0 - mix_ratio) * dry)
-                .collect();
+      println!("Mix Ratio: {}, Mixed Signal: {:?}", mix_ratio, mixed_signal);
 
-            println!("Mix Ratio: {}, Mixed Signal: {:?}", mix_ratio, mixed_signal);
-
-            assert_eq!(mixed_signal.len(), dry_signal.len(), "Signal lengths mismatch");
-        }
+      assert_eq!(mixed_signal.len(), dry_signal.len(), "Signal lengths mismatch");
     }
+  }
 
-    #[test]
-    fn test_pre_emphasis_reduction() {
-        let signal = vec![1.0, 0.8, 0.6, 0.4, 0.2];
-        let cutoff_hz = 100.0;
+  #[test]
+  fn test_pre_emphasis_reduction() {
+    let signal = vec![1.0, 0.8, 0.6, 0.4, 0.2];
+    let cutoff_hz = 100.0;
 
-        let filtered = apply_highpass(&signal, cutoff_hz).expect("Highpass failed");
+    let filtered = apply_highpass(&signal, cutoff_hz).expect("Highpass failed");
 
-        for i in 1..filtered.len() {
-            assert!(
-                filtered[i] <= filtered[i - 1],
-                "Pre-emphasis did not reduce signal as expected: {} -> {}",
-                filtered[i - 1],
-                filtered[i]
-            );
-        }
+    for i in 1..filtered.len() {
+      assert!(
+        filtered[i] <= filtered[i - 1],
+        "Pre-emphasis did not reduce signal as expected: {} -> {}",
+        filtered[i - 1],
+        filtered[i]
+      );
     }
+  }
 
-    #[test]
-fn test_rms_on_flat_signal() {
+  #[test]
+  fn test_rms_on_flat_signal() {
     let signal = vec![1.0; 10]; // Flat signal
     let window_size = 5; // RMS window size
     let rms_values = compute_rms(&signal, window_size);
@@ -1269,125 +1262,591 @@ fn test_rms_on_flat_signal() {
     let mut found_stable_index = None;
 
     for (i, &val) in rms_values.iter().enumerate() {
-        if (val - 1.0).abs() < 1e-6 && found_stable_index.is_none() {
-            found_stable_index = Some(i);
+      if (val - 1.0).abs() < 1e-6 && found_stable_index.is_none() {
+        found_stable_index = Some(i);
+      }
+      if let Some(stable_start) = found_stable_index {
+        // Verify that values remain stable after reaching the constant signal value
+        assert!(
+          (val - 1.0).abs() < 1e-6,
+          "RMS value deviates after stability at index {}: got {}",
+          i,
+          val
+        );
+      } else {
+        // Verify that values rise continuously before reaching stability
+        if i > 0 {
+          assert!(
+            val >= rms_values[i - 1],
+            "RMS value did not rise continuously at index {}: prev = {}, current = {}",
+            i,
+            rms_values[i - 1],
+            val
+          );
         }
-        if let Some(stable_start) = found_stable_index {
-            // Verify that values remain stable after reaching the constant signal value
-            assert!(
-                (val - 1.0).abs() < 1e-6,
-                "RMS value deviates after stability at index {}: got {}",
-                i,
-                val
-            );
-        } else {
-            // Verify that values rise continuously before reaching stability
-            if i > 0 {
-                assert!(
-                    val >= rms_values[i - 1],
-                    "RMS value did not rise continuously at index {}: prev = {}, current = {}",
-                    i,
-                    rms_values[i - 1],
-                    val
-                );
-            }
-        }
+      }
     }
 
     assert!(
-        found_stable_index.is_some(),
-        "RMS did not stabilize to the expected value of 1.0"
+      found_stable_index.is_some(),
+      "RMS did not stabilize to the expected value of 1.0"
     );
-}
+  }
 
-    #[test]
-    fn test_envelope_stability_and_decay() {
-        let samples = vec![0.0; 50]
-            .into_iter()
-            .chain(vec![1.0; 50].into_iter())
-            .chain(vec![0.0; 50].into_iter())
-            .collect::<Vec<f32>>();
-        let attack_time = 0.01;
-        let release_time = 0.1;
+  #[test]
+  fn test_envelope_stability_and_decay() {
+    let samples = vec![0.0; 50]
+      .into_iter()
+      .chain(vec![1.0; 50].into_iter())
+      .chain(vec![0.0; 50].into_iter())
+      .collect::<Vec<f32>>();
+    let attack_time = 0.01;
+    let release_time = 0.1;
 
-        let envelope = envelope_follower(&samples, attack_time, release_time, None, None, None, None)
-            .expect("Envelope calculation failed");
+    let envelope = envelope_follower(&samples, attack_time, release_time, None, None, None, None)
+      .expect("Envelope calculation failed");
 
-        // Check monotonicity during the decay phase
-        let decay_phase = &envelope[100..];
-        for i in 1..decay_phase.len() {
-            assert!(
-                decay_phase[i] <= decay_phase[i - 1],
-                "Envelope increased during decay at index {}: {} -> {}",
-                i,
-                decay_phase[i - 1],
-                decay_phase[i]
-            );
-        }
+    // Check monotonicity during the decay phase
+    let decay_phase = &envelope[100..];
+    for i in 1..decay_phase.len() {
+      assert!(
+        decay_phase[i] <= decay_phase[i - 1],
+        "Envelope increased during decay at index {}: {} -> {}",
+        i,
+        decay_phase[i - 1],
+        decay_phase[i]
+      );
+    }
+  }
+
+  #[test]
+  fn test_envelope_step_response() {
+    let samples = vec![0.0; 50].into_iter().chain(vec![1.0; 50].into_iter()).collect::<Vec<f32>>();
+    let attack_time = 0.01; // Quick response
+    let release_time = 0.01; // Quick decay
+
+    let envelope = envelope_follower(&samples, attack_time, release_time, None, None, None, None)
+      .expect("Envelope calculation failed");
+
+    for i in 0..50 {
+      assert!(
+        envelope[i] < 0.1,
+        "Envelope should remain low before the step at index {}: got {}",
+        i,
+        envelope[i]
+      );
     }
 
-
-    #[test]
-    fn test_envelope_step_response() {
-        let samples = vec![0.0; 50].into_iter().chain(vec![1.0; 50].into_iter()).collect::<Vec<f32>>();
-        let attack_time = 0.01; // Quick response
-        let release_time = 0.01; // Quick decay
-
-        let envelope = envelope_follower(&samples, attack_time, release_time, None, None, None, None)
-            .expect("Envelope calculation failed");
-
-        for i in 0..50 {
-            assert!(
-                envelope[i] < 0.1,
-                "Envelope should remain low before the step at index {}: got {}",
-                i,
-                envelope[i]
-            );
-        }
-
-        for i in 50..100 {
-            assert!(
-                envelope[i] > 0.5,
-                "Envelope should rise after the step at index {}: got {}",
-                i,
-                envelope[i]
-            );
-        }
+    for i in 50..100 {
+      assert!(
+        envelope[i] > 0.5,
+        "Envelope should rise after the step at index {}: got {}",
+        i,
+        envelope[i]
+      );
     }
+  }
 
-    #[test]
-    fn test_envelope_decay() {
-        let samples = vec![1.0; 50].into_iter().chain(vec![0.0; 50].into_iter()).collect::<Vec<f32>>();
-        let attack_time = 0.01; // Quick attack
-        let release_time = 0.1; // Slow decay
+  #[test]
+  fn test_envelope_decay() {
+    let samples = vec![1.0; 50].into_iter().chain(vec![0.0; 50].into_iter()).collect::<Vec<f32>>();
+    let attack_time = 0.01; // Quick attack
+    let release_time = 0.1; // Slow decay
 
-        let result = envelope_follower(&samples, attack_time, release_time, None, None, None, None)
-            .expect("Envelope calculation failed");
+    let result = envelope_follower(&samples, attack_time, release_time, None, None, None, None)
+      .expect("Envelope calculation failed");
 
-        assert!(result[0] > 0.9, "Envelope should quickly rise to match input.");
-        assert!(result[49] > 0.9, "Envelope should hold steady with constant input.");
-        assert!(result[50] < 0.9, "Envelope should decay after input drops to zero.");
-        assert!(result[99] < 0.1, "Envelope should fully decay to near zero.");
-    }
+    assert!(result[0] > 0.9, "Envelope should quickly rise to match input.");
+    assert!(result[49] > 0.9, "Envelope should hold steady with constant input.");
+    assert!(result[50] < 0.9, "Envelope should decay after input drops to zero.");
+    assert!(result[99] < 0.1, "Envelope should fully decay to near zero.");
+  }
 
-    #[test]
-fn test_empty_signal() {
+  #[test]
+  fn test_empty_signal() {
     let result = envelope_follower(&[], 0.01, 0.1, None, None, None, None);
-    assert!(result.is_ok(), "Envelope follower should handle empty input without error.");
-    assert_eq!(result.unwrap().len(), 0, "Output for empty signal should also be empty.");
-}
+    assert!(
+      result.is_ok(),
+      "Envelope follower should handle empty input without error."
+    );
+    assert_eq!(
+      result.unwrap().len(),
+      0,
+      "Output for empty signal should also be empty."
+    );
+  }
 
-#[test]
-fn test_zero_attack_release() {
+  #[test]
+  fn test_zero_attack_release() {
     // Simulate a signal with a ramp and plateau
     let samples = vec![0.0, -0.25, 0.5, -0.75, 1.0, 1.0, 1.0, 0.5, 0.0];
     let result = envelope_follower(&samples, 0.0, 0.0, None, None, None, None).unwrap();
     let expected: Vec<f32> = samples.iter().map(|s| s.abs()).collect();
 
-    assert_eq!(result, expected, "Envelope should match absolute value of input when attack and release are zero.");
-}
+    assert_eq!(
+      result, expected,
+      "Envelope should match absolute value of input when attack and release are zero."
+    );
+  }
 }
 
+/// Applies dynamic range compression to the input samples based on the given parameters.
+///
+/// # Parameters
+/// - `samples`: Input audio samples.
+/// - `params`: Compressor parameters.
+/// - `sidechain`: Optional sidechain input samples.
+///
+/// # Returns
+/// - `Result<Vec<f32>, String>`: Compressed audio samples or an error if parameters are invalid.
+/// Applies dynamic range compression to the input samples based on the given parameters.
+///
+/// # Parameters
+/// - `samples`: Input audio samples.
+/// - `params`: Compressor parameters.
+/// - `sidechain`: Optional sidechain input samples.
+///
+/// # Returns
+/// - `Result<Vec<f32>, String>`: Compressed audio samples or an error if parameters are invalid.
+pub fn compressor(samples: &[f32], params: CompressorParams, sidechain: Option<&[f32]>) -> Result<Vec<f32>, String> {
+  // Validate parameters
+  if params.ratio < 1.0 {
+    return Err("Compression ratio must be >= 1.0.".to_string());
+  }
+  if let Some(t) = params.lookahead_time {
+    if t < 0.0 {
+      return Err("Lookahead time must be non-negative.".to_string());
+    }
+  }
+
+  // Calculate lookahead in samples
+  let lookahead_samples = params.lookahead_time.map(|t| (t * SRf).round() as usize).unwrap_or(0);
+  let delayed_samples = if lookahead_samples > 0 {
+    apply_lookahead(samples, lookahead_samples)
+  } else {
+    samples.to_vec()
+  };
+
+  // Compute the envelope based on the sidechain or input signal
+  let envelope = if let Some(sc) = sidechain {
+    envelope_follower(
+      sc,
+      params.attack_time,
+      params.release_time,
+      params.hold_time,
+      Some(params.detection_method),
+      params.sidechain_filter.map(|f| f.cutoff_freq),
+      None,
+    )?
+  } else {
+    envelope_follower(
+      &delayed_samples,
+      params.attack_time,
+      params.release_time,
+      params.hold_time,
+      Some(params.detection_method),
+      None,
+      None,
+    )?
+  };
+
+  // Convert threshold from dB to linear
+  let threshold_linear = 10f32.powf(params.threshold / 20.0).clamp(0.0, 1.0);
+
+  let mut output = Vec::with_capacity(samples.len());
+  let mut previous_gain = 1.0;
+
+  for (i, &sample) in samples.iter().enumerate() {
+    let env_val = envelope[i];
+
+    // Apply compression above the threshold
+    let gain_reduction = if env_val < threshold_linear {
+      1.0 // No compression below threshold
+    } else {
+      // Apply soft or hard knee compression
+      if params.knee_width > 0.0 {
+        soft_knee_compression(env_val, threshold_linear, params.ratio, params.knee_width)
+      } else {
+        hard_knee_compression(env_val, threshold_linear, params.ratio)
+      }
+    };
+
+    // Smooth gain reduction
+    let smoothed_gain = smooth_gain_reduction(gain_reduction, previous_gain, params.attack_time, params.release_time);
+    previous_gain = smoothed_gain;
+
+    // Apply makeup gain
+    let makeup = if params.auto_gain {
+      calculate_makeup_gain(params.ratio, threshold_linear)
+    } else {
+      params.makeup_gain
+    };
+
+    let compressed_sample = sample * smoothed_gain * makeup;
+
+    // Apply wet/dry mix
+    let mixed_sample = sample * (1.0 - params.wet_dry_mix) + compressed_sample * params.wet_dry_mix;
+    output.push(mixed_sample);
+  }
+
+  // Apply limiter if enabled
+  if params.enable_limiter {
+    let limiter_threshold = params.limiter_threshold.unwrap_or(threshold_linear);
+    Ok(apply_limiter(&output, limiter_threshold))
+  } else {
+    Ok(output)
+  }
+}
+
+/// Computes the gain reduction for hard knee compression.
+fn hard_knee_compression(input: f32, threshold: f32, ratio: f32) -> f32 {
+  if input < threshold {
+    1.0 // No compression below threshold
+  } else {
+    1.0 / (1.0 + (input - threshold) * (1.0 - 1.0 / ratio)) // Proper gain reduction
+  }
+}
+
+
+/// Computes the gain reduction for soft knee compression.
+fn soft_knee_compression(env_val: f32, threshold: f32, ratio: f32, knee_width: f32) -> f32 {
+    if env_val <= threshold {
+        return 1.0; // No compression below or at the threshold
+    }
+
+    let knee_start = threshold;
+    let knee_end = threshold + knee_width;
+
+    if env_val > knee_start && env_val <= knee_end {
+        // Gradual compression within the knee region
+        let fraction = (env_val - knee_start) / knee_width;
+        let linear_gain = 1.0 / ratio;
+        return 1.0 - fraction * (1.0 - linear_gain);
+    }
+
+    // Full compression above the knee region
+    1.0 / ratio
+}
+
+
+
+
+
+/// Calculates automatic makeup gain based on the ratio and threshold.
+fn calculate_makeup_gain(ratio: f32, threshold: f32) -> f32 {
+  1.0 / (1.0 - 1.0 / ratio).abs() * threshold
+}
+
+/// Computes gain reduction based on the threshold, ratio, and knee width.
+fn compute_gain_reduction(input: f32, threshold: f32, ratio: f32, knee_width: f32, ratio_slope: RatioSlope) -> f32 {
+  if input < threshold {
+    return 1.0; // No compression below the threshold
+  }
+
+  if knee_width > 0.0 {
+    // Soft knee compression
+    soft_knee_compression(input, threshold, ratio, knee_width)
+  } else {
+    // Hard knee compression
+    hard_knee_compression(input, threshold, ratio)
+  }
+}
+
+/// Smooths gain reduction for attack and release times.
+fn smooth_gain_reduction(gain_reduction: f32, previous_gain: f32, attack_time: f32, release_time: f32) -> f32 {
+  let attack_coeff = time_to_coefficient(attack_time);
+  let release_coeff = time_to_coefficient(release_time);
+
+  if gain_reduction > previous_gain {
+    // Attack phase
+    apply_attack_release(previous_gain, gain_reduction, attack_coeff, 0.0, false)
+  } else {
+    // Release phase
+    apply_attack_release(previous_gain, gain_reduction, 0.0, release_coeff, false)
+  }
+}
+
+/// Applies a limiter to the samples.
+fn apply_limiter(samples: &[f32], threshold: f32) -> Vec<f32> {
+  samples
+    .iter()
+    .map(|&sample| {
+      let abs_sample = sample.abs();
+      if abs_sample > threshold {
+        sample.signum() * threshold
+      } else {
+        sample
+      }
+    })
+    .collect()
+}
+
+#[cfg(test)]
+mod test_unit_compressor {
+  use super::*;
+  use std::f32::consts::PI;
+  
+  #[test]
+fn test_soft_knee_boundaries() {
+    let samples = vec![-6.0, -5.9, -5.6, -5.4];
+    let params = CompressorParams {
+        threshold: -6.0,
+        ratio: 2.0,
+        knee_width: 0.4,
+        ..Default::default()
+    };
+    let result = compressor(&samples, params, None).unwrap();
+
+    for (i, &sample) in samples.iter().enumerate() {
+        let output = result[i];
+        println!(
+            "[Soft Knee Boundaries] Sample {}: Input: {:.4}, Output: {:.4}, Threshold: {:.4}",
+            i, sample, output, params.threshold
+        );
+
+        if (sample - params.threshold).abs() < 1e-6 {
+            assert!(
+                (output - sample).abs() < 1e-6,
+                "No compression should occur exactly at the threshold. Input: {}, Output: {}",
+                sample, output
+            );
+        } else if sample > -6.0 && sample <= -5.6 {
+            assert!(
+                output > sample * 0.5 && output < sample,
+                "Soft knee compression incorrect in knee region. Input: {}, Output: {}",
+                sample, output
+            );
+        } else if sample > -5.6 {
+            assert!(
+                output < sample * 0.5,
+                "Compression should be strong above knee region. Input: {}, Output: {}",
+                sample, output
+            );
+        }
+    }
+}
+
+
+
+  #[test]
+  fn test_compressor_basic_threshold_behavior() {
+    let samples = vec![0.0, 0.5, 1.0, 1.5, 2.0];
+    let params = CompressorParams {
+      threshold: -6.0, // ~0.5 linear
+      ratio: 2.0,
+      knee_width: 0.0,
+      attack_time: 0.01,
+      release_time: 0.1,
+      ..Default::default()
+    };
+    let result = compressor(&samples, params, None).unwrap();
+
+    for (i, &sample) in samples.iter().enumerate() {
+      let output = result[i];
+      if sample > 0.5 {
+        assert!(
+          output < sample,
+          "Sample above threshold should be compressed. Input: {}, Output: {}",
+          sample,
+          output
+        );
+      } else {
+        assert!(
+          (output - sample).abs() < 1e-6,
+          "Sample below threshold should remain unchanged. Input: {}, Output: {}",
+          sample,
+          output
+        );
+      }
+    }
+  }
+
+  #[test]
+  fn test_attack_and_release_behavior() {
+    let samples = vec![0.0; 50].into_iter().chain(vec![1.0; 50]).chain(vec![0.0; 50]).collect::<Vec<f32>>();
+    let params = CompressorParams {
+      attack_time: 0.01,
+      release_time: 0.1,
+      ..Default::default()
+    };
+    let result = compressor(&samples, params, None).unwrap();
+
+    // Test rising edge (attack phase)
+    for i in 0..50 {
+      assert!(
+        result[i] < 1.0,
+        "Output should not reach full amplitude during attack phase. Index: {}, Output: {}",
+        i,
+        result[i]
+      );
+    }
+
+    // Test decay (release phase)
+    for i in 100..150 {
+      assert!(
+        result[i] <= result[i - 1],
+        "Output should decay during release phase. Index: {}, Output: {}",
+        i,
+        result[i]
+      );
+    }
+  }
+  #[test]
+  fn test_soft_knee_transition() {
+      let samples = vec![-10.0, -6.5, -6.0, -5.8, -5.4];
+      let params = CompressorParams {
+          threshold: -6.0,
+          ratio: 2.0,
+          knee_width: 0.4,
+          ..Default::default()
+      };
+      let result = compressor(&samples, params, None).unwrap();
+  
+      for (i, &sample) in samples.iter().enumerate() {
+          let output = result[i];
+          println!(
+              "[Soft Knee Transition] Sample {}: Input: {:.4}, Output: {:.4}, Threshold: {:.4}",
+              i, sample, output, params.threshold
+          );
+  
+          if sample < -6.0 {
+              assert!(
+                  (output - sample).abs() < 1e-6,
+                  "No compression should occur below the threshold. Input: {}, Output: {}",
+                  sample, output
+              );
+          } else if sample >= -6.0 && sample <= -5.6 {
+              assert!(
+                  output > sample * 0.5 && output < sample,
+                  "Soft knee compression not applied correctly. Input: {}, Output: {}",
+                  sample, output
+              );
+          } else if sample > -5.6 {
+              assert!(
+                  output < sample * 0.5,
+                  "Compression should be strong above knee region. Input: {}, Output: {}",
+                  sample, output
+              );
+          }
+      }
+  }
+  
+
+
+
+  #[test]
+  fn test_wet_dry_mix() {
+    let samples = vec![0.5, 1.0, 1.5];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      wet_dry_mix: 0.5,
+      ..Default::default()
+    };
+    let result = compressor(&samples, params, None).unwrap();
+
+    for (i, &sample) in samples.iter().enumerate() {
+      let compressed_sample = if sample > 0.5 {
+        sample / 2.0 // Simple compression example
+      } else {
+        sample
+      };
+      let expected_output = sample * (1.0 - params.wet_dry_mix) + compressed_sample * params.wet_dry_mix;
+
+      println!(
+        "[Wet/Dry Mix] Sample {}: Input: {}, Output: {}, Expected: {}",
+        i, sample, result[i], expected_output
+      );
+
+      assert!(
+        (result[i] - expected_output).abs() < 0.01, // Allow for small floating point differences
+        "Wet/dry mix not blended correctly. Input: {}, Output: {}, Expected: {}",
+        sample,
+        result[i],
+        expected_output
+      );
+    }
+  }
+
+  #[test]
+  fn test_sidechain_compression() {
+    let samples = vec![1.0, 1.0, 1.0];
+    let sidechain = vec![0.0, 1.0, 0.0];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 4.0,
+      ..Default::default()
+    };
+    let result = compressor(&samples, params, Some(&sidechain)).unwrap();
+
+    println!("[Sidechain] Result: {:?}", result);
+
+    assert!(
+      result[0] > result[1],
+      "Sidechain signal should trigger compression. Output: {:?}",
+      result
+    );
+    assert!(
+      result[1] < samples[1],
+      "Output should be compressed when sidechain is active. Output: {}",
+      result[1]
+    );
+  }
+
+  #[test]
+  fn test_limiter_behavior() {
+    let samples = vec![0.0, 0.5, 1.0, 1.5, 2.0];
+    let params = CompressorParams {
+      enable_limiter: true,
+      limiter_threshold: Some(1.0),
+      ..Default::default()
+    };
+    let result = compressor(&samples, params, None).unwrap();
+
+    for (i, &sample) in samples.iter().enumerate() {
+      let output = result[i];
+      println!("[Limiter] Sample {}: Input: {}, Output: {}", i, sample, output);
+      assert!(
+        output <= 1.0,
+        "Limiter should cap output at the threshold. Input: {}, Output: {}",
+        sample,
+        output
+      );
+    }
+  }
+
+  #[test]
+  fn test_invalid_parameters() {
+    let samples = vec![0.0, 0.5, 1.0];
+    let params = CompressorParams {
+      ratio: 0.5, // Invalid ratio
+      ..Default::default()
+    };
+    let result = compressor(&samples, params, None);
+    println!("[Invalid Parameters] Result: {:?}", result);
+    assert!(
+      result.is_err(),
+      "Compressor should fail with invalid parameters. Error: {:?}",
+      result
+    );
+  }
+
+  #[test]
+  fn test_compressor_output_stability() {
+    let samples: Vec<f32> = (0..1000).map(|i| ((2.0 * PI * 440.0 * i as f32 / SRf).sin())).collect();
+    let params = CompressorParams {
+      threshold: -12.0,
+      ratio: 2.0,
+      ..Default::default()
+    };
+    let result = compressor(&samples, params, None).unwrap();
+
+    assert!(
+      result.iter().all(|&v| v.abs() <= 1.0),
+      "Compressor output should remain stable and within normalized range."
+    );
+  }
+}
 
 // /// Performs role-based dynamic compression.
 // ///
