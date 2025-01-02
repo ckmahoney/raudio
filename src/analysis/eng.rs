@@ -1,17 +1,3 @@
-// eng.rs
-
-// audio.rs
-//
-// This module provides refined implementations of typical audio processing stages,
-// including envelope following, compression, gating, transient shaping, soft clipping,
-// normalization, and interleaving/deinterleaving. Enhancements support advanced
-// waveshaping effects like  dynamic range expansion, and companding.
-//
-// Dependencies:
-// - crate::synth::{SR, SRf} for sample-rate constants.
-// - biquad = "0.5" for biquad filter implementations.
-// - itertools = "0.10" for iterator utilities.
-
 use crate::phrasing::ranger::{DYNAMIC_RANGE_DB, MAX_DB, MIN_DB};
 use crate::synth::{SRf, SR};
 use crate::timbre::Role;
@@ -22,6 +8,7 @@ use std::error::Error;
 use crate::analysis::sampler::read_audio_file;
 use crate::render::engrave::write_audio;
 use rand::Rng;
+
 
 pub fn dev_audio_asset(label: &str) -> String {
   format!("dev-audio/{}", label)
@@ -75,15 +62,17 @@ pub struct SidechainFilterParams {
 }
 
 /// Struct to hold compressor parameters.
+///
+/// **All threshold-related parameters are now in decibel (dB) domain.**
 #[derive(Debug, Clone, Copy)]
 pub struct CompressorParams {
-  /// Threshold level in linear scale above which compression starts.
+  /// Threshold level in decibels (dB) above which compression starts.
   pub threshold: f32,
   /// Compression ratio (e.g., 4.0 for 4:1 compression).
   pub ratio: f32,
-  /// Knee width for soft knee compression.
+  /// Knee width for soft knee compression in dB.
   pub knee_width: f32,
-  /// Makeup gain applied after compression.
+  /// Makeup gain applied after compression in linear scale.
   pub makeup_gain: f32,
   /// Attack time in seconds.
   pub attack_time: f32,
@@ -105,7 +94,7 @@ pub struct CompressorParams {
   pub ratio_slope: RatioSlope,
   /// Whether to enable the limiter.
   pub enable_limiter: bool,
-  /// Limiter threshold in linear scale.
+  /// Limiter threshold in decibels (dB).
   pub limiter_threshold: Option<f32>,
   /// Envelope shaping parameters.
   pub envelope_shaping: Option<EnvelopeShapingParams>,
@@ -134,19 +123,47 @@ impl Default for CompressorParams {
   }
 }
 
-/// Struct to hold companding parameters.
+/// Struct to hold gate parameters.
+///
+/// **All threshold-related parameters are now in decibel (dB) domain.**
 #[derive(Debug, Clone, Copy)]
-pub struct CompanderParams {
-  /// Compressor parameters for compression stage.
-  pub compressor: CompressorParams,
-  /// Expander parameters for expansion stage.
-  pub expander: ExpanderParams,
+pub struct GateParams {
+  /// Threshold level in decibels (dB) below which gating starts.
+  pub threshold: f32,
+  /// Attack time in seconds for the gate's attack phase.
+  pub attack_time: f32,
+  /// Release time in seconds for the gate's release phase.
+  pub release_time: f32,
+  /// Detection method for envelope follower (Peak or RMS).
+  pub detection_method: EnvelopeMethod,
+  /// Wet/Dry mix for the gate effect (0.0 = dry, 1.0 = wet).
+  pub wet_dry_mix: f32,
+  /// Whether to enable auto gain (apply gain automatically after gating).
+  pub auto_gain: bool,
+  /// Hold time in seconds after the signal falls below threshold before being gated.
+  pub hold_time: Option<f32>,
+}
+
+impl Default for GateParams {
+  fn default() -> Self {
+    GateParams {
+      threshold: 0.5,                         // Default threshold level in dB
+      attack_time: 0.01,                      // Default attack time in seconds
+      release_time: 0.1,                      // Default release time in seconds
+      detection_method: EnvelopeMethod::Peak, // Default detection method
+      wet_dry_mix: 1.0,                       // Fully wet by default
+      auto_gain: false,                       // Auto gain disabled by default
+      hold_time: None,                        // No hold time by default
+    }
+  }
 }
 
 /// Struct to hold expander parameters.
+///
+/// **All threshold-related parameters are now in decibel (dB) domain.**
 #[derive(Debug, Clone, Copy)]
 pub struct ExpanderParams {
-  /// Threshold level in linear scale below which expansion starts.
+  /// Threshold level in decibels (dB) below which expansion starts.
   pub threshold: f32,
   /// Expansion ratio (e.g., 2.0 for 2:1 expansion).
   pub ratio: f32,
@@ -154,7 +171,7 @@ pub struct ExpanderParams {
   pub attack_time: f32,
   /// Release time in seconds.
   pub release_time: f32,
-  /// Makeup gain applied after expansion.
+  /// Makeup gain applied after expansion in linear scale.
   pub makeup_gain: f32,
   /// Detection method for envelope follower.
   pub detection_method: EnvelopeMethod,
@@ -170,12 +187,41 @@ pub struct ExpanderParams {
   pub envelope_shaping: Option<EnvelopeShapingParams>,
 }
 
+impl Default for ExpanderParams {
+  fn default() -> Self {
+    ExpanderParams {
+      threshold: -6.0,                        // Default threshold in dB
+      ratio: 2.0,                             // Default expansion ratio
+      attack_time: 0.01,                      // Default attack time in seconds
+      release_time: 0.1,                      // Default release time in seconds
+      makeup_gain: 1.0,                       // No gain applied by default
+      detection_method: EnvelopeMethod::Peak, // Default detection method
+      hold_time: None,                        // No hold time by default
+      wet_dry_mix: 1.0,                       // Fully wet by default
+      sidechain_filter: None,                 // No sidechain filter by default
+      auto_gain: false,                       // Auto gain disabled by default
+      envelope_shaping: None,                 // No envelope shaping by default
+    }
+  }
+}
+
+/// Struct to hold companding parameters.
+#[derive(Debug, Clone, Copy)]
+pub struct CompanderParams {
+  /// Compressor parameters for compression stage.
+  pub compressor: CompressorParams,
+  /// Expander parameters for expansion stage.
+  pub expander: ExpanderParams,
+}
+
 /// Struct to hold transient shaper parameters.
+///
+/// **All threshold-related parameters are now in decibel (dB) domain.**
 #[derive(Debug, Clone, Copy)]
 pub struct TransientShaperParams {
   /// Amount of transient emphasis (e.g., 1.0 for normal, >1.0 for emphasis).
   pub transient_emphasis: f32,
-  /// Threshold above which transient shaping is applied.
+  /// Threshold above which transient shaping is applied in decibels (dB).
   pub threshold: f32,
   /// Attack time in seconds.
   pub attack_time: f32,
@@ -183,23 +229,116 @@ pub struct TransientShaperParams {
   pub release_time: f32,
   /// Detection method for envelope follower.
   pub detection_method: EnvelopeMethod,
-  /// Makeup gain applied after transient shaping.
+  /// Makeup gain applied after transient shaping in linear scale.
   pub makeup_gain: f32,
   /// Ratio for transient shaping.
   pub ratio: f32,
-  /// Knee width for soft knee transient shaping.
+  /// Knee width for soft knee transient shaping in dB.
   pub knee_width: f32,
   /// Wet/Dry mix (0.0 = dry, 1.0 = wet).
   pub wet_dry_mix: f32,
+  /// Attack threshold above which the attack phase starts in decibels (dB).
+  pub attack_threshold: f32,
+  /// Attack factor that determines the amount of gain applied during attack phase.
+  pub attack_factor: f32,
+  /// Sustain factor that determines the amount of gain applied during sustain phase.
+  pub sustain_factor: f32,
 }
 
-/// Enumeration for filter slope types.
-#[derive(Debug, Clone, Copy)]
-pub enum FilterSlope {
-  OnePole,
-  TwoPole,
-  // Extend with more complex slopes if needed
+impl Default for TransientShaperParams {
+  fn default() -> Self {
+    TransientShaperParams {
+      transient_emphasis: 1.0,
+      threshold: -40.0,                       // Default threshold at -40 dB
+      attack_time: 0.01,                      // Quick attack time
+      release_time: 0.1,                      // Moderate release time
+      detection_method: EnvelopeMethod::Peak, // Default detection method is Peak
+      makeup_gain: 1.0,                       // No additional makeup gain by default
+      ratio: 2.0,                             // Default ratio for transient shaping
+      knee_width: 1.0,                        // Soft knee width
+      wet_dry_mix: 0.5,                       // Default mix is 50% wet, 50% dry
+      attack_threshold: 0.5,                  // Threshold for attack phase
+      attack_factor: 2.0,                     // Attack phase will double the amplitude
+      sustain_factor: 1.0,                    // Sustain phase is unaffected by default
+    }
+  }
 }
+
+
+pub fn validate_compressor_params(params: &CompressorParams) -> Result<(), String> {
+  if params.ratio < 1.0 {
+    return Err("Invalid ratio: Must be >= 1.0 for compression.".to_string());
+  }
+  if !(params.threshold >= -96.0 && params.threshold <= 1.0) {
+    return Err("Invalid threshold: Must be in range [-96, 1] dB.".to_string());
+  }
+  if params.knee_width < 0.0 {
+    return Err("Invalid knee width: Must be >= 0.0.".to_string());
+  }
+  if params.attack_time <= 0.0 || params.release_time <= 0.0 {
+    return Err("Invalid attack/release time: Must be > 0.".to_string());
+  }
+  if params.wet_dry_mix < 0.0 || params.wet_dry_mix > 1.0 {
+    return Err("Invalid wet/dry mix: Must be in range [0, 1].".to_string());
+  }
+  Ok(())
+}
+
+
+#[cfg(test)]
+mod test_compressor_params {
+  use super::*;
+
+  #[test]
+  fn test_valid_parameters() {
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 4.0,
+      knee_width: 3.0,
+      ..Default::default()
+    };
+    assert!(validate_compressor_params(&params).is_ok());
+  }
+
+  #[test]
+  fn test_invalid_ratio() {
+    let params = CompressorParams {
+      ratio: 0.8, // Invalid as ratio < 1.0
+      ..Default::default()
+    };
+    assert!(validate_compressor_params(&params).is_err());
+  }
+
+  #[test]
+  fn test_negative_knee_width() {
+    let params = CompressorParams {
+      knee_width: -2.0,
+      ..Default::default()
+    };
+
+    assert!(validate_compressor_params(&params).is_err());
+  }
+
+  #[test]
+  fn test_valid_threshold_amplitude() {
+    let params = CompressorParams {
+      threshold: 0.5, // Valid positive amplitude
+      ..Default::default()
+    };
+    assert!(validate_compressor_params(&params).is_ok());
+  }
+
+  #[test]
+  fn test_invalid_threshold_amplitude() {
+    let params = CompressorParams {
+      threshold: 2.0, // Invalid amplitude > 1.0
+      ..Default::default()
+    };
+    assert!(validate_compressor_params(&params).is_err());
+  }
+}
+
+
 
 /// Downmixes a stereo signal to mono, maintaining equal power.
 ///
@@ -361,28 +500,155 @@ mod unit_test_time_to_coefficient {
 /// - `Vec<f32>`: RMS values for each input sample.
 fn compute_rms(samples: &[f32], window_size: usize) -> Vec<f32> {
   if samples.is_empty() || window_size == 0 {
-    return vec![0.0; samples.len()];
+      return vec![0.0; samples.len()];
   }
 
-  let mut rms_buffer = vec![0.0; window_size];
-  let mut rms_accumulator = 0.0;
-  let mut buffer_index = 0;
+  let window_size = window_size.min(samples.len());
+
   let mut rms_output = Vec::with_capacity(samples.len());
+  let mut window = Vec::with_capacity(window_size);
+  let mut squared_sum = 0.0;
 
   for &sample in samples.iter() {
-    let square = sample * sample;
-    rms_accumulator += square - rms_buffer[buffer_index];
-    rms_buffer[buffer_index] = square;
-    buffer_index = (buffer_index + 1) % window_size;
-    rms_output.push((rms_accumulator / window_size as f32).sqrt());
+      let square = sample * sample;
+      window.push(square);
+      squared_sum += square;
+
+      if window.len() > window_size {
+          let removed = window.remove(0);
+          squared_sum -= removed;
+      }
+
+      let current_window_size = window.len();
+      let rms = if current_window_size > 0 {
+          (squared_sum / current_window_size as f32).sqrt()
+      } else {
+          0.0
+      };
+      rms_output.push(rms);
   }
 
   rms_output
 }
 
+
+
 #[cfg(test)]
 mod unit_test_compute_rms {
   use super::*;
+
+  #[test]
+    fn test_compute_rms_constant_signal() {
+        let samples = vec![1.0, 1.0, 1.0, 1.0, 1.0];
+        let window_size = 3;
+        let rms = compute_rms(&samples, window_size);
+        let expected = vec![1.0, 1.0, 1.0, 1.0, 1.0];
+        for (i, (&r, &e)) in rms.iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (r - e).abs() < 1e-6,
+                "RMS mismatch at index {}: got {}, expected {}",
+                i,
+                r,
+                e
+            );
+        }
+    }
+
+    #[test]
+    fn test_compute_rms_ramp_signal() {
+        let samples = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let window_size = 3;
+        let rms = compute_rms(&samples, window_size);
+        let expected = vec![
+            0.0,                                  // sqrt(0/1) = 0.0
+            0.70710677,                            // sqrt((0 + 1)/2) ≈ 0.70710677
+            1.2909944,                            // sqrt((0 + 1 + 4)/3) ≈ 1.2909944
+            2.1602468,                             // sqrt((1 + 4 + 9)/3) ≈ 2.1602468
+            3.1091263,                            // sqrt((4 + 9 + 16)/3) ≈ 3.1091263
+            4.082483,                            // sqrt((9 + 16 + 25)/3) ≈ 4.082483
+        ];
+        for (i, (&r, &e)) in rms.iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (r - e).abs() < 1e-4,
+                "RMS mismatch at index {}: got {}, expected {:.7}",
+                i,
+                r,
+                e
+            );
+        }
+    }
+
+    #[test]
+    fn test_compute_rms_empty_signal() {
+        let samples: Vec<f32> = vec![];
+        let window_size = 5;
+        let rms = compute_rms(&samples, window_size);
+        let expected: Vec<f32> = vec![];
+        assert_eq!(
+            rms, expected,
+            "RMS of empty signal should be an empty vector."
+        );
+    }
+
+    #[test]
+    fn test_compute_rms_window_larger_than_signal() {
+        let samples = vec![1.0, 2.0];
+        let window_size = 5;
+        let rms = compute_rms(&samples, window_size);
+        let expected = vec![1.0, 1.224]; // Math.pow((1+2)/2,1/2) == 1.224744871391589
+        assert_eq!(
+            rms, expected,
+            "RMS with window size larger than signal should average over available samples."
+        );
+    }
+
+    #[test]
+    fn test_compute_rms_zero_window_size() {
+        let samples = vec![1.0, 2.0, 3.0];
+        let window_size = 0;
+        let rms = compute_rms(&samples, window_size);
+        let expected = vec![0.0, 0.0, 0.0];
+        assert_eq!(
+            rms, expected,
+            "RMS with window size zero should return zeros."
+        );
+    }
+
+    #[test]
+    fn test_compute_rms_signal_with_spike() {
+        let samples = vec![0.0, 0.0, 10.0, 0.0, 0.0];
+        let window_size = 3;
+        let rms = compute_rms(&samples, window_size);
+        let expected = vec![
+            0.0,                                  // sqrt(0/1) = 0.0
+            0.0,                                  // sqrt((0 + 0)/2) = 0.0
+            5.7735023,                            // sqrt((0 + 0 + 100)/3) ≈ 5.7735023
+            5.7735023,                            // sqrt((0 + 100 + 0)/3) ≈ 5.7735023
+            5.7735023,                            // sqrt((100 + 0 + 0)/3) ≈ 5.7735023
+        ];
+        for (i, (&r, &e)) in rms.iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (r - e).abs() < 1e-4,
+                "RMS mismatch at index {}: got {}, expected {:.7}",
+                i,
+                r,
+                e
+            );
+        }
+    }
+
+    #[test]
+    fn test_compute_rms_single_sample() {
+        let samples = vec![4.0];
+        let window_size = 3;
+        let rms = compute_rms(&samples, window_size);
+        let expected = vec![4.0];
+        assert_eq!(
+            rms, expected,
+            "RMS with a single sample should equal the sample itself."
+        );
+    }
+
 
   #[test]
   fn test_single_sample_behavior() {
@@ -575,10 +841,12 @@ fn apply_attack_release(current_env: f32, input: f32, attack_coeff: f32, release
     current_env + release_coeff * (input - current_env)
   }
 }
-
+ 
 #[cfg(test)]
 mod unit_test_apply_attack_release {
   use super::*;
+
+  
 
   #[test]
   fn test_floating_point_edge_cases() {
@@ -1409,147 +1677,150 @@ mod unit_test_envelope_follower {
 /// # Returns
 /// - `Result<Vec<f32>, String>`: Compressed audio samples or an error if parameters are invalid.
 pub fn compressor(samples: &[f32], params: CompressorParams, sidechain: Option<&[f32]>) -> Result<Vec<f32>, String> {
-  // Validate parameters
-  if params.ratio < 1.0 {
-    return Err("Compression ratio must be >= 1.0.".to_string());
-  }
-  if let Some(t) = params.lookahead_time {
-    if t < 0.0 {
-      return Err("Lookahead time must be non-negative.".to_string());
-    }
-  }
-
-  // Calculate lookahead in samples
-  let lookahead_samples = params.lookahead_time.map(|t| (t * SRf).round() as usize).unwrap_or(0);
-  let delayed_samples = if lookahead_samples > 0 {
-    apply_lookahead(samples, lookahead_samples)
-  } else {
-    samples.to_vec()
-  };
-
-  // Compute the envelope based on the sidechain or input signal
-  let envelope = if let Some(sc) = sidechain {
-    envelope_follower(
-      sc,
-      params.attack_time,
-      params.release_time,
-      params.hold_time,
-      Some(params.detection_method),
-      params.sidechain_filter.map(|f| f.cutoff_freq),
-      None,
-    )?
-  } else {
-    envelope_follower(
-      &delayed_samples,
-      params.attack_time,
-      params.release_time,
-      params.hold_time,
-      Some(params.detection_method),
-      None,
-      None,
-    )?
-  };
-
-  // Convert threshold from dB to linear
-  let threshold_linear = 10f32.powf(params.threshold / 20.0).clamp(0.0, 1.0);
-
+  validate_compressor_params(&params)?;
+  // No conversion to linear; keep params.threshold in dB
   let mut output = Vec::with_capacity(samples.len());
   let mut previous_gain = 1.0;
 
   for (i, &sample) in samples.iter().enumerate() {
-    let env_val = envelope[i];
-
-    // Apply compression above the threshold
-    let gain_reduction = if env_val < threshold_linear {
-      1.0 // No compression below threshold
+    // Convert sample to dB (if sample is linear)
+    let env_val_db = if sample > 0.0 {
+      20.0 * sample.abs().log10()
     } else {
-      // Apply soft or hard knee compression
+      -96.0 // Consider silence as -96 dB
+    };
+
+    let gain_reduction = if env_val_db < params.threshold {
+      1.0
+    } else {
       if params.knee_width > 0.0 {
-        soft_knee_compression(env_val, threshold_linear, params.ratio, params.knee_width)
+        soft_knee_compression(env_val_db, params.threshold, params.ratio, params.knee_width)
       } else {
-        hard_knee_compression(env_val, threshold_linear, params.ratio)
+        hard_knee_compression(env_val_db, params.threshold, params.ratio)
       }
     };
 
-    // Smooth gain reduction
     let smoothed_gain = smooth_gain_reduction(gain_reduction, previous_gain, params.attack_time, params.release_time);
     previous_gain = smoothed_gain;
 
-    // Apply makeup gain
     let makeup = if params.auto_gain {
-      calculate_makeup_gain(params.ratio, threshold_linear)
+      calculate_makeup_gain(params.ratio, params.threshold)
     } else {
       params.makeup_gain
     };
 
     let compressed_sample = sample * smoothed_gain * makeup;
-
-    // Apply wet/dry mix
     let mixed_sample = sample * (1.0 - params.wet_dry_mix) + compressed_sample * params.wet_dry_mix;
+
     output.push(mixed_sample);
   }
 
-  // Apply limiter if enabled
-  if params.enable_limiter {
-    let limiter_threshold = params.limiter_threshold.unwrap_or(threshold_linear);
-    Ok(apply_limiter(&output, limiter_threshold))
+  Ok(output)
+}
+
+/// Computes the gain reduction for hard knee compression using a standard formula.
+fn hard_knee_compression(input_db: f32, threshold_db: f32, ratio: f32) -> f32 {
+  if input_db < threshold_db {
+      1.0 // No compression below threshold
   } else {
-    Ok(output)
+      1.0 / ratio // Fixed compression ratio above threshold
   }
 }
 
-/// Computes the gain reduction for hard knee compression.
-fn hard_knee_compression(input: f32, threshold: f32, ratio: f32) -> f32 {
-  if input < threshold {
-    1.0 // No compression below threshold
+#[cfg(test)]
+mod test_hard_knee_compression {
+    use super::*;
+
+    #[test]
+    fn test_hard_knee_compression_below_threshold() {
+        let input_db = -10.0;
+        let threshold_db = -6.0;
+        let ratio = 4.0;
+        let gain = hard_knee_compression(input_db, threshold_db, ratio);
+        assert_eq!(gain, 1.0, "Gain should be 1.0 below threshold.");
+    }
+
+    #[test]
+    fn test_hard_knee_compression_above_threshold() {
+        let input_db = -4.0;
+        let threshold_db = -6.0;
+        let ratio = 4.0;
+        let gain = hard_knee_compression(input_db, threshold_db, ratio);
+        assert_eq!(gain, 0.25, "Gain should be 1/ratio above threshold.");
+    }
+
+    #[test]
+    fn test_hard_knee_compression_at_threshold() {
+        let input_db = -6.0;
+        let threshold_db = -6.0;
+        let ratio = 4.0;
+        let gain = hard_knee_compression(input_db, threshold_db, ratio);
+        assert_eq!(gain, 0.25, "Gain should be 1/ratio at threshold.");
+    }
+
+    #[test]
+    fn test_hard_knee_compression_invalid_ratio() {
+        let input_db = -4.0;
+        let threshold_db = -6.0;
+        let ratio = 0.5; // Invalid ratio < 1.0
+        let gain = hard_knee_compression(input_db, threshold_db, ratio);
+        // Depending on design choice, could clamp ratio or handle differently
+        // Here, we assume ratio >= 1.0 is enforced elsewhere
+        assert_eq!(gain, 2.0, "Gain should be reciprocal of ratio even if ratio < 1.0.");
+    }
+}
+
+
+/// Applies soft knee compression to the input dB level.
+///
+/// # Parameters
+/// - `input_db`: Input signal level in dB.
+/// - `threshold_db`: Threshold level in dB above which compression starts.
+/// - `knee_width_db`: Width of the knee in dB.
+/// - `ratio`: Compression ratio (e.g., 4.0 for 4:1 compression).
+///
+/// # Returns
+/// - `f32`: Linear gain factor to be applied to the signal.
+///   - `1.0` for no compression,
+///   - `1.0 / ratio` for full compression,
+///   - Smoothly interpolated in between within the knee region.
+///
+/// # Notes
+/// - If `ratio` is less than `1.0`, no compression is applied.
+/// - The gain factor ensures a smooth transition across the knee region using a cosine-based curve.
+fn soft_knee_compression(
+  input_db: f32,
+  threshold_db: f32,
+  ratio: f32,
+  knee_width_db: f32,
+) -> f32 {
+  if ratio < 1.0 {
+      // No compression if ratio is less than 1:1
+      return 1.0;
+  }
+
+  let lower_knee = threshold_db - (knee_width_db / 2.0);
+  let upper_knee = threshold_db + (knee_width_db / 2.0);
+
+  if input_db < lower_knee {
+      // No compression below the knee region
+      1.0
+  } else if input_db > upper_knee {
+      // Full compression above the knee region
+      1.0 / ratio
   } else {
-    1.0 / (1.0 + (input - threshold) * (1.0 - 1.0 / ratio)) // Proper gain reduction
+      // Within the knee region, apply a smooth (cosine-based) transition
+      let normalized_input = (input_db - lower_knee) / knee_width_db; // Normalize to [0,1]
+      // Cosine interpolation: gain transitions smoothly from 1.0 to 1.0/ratio
+      let gain = 1.0 + (1.0 / ratio - 1.0) * (1.0 - f32::cos(std::f32::consts::PI * normalized_input)) / 2.0;
+      gain
   }
 }
-
-
-/// Computes the gain reduction for soft knee compression.
-fn soft_knee_compression(env_val: f32, threshold: f32, ratio: f32, knee_width: f32) -> f32 {
-    if env_val <= threshold {
-        return 1.0; // No compression below or at the threshold
-    }
-
-    let knee_start = threshold;
-    let knee_end = threshold + knee_width;
-
-    if env_val > knee_start && env_val <= knee_end {
-        // Gradual compression within the knee region
-        let fraction = (env_val - knee_start) / knee_width;
-        let linear_gain = 1.0 / ratio;
-        return 1.0 - fraction * (1.0 - linear_gain);
-    }
-
-    // Full compression above the knee region
-    1.0 / ratio
-}
-
-
-
 
 
 /// Calculates automatic makeup gain based on the ratio and threshold.
 fn calculate_makeup_gain(ratio: f32, threshold: f32) -> f32 {
   1.0 / (1.0 - 1.0 / ratio).abs() * threshold
-}
-
-/// Computes gain reduction based on the threshold, ratio, and knee width.
-fn compute_gain_reduction(input: f32, threshold: f32, ratio: f32, knee_width: f32, ratio_slope: RatioSlope) -> f32 {
-  if input < threshold {
-    return 1.0; // No compression below the threshold
-  }
-
-  if knee_width > 0.0 {
-    // Soft knee compression
-    soft_knee_compression(input, threshold, ratio, knee_width)
-  } else {
-    // Hard knee compression
-    hard_knee_compression(input, threshold, ratio)
-  }
 }
 
 /// Smooths gain reduction for attack and release times.
@@ -1585,48 +1856,259 @@ fn apply_limiter(samples: &[f32], threshold: f32) -> Vec<f32> {
 mod test_unit_compressor {
   use super::*;
   use std::f32::consts::PI;
-  
+
   #[test]
-fn test_soft_knee_boundaries() {
-    let samples = vec![-6.0, -5.9, -5.6, -5.4];
+  fn test_soft_knee_transition() {
+    let sr: f32 = SRf;
+    let test_duration_sec = 1.0;
+    let num_samples = (sr * test_duration_sec) as usize;
+
+    // Test signal: ramp from -8.0 to -4.0
+    let samples: Vec<f32> = (0..num_samples).map(|i| -8.0 + (4.0 * i as f32 / num_samples as f32)).collect();
+
     let params = CompressorParams {
-        threshold: -6.0,
-        ratio: 2.0,
-        knee_width: 0.4,
-        ..Default::default()
+      threshold: -6.0,
+      ratio: 4.0,
+      knee_width: 2.0, // Covers -7.0 to -5.0
+      ..Default::default()
+    };
+
+    let result = compressor(&samples, params, None).unwrap();
+
+    // Pre-analysis: Find min and max gain reduction indices
+    let min_index = result.iter().enumerate().min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap().0;
+    let max_index = result.iter().enumerate().max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap().0;
+
+    // Verify contour direction
+    assert!(
+      min_index < max_index,
+      "Gain reduction should be smooth and gradual. Min index: {}, Max index: {}",
+      min_index,
+      max_index
+    );
+
+    // Additional checks for knee behavior
+    for (i, &sample) in samples.iter().enumerate() {
+      let output = result[i];
+      if sample < -7.0 {
+        assert!(
+          (output - sample).abs() < 1e-3,
+          "Unexpected compression below knee start. Input: {:.4}, Output: {:.4}",
+          sample,
+          output
+        );
+      } else if sample >= -7.0 && sample <= -5.0 {
+        assert!(
+          output < sample && output > sample / params.ratio,
+          "Gain should transition smoothly across the knee. Input: {:.4}, Output: {:.4}",
+          sample,
+          output
+        );
+      } else {
+        assert!(
+          (output - sample / params.ratio).abs() < 1e-3,
+          "Gain should match full compression ratio beyond knee. Input: {:.4}, Output: {:.4}",
+          sample,
+          output
+        );
+      }
+    }
+  }
+
+  #[test]
+  fn test_soft_knee_boundaries() {
+    let sr: f32 = SRf;
+    let test_duration_sec = 0.5;
+    let num_samples = (sr * test_duration_sec) as usize;
+
+    let samples: Vec<f32> = (0..num_samples)
+          .map(|i| -7.0 + (2.0 * i as f32 / num_samples as f32)) // Range: -7.0 to -5.0
+          .collect();
+
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 4.0,
+      knee_width: 1.0,
+      ..Default::default()
     };
     let result = compressor(&samples, params, None).unwrap();
 
     for (i, &sample) in samples.iter().enumerate() {
-        let output = result[i];
-        println!(
-            "[Soft Knee Boundaries] Sample {}: Input: {:.4}, Output: {:.4}, Threshold: {:.4}",
-            i, sample, output, params.threshold
+      let output = result[i];
+
+      if sample < -7.0 {
+        assert!(
+          (output - sample).abs() < 1e-6,
+          "No compression below knee start. Input: {:.4}, Output: {:.4}",
+          sample,
+          output
         );
-
-        if (sample - params.threshold).abs() < 1e-6 {
-            assert!(
-                (output - sample).abs() < 1e-6,
-                "No compression should occur exactly at the threshold. Input: {}, Output: {}",
-                sample, output
-            );
-        } else if sample > -6.0 && sample <= -5.6 {
-            assert!(
-                output > sample * 0.5 && output < sample,
-                "Soft knee compression incorrect in knee region. Input: {}, Output: {}",
-                sample, output
-            );
-        } else if sample > -5.6 {
-            assert!(
-                output < sample * 0.5,
-                "Compression should be strong above knee region. Input: {}, Output: {}",
-                sample, output
-            );
-        }
+      } else if sample >= -7.0 && sample <= -5.0 {
+        assert!(
+          output < sample && output > sample / params.ratio,
+          "Smooth interpolation within knee region. Input: {:.4}, Output: {:.4}",
+          sample,
+          output
+        );
+      } else {
+        assert!(
+          (output - sample / params.ratio).abs() < 1e-6,
+          "Full compression ratio beyond knee end. Input: {:.4}, Output: {:.4}",
+          sample,
+          output
+        );
+      }
     }
-}
+  }
+
+  #[test]
+  fn test_below_knee_start() {
+    let threshold = -6.0;
+    let ratio = 4.0;
+    let knee_width = 2.0;
+    let knee_start = threshold - knee_width / 2.0;
+
+    // Below knee start
+    let env_val = knee_start - 1.0;
+    let gain = soft_knee_compression(env_val, threshold, ratio, knee_width);
+
+    assert_eq!(gain, 1.0, "No compression expected below knee start.");
+  }
+
+  #[test]
+  fn test_within_knee_region() {
+    let threshold = -6.0;
+    let ratio = 4.0;
+    let knee_width = 2.0;
+    let knee_start = threshold - knee_width / 2.0;
+    let knee_end = threshold + knee_width / 2.0;
+
+    // Midpoint of the knee
+    let env_val = (knee_start + knee_end) / 2.0;
+    let gain = soft_knee_compression(env_val, threshold, ratio, knee_width);
+
+    let expected_gain = 1.0 - 0.5 * (1.0 - 1.0 / ratio); // Fraction = 0.5
+    assert!(
+      (gain - expected_gain).abs() < 1e-6,
+      "Expected gain: {:.6}, Actual gain: {:.6}",
+      expected_gain,
+      gain
+    );
+  }
+
+  #[test]
+  fn test_above_knee_end() {
+    let threshold = -6.0;
+    let ratio = 4.0;
+    let knee_width = 2.0;
+    let knee_end = threshold + knee_width / 2.0;
+
+    // Above knee end
+    let env_val = knee_end + 1.0;
+    let gain = soft_knee_compression(env_val, threshold, ratio, knee_width);
+
+    let expected_gain = 1.0 / ratio;
+    assert!(
+      (gain - expected_gain).abs() < 1e-6,
+      "Expected gain: {:.6}, Actual gain: {:.6}",
+      expected_gain,
+      gain
+    );
+  }
 
 
+  #[test]
+  fn test_exact_upper_knee_boundary() {
+      let threshold = -6.0;
+      let ratio = 4.0;
+      let knee_width = 2.0;
+      let upper_knee = threshold + knee_width / 2.0;
+
+      // At upper knee boundary
+      let env_val = upper_knee; // -5.0 dB
+      let gain = soft_knee_compression(env_val, threshold, ratio, knee_width);
+
+      let expected_gain = 1.0 / ratio; // 0.25
+      assert!(
+          (gain - expected_gain).abs() < 1e-6,
+          "At upper knee boundary, gain should be {:.6}, got {:.6}",
+          expected_gain,
+          gain
+      );
+  }
+
+  #[test]
+  fn test_zero_knee_width_hard_knee() {
+      let threshold = -6.0;
+      let ratio = 4.0;
+      let knee_width = 0.0;
+
+      // Just above the threshold
+      let env_val = threshold + 0.1; // -5.9 dB
+      let gain = soft_knee_compression(env_val, threshold, ratio, knee_width);
+
+      let expected_gain = 1.0 / ratio; // 0.25
+      assert!(
+          (gain - expected_gain).abs() < 1e-6,
+          "With zero knee width, gain should transition to {:.6}, got {:.6}",
+          expected_gain,
+          gain
+      );
+
+      // Just below the threshold
+      let env_val_below = threshold - 0.1; // -6.1 dB
+      let gain_below = soft_knee_compression(env_val_below, threshold, ratio, knee_width);
+      let expected_gain_below = 1.0;
+      assert!(
+          (gain_below - expected_gain_below).abs() < 1e-6,
+          "With zero knee width, gain should remain {:.6}, got {:.6}",
+          expected_gain_below,
+          gain_below
+      );
+  }
+
+  #[test]
+  fn test_ratio_less_than_one() {
+      let threshold = -6.0;
+      let ratio = 0.5; // <1.0, no compression
+      let knee_width = 2.0;
+      let env_val = threshold + 1.0; // -5.0 dB
+
+      let gain = soft_knee_compression(env_val, threshold, ratio, knee_width);
+      let expected_gain = 1.0;
+      assert_eq!(
+          gain, expected_gain,
+          "With ratio <1.0, gain should remain 1.0 regardless of input."
+      );
+  }
+
+  #[test]
+  fn test_within_knee_region_multiple_points() {
+      let threshold = -6.0;
+      let ratio = 4.0;
+      let knee_width = 2.0;
+      let lower_knee = threshold - knee_width / 2.0;
+      let upper_knee = threshold + knee_width / 2.0;
+
+      let test_points = vec![
+          (lower_knee, 1.0),
+          (lower_knee + 0.25, 1.0 + (1.0 / ratio - 1.0) * (1.0 - f32::cos(std::f32::consts::PI * 0.125)) / 2.0),
+          (threshold, 0.625),
+          (upper_knee - 0.25, 1.0 + (1.0 / ratio - 1.0) * (1.0 - f32::cos(std::f32::consts::PI * 0.875)) / 2.0),
+          (upper_knee, 1.0 / ratio),
+      ];
+
+      for (env_val, expected_gain) in test_points {
+          let gain = soft_knee_compression(env_val, threshold, ratio, knee_width);
+          assert!(
+              (gain - expected_gain).abs() < 1e-6,
+              "At env_val {:.2} dB, expected gain {:.6}, got {:.6}",
+              env_val,
+              expected_gain,
+              gain
+          );
+      }
+  }
 
   #[test]
   fn test_compressor_basic_threshold_behavior() {
@@ -1691,48 +2173,6 @@ fn test_soft_knee_boundaries() {
       );
     }
   }
-  #[test]
-  fn test_soft_knee_transition() {
-      let samples = vec![-10.0, -6.5, -6.0, -5.8, -5.4];
-      let params = CompressorParams {
-          threshold: -6.0,
-          ratio: 2.0,
-          knee_width: 0.4,
-          ..Default::default()
-      };
-      let result = compressor(&samples, params, None).unwrap();
-  
-      for (i, &sample) in samples.iter().enumerate() {
-          let output = result[i];
-          println!(
-              "[Soft Knee Transition] Sample {}: Input: {:.4}, Output: {:.4}, Threshold: {:.4}",
-              i, sample, output, params.threshold
-          );
-  
-          if sample < -6.0 {
-              assert!(
-                  (output - sample).abs() < 1e-6,
-                  "No compression should occur below the threshold. Input: {}, Output: {}",
-                  sample, output
-              );
-          } else if sample >= -6.0 && sample <= -5.6 {
-              assert!(
-                  output > sample * 0.5 && output < sample,
-                  "Soft knee compression not applied correctly. Input: {}, Output: {}",
-                  sample, output
-              );
-          } else if sample > -5.6 {
-              assert!(
-                  output < sample * 0.5,
-                  "Compression should be strong above knee region. Input: {}, Output: {}",
-                  sample, output
-              );
-          }
-      }
-  }
-  
-
-
 
   #[test]
   fn test_wet_dry_mix() {
@@ -1752,11 +2192,6 @@ fn test_soft_knee_boundaries() {
         sample
       };
       let expected_output = sample * (1.0 - params.wet_dry_mix) + compressed_sample * params.wet_dry_mix;
-
-      println!(
-        "[Wet/Dry Mix] Sample {}: Input: {}, Output: {}, Expected: {}",
-        i, sample, result[i], expected_output
-      );
 
       assert!(
         (result[i] - expected_output).abs() < 0.01, // Allow for small floating point differences
@@ -1778,8 +2213,6 @@ fn test_soft_knee_boundaries() {
       ..Default::default()
     };
     let result = compressor(&samples, params, Some(&sidechain)).unwrap();
-
-    println!("[Sidechain] Result: {:?}", result);
 
     assert!(
       result[0] > result[1],
@@ -1805,7 +2238,6 @@ fn test_soft_knee_boundaries() {
 
     for (i, &sample) in samples.iter().enumerate() {
       let output = result[i];
-      println!("[Limiter] Sample {}: Input: {}, Output: {}", i, sample, output);
       assert!(
         output <= 1.0,
         "Limiter should cap output at the threshold. Input: {}, Output: {}",
@@ -1823,7 +2255,6 @@ fn test_soft_knee_boundaries() {
       ..Default::default()
     };
     let result = compressor(&samples, params, None);
-    println!("[Invalid Parameters] Result: {:?}", result);
     assert!(
       result.is_err(),
       "Compressor should fail with invalid parameters. Error: {:?}",
@@ -1847,6 +2278,1007 @@ fn test_soft_knee_boundaries() {
     );
   }
 }
+
+/// Applies multi-channel dynamic range compression with optional sidechain input.
+///
+/// # Parameters
+/// - `samples`: Multi-channel input audio samples (Vec of Vecs for each channel).
+/// - `params`: Compressor parameters.
+/// - `sidechain`: Optional multi-channel sidechain input samples.
+///
+/// # Returns
+/// - `Result<Vec<Vec<f32>>, String>`: Compressed multi-channel audio or error.
+pub fn dynamic_compression(
+  samples: &[Vec<f32>], params: CompressorParams, sidechain: Option<&[Vec<f32>]>,
+) -> Result<Vec<Vec<f32>>, String> {
+  // Validate input dimensions
+  if samples.is_empty() || samples.iter().any(|ch| ch.is_empty()) {
+    return Err("Samples cannot be empty.".to_string());
+  }
+  if let Some(sc) = sidechain {
+    if sc.len() != samples.len() || sc.iter().any(|ch| ch.len() != samples[0].len()) {
+      return Err("Sidechain dimensions must match input dimensions.".to_string());
+    }
+  }
+
+  validate_compressor_params(&params)?;
+
+  let mut compressed_output = Vec::with_capacity(samples.len());
+
+  // Process each channel independently
+  for (i, channel) in samples.iter().enumerate() {
+    let sidechain_channel = sidechain.map(|sc| &sc[i]);
+
+    // Use the compressor function for each channel
+    let compressed_channel = compressor(channel, params.clone(), sidechain_channel.map(|v| &**v))
+      .map_err(|e| format!("Error in channel {}: {}", i, e))?;
+    compressed_output.push(compressed_channel);
+  }
+
+  Ok(compressed_output)
+}
+
+#[cfg(test)]
+mod test_dynamic_compression {
+  use super::*;
+
+  #[test]
+  fn test_stereo_compression() {
+    let samples = vec![
+      vec![0.5, 1.0, 1.5], // Left channel
+      vec![1.0, 0.5, 0.0], // Right channel
+    ];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None).unwrap();
+
+    for ch in &result {
+      assert_eq!(ch.len(), samples[0].len(), "Channel lengths should match input.");
+    }
+  }
+
+  #[test]
+  fn test_with_sidechain() {
+    let samples = vec![vec![1.0, 1.0, 1.0]];
+    let sidechain = vec![vec![0.5, 1.0, 0.5]]; // Sidechain triggers compression
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 4.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, Some(&sidechain)).unwrap();
+
+    assert!(
+      result[0][1] < result[0][0],
+      "Compression should occur when sidechain is active."
+    );
+  }
+
+  #[test]
+  fn test_invalid_dimensions() {
+    let samples = vec![vec![0.5, 1.0, 1.5]];
+    let sidechain = vec![vec![0.5, 1.0]]; // Mismatched lengths
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, Some(&sidechain));
+    assert!(result.is_err(), "Should fail with mismatched sidechain dimensions.");
+  }
+
+  #[test]
+  fn test_empty_samples() {
+    let samples: Vec<Vec<f32>> = vec![];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None);
+    assert!(result.is_err(), "Should fail with empty input samples.");
+  }
+
+  #[test]
+  fn test_channel_specific_compression() {
+    let samples = vec![
+      vec![0.5, 1.0, 1.5], // Channel 1
+      vec![1.5, 1.0, 0.5], // Channel 2
+    ];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None).unwrap();
+
+    for (i, ch) in result.iter().enumerate() {
+      for (j, &sample) in ch.iter().enumerate() {
+        assert!(
+          sample <= samples[i][j],
+          "Compression should not amplify any sample. Channel: {}, Index: {}",
+          i,
+          j
+        );
+      }
+    }
+  }
+
+  #[test]
+  fn test_silent_input() {
+    let samples = vec![vec![0.0, 0.0, 0.0]];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None).unwrap();
+
+    for ch in &result {
+      assert!(
+        ch.iter().all(|&s| s == 0.0),
+        "Silent input should remain silent after compression."
+      );
+    }
+  }
+
+  #[test]
+  fn test_high_dynamic_range() {
+    let samples = vec![vec![-1.0, 0.0, 1.0]];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 4.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None).unwrap();
+
+    for &sample in result[0].iter() {
+      assert!(
+        sample <= 1.0 && sample >= -1.0,
+        "Compressed output should remain within valid range."
+      );
+    }
+  }
+
+  #[test]
+  fn test_rapid_transients() {
+    let samples = vec![vec![0.0, 1.0, -1.0, 1.0, 0.0]];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 4.0,
+      attack_time: 0.01,
+      release_time: 0.1,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None).unwrap();
+
+    assert!(
+      result[0][1] < samples[0][1],
+      "Compression should reduce the peak of the transient."
+    );
+  }
+
+  #[test]
+  fn test_large_input() {
+    let samples = vec![vec![1.0; 10_000]]; // Large signal
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None).unwrap();
+
+    assert!(
+      result[0].len() == samples[0].len(),
+      "Output length should match input length for large input."
+    );
+  }
+
+  #[test]
+  fn test_non_normalized_input() {
+    let samples = vec![vec![2.0, 4.0, 8.0]];
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None).unwrap();
+
+    for &sample in result[0].iter() {
+      assert!(
+        sample <= 8.0,
+        "Compressed output should not exceed the input's maximum value."
+      );
+    }
+  }
+
+  #[test]
+  fn test_variable_sidechain_levels() {
+    let samples = vec![vec![1.0, 1.0, 1.0]];
+    let sidechain = vec![vec![0.5, 1.5, 0.5]]; // Variable sidechain
+    let params = CompressorParams {
+      threshold: -6.0,
+      ratio: 4.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, Some(&sidechain)).unwrap();
+
+    assert!(
+      result[0][1] < result[0][0],
+      "Compression should react dynamically to sidechain levels."
+    );
+  }
+
+  #[test]
+  fn test_extreme_parameters() {
+    let samples = vec![vec![0.5, 1.0, 1.5]];
+    let params = CompressorParams {
+      threshold: -96.0,
+      ratio: 100.0,
+      ..Default::default()
+    };
+    let result = dynamic_compression(&samples, params, None).unwrap();
+
+    for &sample in result[0].iter() {
+      assert!(
+        sample <= 0.5,
+        "With extreme parameters, compression should heavily attenuate the signal."
+      );
+    }
+  }
+}
+
+pub fn expander(samples: &[f32], params: ExpanderParams) -> Result<Vec<f32>, String> {
+  validate_expander_params(&params)?;
+
+  let mut output = Vec::with_capacity(samples.len());
+  let mut previous_gain = 1.0;
+
+  for &sample in samples.iter() {
+    let env_val_db = amp_to_db(sample.abs()); // Use absolute value and convert to dB
+
+    // Apply expansion based on threshold and ratio
+    let gain_expansion = if env_val_db < params.threshold {
+      1.0 // No change below threshold
+    } else {
+      1.0 / (1.0 + (env_val_db - params.threshold) * (params.ratio - 1f32))
+      // Apply ratio above threshold
+    };
+
+    // Smooth the gain reduction over time
+    let smoothed_gain = smooth_gain_reduction(gain_expansion, previous_gain, params.attack_time, params.release_time);
+    previous_gain = smoothed_gain;
+
+    let expanded_sample = sample * smoothed_gain;
+    output.push(expanded_sample);
+  }
+
+  Ok(output)
+}
+
+pub fn gate(samples: &[f32], params: GateParams) -> Result<Vec<f32>, String> {
+  validate_gate_params(&params)?;
+
+  let mut output = Vec::with_capacity(samples.len());
+  let mut previous_gate = 1.0;
+
+  for &sample in samples.iter() {
+    let env_val_db = amp_to_db(sample.abs()); // Use absolute value and convert to dB
+
+    // Apply gate based on threshold
+    let gate_value = if env_val_db > params.threshold {
+      1.0 // Open gate if signal exceeds threshold
+    } else {
+      0.0 // Close gate if signal is below threshold
+    };
+
+    // Smooth the gate transition over time
+    let smoothed_gate = smooth_gain_reduction(gate_value, previous_gate, params.attack_time, params.release_time);
+    previous_gate = smoothed_gate;
+
+    output.push(sample * smoothed_gate);
+  }
+
+  Ok(output)
+}
+
+/// Applies transient shaping to the input samples.
+///
+/// # Parameters
+/// - `samples`: Input audio samples.
+/// - `params`: Transient shaper parameters (attack, sustain, etc.).
+///
+/// # Returns
+/// - `Result<Vec<f32>, String>`: Transient-shaped audio samples or an error if parameters are invalid.
+pub fn transient_shaper(samples: &[f32], params: TransientShaperParams) -> Result<Vec<f32>, String> {
+  let mut output = Vec::with_capacity(samples.len());
+
+  for &sample in samples.iter() {
+    let shaped_sample = if sample.abs() > params.attack_threshold {
+      sample * params.attack_factor // Apply attack factor if above threshold
+    } else {
+      sample * params.sustain_factor // Apply sustain factor if below threshold
+    };
+
+    output.push(shaped_sample);
+  }
+
+  Ok(output)
+}
+
+/// Validates the parameters for the expander effect.
+fn validate_expander_params(params: &ExpanderParams) -> Result<(), String> {
+  // Validate ratio: must be >= 1.0
+  if params.ratio < 1.0 {
+    return Err("Ratio for expander must be >= 1.0.".to_string());
+  }
+
+  // Validate attack and release times: must be non-negative
+  if params.attack_time < 0.0 {
+    return Err("Attack time must be non-negative.".to_string());
+  }
+
+  if params.release_time < 0.0 {
+    return Err("Release time must be non-negative.".to_string());
+  }
+
+  // Validate threshold: typically in dB, can be negative
+  if params.threshold < MIN_DB {
+    return Err("Threshold must be above the minimum dB value.".to_string());
+  }
+
+  Ok(())
+}
+
+/// Validates the parameters for the gate effect.
+fn validate_gate_params(params: &GateParams) -> Result<(), String> {
+  // Validate threshold: typically in dB, can be negative
+  if params.threshold < MIN_DB {
+    return Err("Threshold must be above the minimum dB value.".to_string());
+  }
+
+  // Validate attack and release times: must be non-negative
+  if params.attack_time < 0.0 {
+    return Err("Attack time must be non-negative.".to_string());
+  }
+
+  if params.release_time < 0.0 {
+    return Err("Release time must be non-negative.".to_string());
+  }
+
+  // Additional validation for `wet_dry_mix` range: 0.0 <= wet_dry_mix <= 1.0
+  if params.wet_dry_mix < 0.0 || params.wet_dry_mix > 1.0 {
+    return Err("Wet/Dry mix must be between 0.0 and 1.0.".to_string());
+  }
+
+  Ok(())
+}
+
+/// Validates the parameters for the transient shaper effect.
+fn validate_transient_shaper_params(params: &TransientShaperParams) -> Result<(), String> {
+  // Validate transient emphasis: must be non-negative
+  if params.transient_emphasis < 0.0 {
+    return Err("Transient emphasis must be non-negative.".to_string());
+  }
+
+  // Validate attack and release times: must be non-negative
+  if params.attack_time < 0.0 {
+    return Err("Attack time must be non-negative.".to_string());
+  }
+
+  if params.release_time < 0.0 {
+    return Err("Release time must be non-negative.".to_string());
+  }
+
+  // Validate threshold: typically in dB, can be negative
+  if params.threshold < MIN_DB {
+    return Err("Threshold must be above the minimum dB value.".to_string());
+  }
+
+  // Validate wet_dry_mix: must be between 0.0 and 1.0
+  if params.wet_dry_mix < 0.0 || params.wet_dry_mix > 1.0 {
+    return Err("Wet/Dry mix must be between 0.0 and 1.0.".to_string());
+  }
+
+  Ok(())
+}
+
+/// Split tests into separate modules for transient_shaper, gate, and expander.
+#[cfg(test)]
+mod transient_shaper_tests {
+  use super::*;
+  use std::f32::EPSILON;
+
+  // Helper function to assert smoothness in transitions
+  fn assert_smooth_transition(result: &[f32], _threshold: f32, start: usize, end: usize) {
+    let mut inflection_points = vec![start];
+    for i in (start + 1)..end {
+      let prev_slope = result[i - 1] - result[i - 2];
+      let curr_slope = result[i] - result[i - 1];
+
+      if prev_slope.signum() != curr_slope.signum() {
+        inflection_points.push(i - 1);
+      }
+    }
+    inflection_points.push(end - 1);
+
+    for w in inflection_points.windows(2) {
+      let (start, end) = (w[0], w[1]);
+      let segment = &result[start..=end];
+      if segment[1] > segment[0] {
+        assert!(
+          segment.windows(2).all(|w| w[1] >= w[0]),
+          "Transition not smooth: {:?}",
+          segment
+        );
+      } else {
+        assert!(
+          segment.windows(2).all(|w| w[1] <= w[0]),
+          "Transition not smooth: {:?}",
+          segment
+        );
+      }
+    }
+  }
+
+  #[test]
+  fn test_transient_shaper_attack_phase() {
+    let samples = vec![0.5, 1.5, 0.8, 0.3];
+    let params = TransientShaperParams {
+      transient_emphasis: 1.5,
+      threshold: 0.6,
+      attack_time: 0.01,
+      release_time: 0.1,
+      attack_factor: 2.0,
+      sustain_factor: 1.0,
+      ..Default::default()
+    };
+    let result = transient_shaper(&samples, params).unwrap();
+    assert!(result[1] > samples[1], "Transient peak should be emphasized.");
+  }
+
+  #[test]
+  fn test_transient_shaper_sustain_phase() {
+    let samples = vec![0.2, 0.3, 0.1, 0.4];
+    let params = TransientShaperParams {
+      transient_emphasis: 1.0,
+      threshold: 0.3,
+      attack_time: 0.05,
+      release_time: 0.1,
+      attack_factor: 1.0,
+      sustain_factor: 0.5,
+      ..Default::default()
+    };
+    let result = transient_shaper(&samples, params).unwrap();
+    for (i, &sample) in result.iter().enumerate() {
+      if sample < 0.3 {
+        assert!(sample < samples[i], "Sustain phase should reduce level.");
+      }
+    }
+  }
+
+  #[test]
+  fn test_transient_shaper_smooth_transition() {
+    let samples = vec![0.2, 0.4, 0.6, 0.5, 0.7, 0.3];
+    let params = TransientShaperParams {
+      transient_emphasis: 1.5,
+      threshold: 0.3,
+      attack_time: 0.05,
+      release_time: 0.05,
+      attack_factor: 2.0,
+      sustain_factor: 1.0,
+      ..Default::default()
+    };
+    let result = transient_shaper(&samples, params).unwrap();
+    assert_smooth_transition(&result, 0.3, 0, result.len());
+  }
+
+  #[test]
+  fn test_transient_shaper_edge_case_no_transients() {
+    let samples = vec![0.0, 0.0, 0.0, 0.0];
+    let params = TransientShaperParams {
+      transient_emphasis: 1.0,
+      threshold: 0.5,
+      attack_time: 0.1,
+      release_time: 0.1,
+      attack_factor: 1.0,
+      sustain_factor: 1.0,
+      ..Default::default()
+    };
+    let result = transient_shaper(&samples, params).unwrap();
+    assert_eq!(result, samples, "Constant signal should remain unchanged.");
+  }
+
+  #[test]
+  fn test_transient_shaper_high_attack_factor() {
+    let samples = vec![0.3, 0.6, 0.2, 0.1];
+    let params = TransientShaperParams {
+      transient_emphasis: 1.5,
+      threshold: 0.3,
+      attack_time: 0.01,
+      release_time: 0.1,
+      attack_factor: 5.0,
+      sustain_factor: 1.0,
+      ..Default::default()
+    };
+    let result = transient_shaper(&samples, params).unwrap();
+    assert!(result[1] > samples[1], "High attack factor should amplify transient.");
+  }
+
+  #[test]
+  fn test_transient_shaper_sustain_behavior() {
+    let samples = vec![0.2, 0.3, 0.4, 0.5];
+    let params = TransientShaperParams {
+      transient_emphasis: 1.0,
+      threshold: 0.3,
+      attack_time: 0.05,
+      release_time: 0.1,
+      attack_factor: 1.0,
+      sustain_factor: 0.7,
+      ..Default::default()
+    };
+    let result = transient_shaper(&samples, params).unwrap();
+    for (i, &sample) in result.iter().enumerate() {
+      if sample < 0.3 {
+        assert!(sample < samples[i], "Sustain phase should reduce level.");
+      }
+    }
+  }
+
+  #[test]
+  fn test_validate_transient_shaper_params() {
+    let valid_params = TransientShaperParams {
+      transient_emphasis: 1.0,
+      threshold: 0.5,
+      attack_time: 0.1,
+      release_time: 0.1,
+      detection_method: EnvelopeMethod::Peak,
+      makeup_gain: 1.0,
+      ratio: 1.0,
+      knee_width: 0.5,
+      wet_dry_mix: 0.5,
+      ..Default::default()
+    };
+
+    assert!(validate_transient_shaper_params(&valid_params).is_ok());
+
+    let invalid_params = TransientShaperParams {
+      transient_emphasis: -1.0,
+      threshold: 0.5,
+      attack_time: 0.1,
+      release_time: 0.1,
+      detection_method: EnvelopeMethod::Peak,
+      makeup_gain: 1.0,
+      ratio: 1.0,
+      knee_width: 0.5,
+      wet_dry_mix: 0.5,
+      ..Default::default()
+    };
+
+    assert!(validate_transient_shaper_params(&invalid_params).is_err());
+  }
+}
+
+#[cfg(test)]
+mod gate_tests {
+  use super::*;
+
+  #[test]
+  fn test_gate_opening_behavior_above_threshold() {
+    let samples = vec![0.8, 1.0, 0.6, 0.5, 0.3];
+    let params = GateParams {
+      threshold: 0.5,
+      attack_time: 0.01,
+      release_time: 0.1,
+      wet_dry_mix: 1.0,
+      ..Default::default()
+    };
+    let result = gate(&samples, params).unwrap();
+    for (i, &sample) in result.iter().enumerate() {
+      assert_eq!(sample, samples[i], "Gate should pass through signal above threshold.");
+    }
+  }
+
+  #[test]
+  fn test_gate_closing_behavior_below_threshold() {
+    let samples = vec![0.2, 0.1, 0.3, 0.4];
+    let params = GateParams {
+      threshold: 0.5,
+      attack_time: 0.01,
+      release_time: 0.1,
+      wet_dry_mix: 1.0,
+      ..Default::default()
+    };
+    let result = gate(&samples, params).unwrap();
+    for sample in result.iter() {
+      assert_eq!(*sample, 0.0, "Gate should mute signal below threshold.");
+    }
+  }
+
+  #[test]
+  fn test_gate_smoothing_behavior() {
+    let samples = vec![0.6, 0.8, 0.4, 0.3];
+    let params = GateParams {
+      threshold: 0.5,
+      attack_time: 0.05,
+      release_time: 0.05,
+      wet_dry_mix: 1.0,
+      ..Default::default()
+    };
+    let result = gate(&samples, params).unwrap();
+    assert!(
+      result.windows(2).all(|w| (w[1] - w[0]).abs() < 0.01),
+      "Gate transitions should be smooth."
+    );
+  }
+
+  #[test]
+  fn test_gate_high_threshold() {
+    let samples = vec![1.0, 1.0, 1.0];
+    let params = GateParams {
+      threshold: 1.1,
+      attack_time: 0.01,
+      release_time: 0.1,
+      wet_dry_mix: 1.0,
+      ..Default::default()
+    };
+    let result = gate(&samples, params).unwrap();
+    assert_eq!(
+      result,
+      vec![0.0, 0.0, 0.0],
+      "Gate should mute signal when above threshold."
+    );
+  }
+
+  #[test]
+  fn test_empty_signal() {
+    let samples: Vec<f32> = vec![];
+    let params = GateParams {
+      threshold: 0.5,
+      attack_time: 0.1,
+      release_time: 0.1,
+      wet_dry_mix: 0.5,
+      ..Default::default()
+    };
+    let result = gate(&samples, params);
+    assert!(result.is_ok(), "Empty signal should return without error.");
+  }
+
+  #[test]
+  fn test_validate_gate_params() {
+    let valid_params = GateParams {
+      threshold: -40.0,
+      attack_time: 0.1,
+      release_time: 0.1,
+      detection_method: EnvelopeMethod::Peak,
+      wet_dry_mix: 0.5,
+      auto_gain: false,
+      hold_time: None,
+    };
+
+    assert!(validate_gate_params(&valid_params).is_ok());
+
+    let invalid_params = GateParams {
+      threshold: -40.0,
+      attack_time: 0.1,
+      release_time: 0.1,
+      detection_method: EnvelopeMethod::Peak,
+      wet_dry_mix: 1.5,
+      auto_gain: false,
+      hold_time: None,
+    };
+
+    assert!(validate_gate_params(&invalid_params).is_err());
+  }
+}
+
+#[cfg(test)]
+mod expander_tests {
+  use super::*;
+
+  #[test]
+  fn test_smooth_gain_reduction_behavior() {
+    let gains = vec![1.0, 0.9, 0.8, 0.7, 0.6];
+    let mut previous_gain = 1.0;
+    let attack_time = 0.01;
+    let release_time = 0.1;
+
+    let smoothed_gains: Vec<f32> = gains
+      .iter()
+      .map(|&gain| {
+        let smoothed_gain = smooth_gain_reduction(gain, previous_gain, attack_time, release_time);
+        previous_gain = smoothed_gain;
+        smoothed_gain
+      })
+      .collect();
+
+    println!("gains: {:?}, smoothed_gains: {:?}", gains, smoothed_gains);
+
+    for i in 1..smoothed_gains.len() {
+      assert!(
+        (smoothed_gains[i] - smoothed_gains[i - 1]).abs() < 0.05,
+        "Abrupt change in smoothed gain: {} -> {}",
+        smoothed_gains[i - 1],
+        smoothed_gains[i]
+      );
+    }
+  }
+
+  #[test]
+  fn test_expander_behavior_below_threshold() {
+    let samples = vec![-0.1, -0.2, -0.3, -0.4, -0.5];
+    let params = ExpanderParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      attack_time: 0.01,
+      release_time: 0.1,
+      ..Default::default()
+    };
+    let result = expander(&samples, params).unwrap();
+    assert_eq!(result, samples, "Expander should not change below threshold.");
+  }
+
+  #[test]
+  fn test_expander_behavior_above_threshold() {
+    let samples = (0..100).map(|x| x as f32 * 0.1).collect::<Vec<f32>>(); // Linear ramp signal
+    let params = ExpanderParams {
+      threshold: 5.0,
+      ratio: 2.0,
+      attack_time: 0.01,
+      release_time: 0.1,
+      ..Default::default()
+    };
+    let result = expander(&samples, params).unwrap();
+
+    println!("samples: {:?}", samples);
+    println!("result: {:?}", result);
+
+    for (i, &sample) in samples.iter().enumerate() {
+      if sample > params.threshold {
+        let expected_gain = params.threshold + (sample - params.threshold) * params.ratio;
+        println!("sample={} result={} expected_gain={}", sample, result[i], expected_gain);
+        assert!(
+          (result[i] - expected_gain).abs() <= 0.1,
+          "Sample expanded incorrectly: input={} output={} expected={}",
+          sample,
+          result[i],
+          expected_gain
+        );
+      }
+    }
+  }
+
+  #[test]
+  fn test_expander_smoothing_behavior() {
+    let samples = (0..200).map(|x| (x as f32 / 10.0).sin()).collect::<Vec<f32>>(); // Sine wave
+    let params = ExpanderParams {
+      threshold: 0.3,
+      ratio: 2.0,
+      attack_time: 0.05,
+      release_time: 0.1,
+      ..Default::default()
+    };
+    let result = expander(&samples, params).unwrap();
+
+    // Validate smooth transitions between expanded and unexpanded regions
+    let mut inflection_points = vec![0];
+    for i in 1..result.len() {
+      if (result[i] - result[i - 1]).signum() != (result[i - 1] - result[i - 2]).signum() {
+        inflection_points.push(i - 1);
+      }
+    }
+    inflection_points.push(result.len() - 1);
+
+    println!("samples {:?}", samples);
+    println!("result {:?}", result);
+
+    for w in inflection_points.windows(2) {
+      let (start, end) = (w[0], w[1]);
+      let segment = &result[start..=end];
+      assert!(
+        segment.windows(2).all(|w| (w[1] - w[0]).abs() <= params.attack_time),
+        "Abrupt transitions detected in segment {:?}",
+        segment
+      );
+    }
+  }
+
+  #[test]
+  fn test_expander_edge_case_low_level() {
+    let samples = vec![0.0, 0.0, 0.0, 0.0];
+    let params = ExpanderParams {
+      threshold: 0.1,
+      ratio: 2.0,
+      attack_time: 0.1,
+      release_time: 0.1,
+      ..Default::default()
+    };
+    let result = expander(&samples, params).unwrap();
+    assert_eq!(result, samples, "Low-level signal should not change.");
+  }
+
+  #[test]
+  fn test_validate_expander_params() {
+    let valid_params = ExpanderParams {
+      threshold: -6.0,
+      ratio: 2.0,
+      attack_time: 0.1,
+      release_time: 0.1,
+      makeup_gain: 1.0,
+      detection_method: EnvelopeMethod::Peak,
+      hold_time: Some(0.2),
+      wet_dry_mix: 0.5,
+      sidechain_filter: None,
+      auto_gain: false,
+      envelope_shaping: None,
+    };
+
+    assert!(validate_expander_params(&valid_params).is_ok());
+
+    let invalid_params = ExpanderParams {
+      threshold: -6.0,
+      ratio: 0.5,
+      attack_time: 0.1,
+      release_time: 0.1,
+      makeup_gain: 1.0,
+      detection_method: EnvelopeMethod::Peak,
+      hold_time: Some(0.2),
+      wet_dry_mix: 0.5,
+      sidechain_filter: None,
+      auto_gain: false,
+      envelope_shaping: None,
+    };
+
+    assert!(validate_expander_params(&invalid_params).is_err());
+  }
+}
+
+/// Converts a linear amplitude value to decibels (dB).
+///
+/// # Parameters
+/// - `amp`: Amplitude value in linear scale.
+///
+/// # Returns
+/// - `f32`: Corresponding dB value.
+///   - Returns `MIN_DB` (-96.0 dB) for amplitudes <= 0 to avoid infinite values.
+pub fn amp_to_db(amp: f32) -> f32 {
+  const MIN_DB: f32 = -96.0;
+  if amp <= 0.0 {
+      MIN_DB
+  } else {
+      20.0 * amp.log10()
+  }
+}
+
+
+/// Converts a decibel value to linear amplitude with clamping.
+///
+/// # Parameters
+/// - `db`: Decibel value.
+///
+/// # Returns
+/// - `f32`: Corresponding linear amplitude.
+///   - Clamped between `MIN_DB` (-96.0 dB) and `MAX_DB` (24.0 dB) to prevent numerical issues.
+pub fn db_to_amp(db: f32) -> f32 {
+  const MIN_DB: f32 = -96.0;
+  const MAX_DB: f32 = 24.0;
+  let clamped_db = db.clamp(MIN_DB, MAX_DB);
+  10f32.powf(clamped_db / 20.0)
+}
+
+  
+#[cfg(test)]
+mod unit_test_amp_to_db {
+    use super::*;
+    
+
+    #[test]
+    fn test_amp_to_db_zero_amplitude() {
+        let amp = 0.0;
+        let db = amp_to_db(amp);
+        assert_eq!(db, -96.0, "Zero amplitude should return MIN_DB (-96.0 dB).");
+    }
+
+    #[test]
+    fn test_amp_to_db_negative_amplitude() {
+        let amp = -0.5;
+        let db = amp_to_db(amp);
+        assert_eq!(db, -96.0, "Negative amplitude should return MIN_DB (-96.0 dB).");
+    }
+
+    #[test]
+    fn test_amp_to_db_positive_amplitude() {
+        let amp = 1.0;
+        let db = amp_to_db(amp);
+        assert_eq!(db, 0.0, "Amplitude of 1.0 should return 0.0 dB.");
+    }
+
+    #[test]
+    fn test_amp_to_db_small_positive_amplitude() {
+        let amp = 1e-6;
+        let db = amp_to_db(amp);
+        assert!(
+            db <= -96.0,
+            "Very small positive amplitude should return MIN_DB (-96.0 dB) or lower."
+        );
+    }
+
+    #[test]
+    fn test_amp_to_db_large_amplitude() {
+        let amp = 1000.0;
+        let db = amp_to_db(amp);
+        assert!(
+            (db - 60.0).abs() < 1e-3,
+            "Amplitude of 1000.0 should return approximately 60.0 dB."
+        );
+    }
+
+
+    #[test]
+    fn test_db_to_amp_standard_conversion() {
+        let db = 0.0;
+        let amp = db_to_amp(db);
+        assert!(
+            (amp - 1.0).abs() < 1e-6,
+            "0 dB should convert to 1.0 amplitude, got {}",
+            amp
+        );
+    }
+
+    #[test]
+    fn test_db_to_amp_positive_db() {
+        let db = 6.0;
+        let amp = db_to_amp(db);
+        assert!(
+            (amp - 2.0).abs() < 1e-2,
+            "6 dB should convert to approximately 2.0 amplitude, got {}",
+            amp
+        );
+    }
+
+    #[test]
+    fn test_db_to_amp_negative_db() {
+        let db = -6.0;
+        let amp = db_to_amp(db);
+        assert!(
+            (amp - 0.5011872).abs() < 1e-6,
+            "-6 dB should convert to approximately 0.5011872 amplitude, got {}",
+            amp
+        );
+    }
+
+    #[test]
+    fn test_db_to_amp_clamping_min_db() {
+        let db = -100.0;
+        let amp = db_to_amp(db);
+        let expected_amp = 10f32.powf(-96.0 / 20.0); // Clamped to MIN_DB
+        assert!(
+            (amp - expected_amp).abs() < 1e-6,
+            "-100 dB should be clamped to -96 dB and convert to {:.7} amplitude, got {}",
+            expected_amp,
+            amp
+        );
+    }
+
+    #[test]
+    fn test_db_to_amp_clamping_max_db() {
+        let db = 30.0;
+        let amp = db_to_amp(db);
+        let expected_amp = 10f32.powf(24.0 / 20.0); // Clamped to MAX_DB
+        assert!(
+            (amp - expected_amp).abs() < 1e-4,
+            "30 dB should be clamped to 24 dB and convert to {:.4} amplitude, got {}",
+            expected_amp,
+            amp
+        );
+    }
+}
+
+
+
 
 // /// Performs role-based dynamic compression.
 // ///
@@ -1904,74 +3336,6 @@ fn test_soft_knee_boundaries() {
 //   Ok(dynamic_compression(signal1, signal2, compressor_params, intensity))
 // }
 
-// /// Applies dynamic range compression with sidechain support, adapting to channel configurations.
-// ///
-// /// # Parameters:
-// /// - `input`: Input audio samples (e.g., bass).
-// /// - `sidechain`: Sidechain audio samples (e.g., kick).
-// /// - `compressor_params`: Compressor parameters.
-// /// - `intensity`: Range [0.0, 1.0], scaling the effect strength.
-// ///
-// /// # Returns:
-// /// - `Vec<Vec<f32>>`: Processed audio channels.
-// pub fn dynamic_compression(
-//   input: Vec<Vec<f32>>, sidechain: Vec<Vec<f32>>, compressor_params: CompressorParams, intensity: f32,
-// ) -> Vec<Vec<f32>> {
-//   let n_input = input.len();
-//   let n_sidechain = sidechain.len();
-
-//   // Ensure intensity is within bounds
-//   let intensity = intensity.clamp(0.0, 1.0);
-
-//   // Helper function to process and scale a single channel
-//   let compress_and_scale = |input_channel: &[f32], sidechain_channel: &[f32]| -> Vec<f32> {
-//     let compressed =
-//       compressor(input_channel, compressor_params, Some(sidechain_channel)).expect("Compression failed.");
-//     compressed
-//       .iter()
-//       .zip(input_channel.iter())
-//       .map(|(&compressed_sample, &original_sample)| compressed_sample * intensity + original_sample * (1.0 - intensity))
-//       .collect()
-//   };
-
-//   match (n_input, n_sidechain) {
-//     // Mono input and mono sidechain
-//     (1, 1) => vec![compress_and_scale(&input[0], &sidechain[0])],
-
-//     // Mono input and stereo sidechain
-//     (1, 2) => {
-//       let downmixed_sidechain =
-//         downmix_stereo_to_mono(&sidechain[0], &sidechain[1]).expect("Failed to downmix sidechain.");
-//       vec![compress_and_scale(&input[0], &downmixed_sidechain)]
-//     }
-
-//     // Stereo input and mono sidechain
-//     (2, 1) => vec![
-//       compress_and_scale(&input[0], &sidechain[0]),
-//       compress_and_scale(&input[1], &sidechain[0]),
-//     ],
-
-//     // Stereo input and stereo sidechain
-//     (2, 2) => {
-//       let downmixed_sidechain =
-//         downmix_stereo_to_mono(&sidechain[0], &sidechain[1]).expect("Failed to downmix sidechain.");
-//       vec![
-//         compress_and_scale(&input[0], &downmixed_sidechain),
-//         compress_and_scale(&input[1], &downmixed_sidechain),
-//       ]
-//     }
-
-//     // Mono or stereo input with no sidechain
-//     (_, 0) => input, // Pass-through
-
-//     // Unsupported configurations
-//     _ => panic!(
-//       "Unsupported channel configuration: input = {}, sidechain = {}",
-//       n_input, n_sidechain
-//     ),
-//   }
-// }
-
 // /// Returns the attack time based on the role.
 // fn attack_time_for_role(role: Role) -> f32 {
 //   match role {
@@ -1990,105 +3354,6 @@ fn test_soft_knee_boundaries() {
 //   }
 // }
 
-// /// Applies dynamic range expansion to the samples based on the provided parameters.
-// ///
-// /// # Parameters
-// /// - `samples`: Input audio samples.
-// /// - `params`: Expander parameters.
-// /// - `sidechain`: Optional sidechain input samples.
-// ///
-// /// # Returns
-// /// - `Result<Vec<f32>, String>`: Expanded samples or an error if parameters are invalid.
-// pub fn expander(samples: &[f32], params: ExpanderParams, sidechain: Option<&[f32]>) -> Result<Vec<f32>, String> {
-//   if params.ratio < 1.0 {
-//     return Err("Expansion ratio must be >= 1.0.".to_string());
-//   }
-
-//   let envelope = if let Some(sc) = sidechain {
-//     envelope_follower(
-//       sc,
-//       params.attack_time,
-//       params.release_time,
-//       params.hold_time,
-//       Some(params.detection_method),
-//       params.sidechain_filter.map(|f| f.cutoff_freq),
-//     )?
-//   } else {
-//     envelope_follower(
-//       samples,
-//       params.attack_time,
-//       params.release_time,
-//       params.hold_time,
-//       Some(params.detection_method),
-//       None,
-//     )?
-//   };
-
-//   let mut output = Vec::with_capacity(samples.len());
-//   for (i, &sample) in samples.iter().enumerate() {
-//     let env_val = envelope[i];
-//     let gain_increase = if env_val < params.threshold && env_val != 0.0 {
-//       let expanded_level = params.threshold - (params.threshold - env_val) / params.ratio;
-//       expanded_level / env_val
-//     } else {
-//       1.0
-//     };
-
-//     // Apply envelope shaping if specified
-//     let final_gain = if let Some(shaping) = params.envelope_shaping {
-//       match shaping.shape_type {
-//         ShapeType::Soft => 1.0 - (1.0 - gain_increase).powf(2.0), // Example soft shaping
-//         ShapeType::Hard => gain_increase.powf(3.0),               // Example hard shaping
-//         ShapeType::Custom => gain_increase,                       // Placeholder for custom shaping
-//       }
-//     } else {
-//       gain_increase
-//     };
-
-//     // Apply gain increase
-//     let expanded_sample = sample * final_gain;
-
-//     // Apply makeup gain
-//     let makeup = if params.auto_gain {
-//       params.makeup_gain
-//     } else {
-//       params.makeup_gain
-//     };
-
-//     let final_sample = expanded_sample * makeup;
-
-//     // Apply wet/dry mix
-//     let mixed_sample = params.wet_dry_mix * final_sample + (1.0 - params.wet_dry_mix) * sample;
-
-//     output.push(mixed_sample);
-//   }
-
-//   Ok(output)
-// }
-
-// /// Applies a limiter to the samples to prevent clipping.
-// ///
-// /// # Parameters
-// /// - `samples`: Input audio samples.
-// /// - `threshold`: Limiter threshold in linear scale.
-// ///
-// /// # Returns
-// /// - `Vec<f32>`: Limited samples.
-// fn limiter(samples: &[f32], threshold: f32) -> Vec<f32> {
-//   samples
-//     .iter()
-//     .map(|&s| {
-//       let sign = s.signum();
-//       let abs_s = s.abs();
-//       if abs_s > threshold {
-//         sign * threshold
-//       } else {
-//         s
-//       }
-//     })
-//     .collect()
-// }
-
 // /// Applies dynamic range compression followed by expansion (companding) to the samples.
 // ///
 // /// # Parameters
@@ -2102,235 +3367,6 @@ fn test_soft_knee_boundaries() {
 //   let compressed = compressor(samples, params.compressor, sidechain)?;
 //   let expanded = expander(&compressed, params.expander, None)?;
 //   Ok(expanded)
-// }
-
-// pub fn compressor(samples: &[f32], params: CompressorParams, sidechain: Option<&[f32]>) -> Result<Vec<f32>, String> {
-//   if params.ratio < 1.0 {
-//     return Err("Compression ratio must be >= 1.0.".to_string());
-//   }
-//   if let Some(t) = params.lookahead_time {
-//     if t < 0.0 {
-//       return Err("Lookahead time must be non-negative.".to_string());
-//     }
-//   }
-
-//   let lookahead_samples = params.lookahead_time.map(|t| (t * SRf).round() as usize).unwrap_or(0);
-//   let delayed_samples = if lookahead_samples > 0 {
-//     apply_lookahead(samples, lookahead_samples)
-//   } else {
-//     samples.to_vec()
-//   };
-
-//   let envelope = if let Some(sc) = sidechain {
-//     envelope_follower(
-//       sc,
-//       params.attack_time,
-//       params.release_time,
-//       params.hold_time,
-//       Some(params.detection_method),
-//       params.sidechain_filter.map(|f| f.cutoff_freq),
-//     )?
-//   } else {
-//     envelope_follower(
-//       &delayed_samples,
-//       params.attack_time,
-//       params.release_time,
-//       params.hold_time,
-//       Some(params.detection_method),
-//       None,
-//     )?
-//   };
-
-//   println!(
-//     "Envelope (sampled): {:?}",
-//     &envelope[..std::cmp::min(envelope.len(), 10)]
-//   );
-
-//   // Calculate threshold_linear once
-//   let threshold_linear = if params.threshold < 0.0 {
-//     10f32.powf(params.threshold / 20.0).clamp(0.0, 1.0)
-//   } else {
-//     params.threshold.clamp(0.0, 1.0)
-//   };
-//   if threshold_linear > 1.0 {
-//     eprintln!("Warning: Threshold value exceeds normalized range.");
-//   }
-
-//   let mut output = Vec::with_capacity(samples.len());
-//   let mut previous_gain = 1.0; // Smoothing state
-//   for (i, &sample) in samples.iter().enumerate() {
-//     let env_val = envelope[i];
-
-//     let mut gain_reduction = if env_val > threshold_linear {
-//       let compressed_level = threshold_linear + (env_val - threshold_linear) / params.ratio;
-//       compressed_level / env_val
-//     } else {
-//       1.0
-//     };
-
-//     // Apply smoothing for musicality
-//     let smooth_gain = time_to_coefficient(params.release_time);
-//     gain_reduction = smooth_gain * gain_reduction + (1.0 - smooth_gain) * previous_gain;
-//     previous_gain = gain_reduction;
-
-//     // Debugging: Check anomalies
-//     if gain_reduction < 0.0 || gain_reduction > 1.0 {
-//       println!(
-//         "Gain anomaly: env_val = {}, threshold_linear = {}, ratio = {}, gain_reduction = {}",
-//         env_val, threshold_linear, params.ratio, gain_reduction
-//       );
-//     }
-
-//     let compressed_sample = sample * gain_reduction;
-
-//     let makeup = params.makeup_gain;
-
-//     let final_sample = compressed_sample * makeup;
-
-//     let mixed_sample = params.wet_dry_mix * final_sample + (1.0 - params.wet_dry_mix) * sample;
-
-//     output.push(mixed_sample);
-//   }
-
-//   if params.enable_limiter {
-//     let limiter_threshold = params.limiter_threshold.unwrap_or(threshold_linear);
-//     let limited_output = limiter(&output, limiter_threshold);
-//     output = limited_output;
-//   }
-
-//   println!("Output (sampled): {:?}", &output[..std::cmp::min(output.len(), 10)]);
-
-//   Ok(output)
-// }
-
-// /// Applies transient shaping by enhancing or attenuating transients based on the envelope.
-// ///
-// /// # Parameters
-// /// - `samples`: Input audio samples.
-// /// - `params`: Transient shaper parameters.
-// ///
-// /// # Returns
-// /// - `Result<Vec<f32>, String>`: Transient-shaped samples or an error if parameters are invalid.
-// pub fn transient_shaper(samples: &[f32], params: TransientShaperParams) -> Result<Vec<f32>, String> {
-//   if params.transient_emphasis < 0.0 {
-//     return Err("Transient emphasis must be non-negative.".to_string());
-//   }
-
-//   let envelope = envelope_follower(
-//     samples,
-//     params.attack_time,
-//     params.release_time,
-//     None,
-//     Some(params.detection_method),
-//     None,
-//   )?;
-
-//   let mut output = Vec::with_capacity(samples.len());
-
-//   for (&sample, &env_val) in samples.iter().zip(envelope.iter()) {
-//     let factor = if env_val > params.threshold {
-//       1.0 + params.transient_emphasis * ((env_val / params.threshold).powf(params.ratio) - 1.0)
-//     } else {
-//       1.0
-//     };
-//     let shaped_sample = sample * factor * params.makeup_gain;
-//     // Apply wet/dry mix
-//     let mixed_sample = params.wet_dry_mix * shaped_sample + (1.0 - params.wet_dry_mix) * sample;
-//     output.push(mixed_sample);
-//   }
-
-//   Ok(output)
-// }
-
-// /// Applies expansion to a single sample based on threshold and ratio.
-// ///
-// /// # Parameters
-// /// - `sample`: Input audio sample.
-// /// - `threshold`: Expansion threshold in linear scale.
-// /// - `ratio`: Expansion ratio.
-// ///
-// /// # Returns
-// /// - `f32`: Expanded audio sample.
-// fn apply_expansion(sample: f32, threshold: f32, ratio: f32) -> f32 {
-//   let sign = sample.signum();
-//   let abs_s = sample.abs();
-//   if abs_s >= threshold {
-//     sample
-//   } else {
-//     let deficit = threshold - abs_s;
-//     let expanded = threshold - deficit * ratio;
-//     sign * expanded
-//   }
-// }
-
-// /// Applies compression to a single sample based on threshold and ratio.
-// ///
-// /// # Parameters
-// /// - `sample`: Input audio sample.
-// /// - `threshold`: Compression threshold in linear scale.
-// /// - `ratio`: Compression ratio.
-// ///
-// /// # Returns
-// /// - `f32`: Compressed audio sample.
-// fn apply_compression(sample: f32, threshold: f32, ratio: f32) -> f32 {
-//   let sign = sample.signum();
-//   let abs_s = sample.abs();
-//   if abs_s <= threshold {
-//     sample
-//   } else {
-//     let excess = abs_s - threshold;
-//     let compressed = threshold + excess / ratio;
-//     sign * compressed
-//   }
-// }
-
-// /// Applies dynamic range expansion with sidechain support.
-// ///
-// /// # Parameters
-// /// - `samples`: Input audio samples.
-// /// - `params`: Expander parameters.
-// /// - `sidechain`: Sidechain input samples to control expansion.
-// ///
-// /// # Returns
-// /// - `Result<Vec<f32>, String>`: Expanded samples or an error if parameters are invalid.
-// pub fn expander_with_sidechain(samples: &[f32], params: ExpanderParams, sidechain: &[f32]) -> Result<Vec<f32>, String> {
-//   expander(samples, params, Some(sidechain))
-// }
-
-// /// Applies a noise gate to the samples, zeroing those below the threshold.
-// /// Includes attack and release smoothing to prevent abrupt transitions.
-// ///
-// /// # Parameters
-// /// - `samples`: Input audio samples.
-// /// - `threshold`: Threshold level in linear scale.
-// /// - `attack_time`: Attack time in seconds.
-// /// - `release_time`: Release time in seconds.
-// ///
-// /// # Returns
-// /// - `Result<Vec<f32>, String>`: Gated samples or an error if parameters are invalid.
-// pub fn gate(samples: &[f32], threshold: f32, attack_time: f32, release_time: f32) -> Result<Vec<f32>, String> {
-//   if attack_time < 0.0 || release_time < 0.0 {
-//     return Err("Attack and release times must be non-negative.".to_string());
-//   }
-
-//   let envelope = envelope_follower(
-//     samples,
-//     attack_time,
-//     release_time,
-//     None,
-//     Some(EnvelopeMethod::Peak),
-//     None,
-//   )?;
-
-//   let mut output = Vec::with_capacity(samples.len());
-//   for (&sample, &env_val) in samples.iter().zip(envelope.iter()) {
-//     if env_val <= threshold {
-//       output.push(0.0);
-//     } else {
-//       output.push(sample);
-//     }
-//   }
-//   Ok(output)
 // }
 
 // /// Calculates a dynamic threshold based on peak or RMS levels, scaled by a factor.
@@ -2406,40 +3442,6 @@ fn test_soft_knee_boundaries() {
 //   }
 //   let gain = target_max / current_max;
 //   Ok(samples.iter().map(|&s| s * gain).collect())
-// }
-
-// /// Applies a noise gate with sidechain support.
-// ///
-// /// # Parameters
-// /// - `samples`: Input audio samples.
-// /// - `sidechain`: Sidechain input samples to control gating.
-// /// - `threshold`: Threshold level in linear scale.
-// /// - `attack_time`: Attack time in seconds.
-// /// - `release_time`: Release time in seconds.
-// ///
-// /// # Returns
-// /// - `Result<Vec<f32>, String>`: Gated samples or an error if parameters are invalid.
-// pub fn gate_with_sidechain(
-//   samples: &[f32], sidechain: &[f32], threshold: f32, attack_time: f32, release_time: f32,
-// ) -> Result<Vec<f32>, String> {
-//   let envelope = envelope_follower(
-//     sidechain,
-//     attack_time,
-//     release_time,
-//     None,
-//     Some(EnvelopeMethod::Peak),
-//     None,
-//   )?;
-
-//   let mut output = Vec::with_capacity(samples.len());
-//   for (&sample, &env_val) in samples.iter().zip(envelope.iter()) {
-//     if env_val <= threshold {
-//       output.push(0.0);
-//     } else {
-//       output.push(sample);
-//     }
-//   }
-//   Ok(output)
 // }
 
 // #[cfg(test)]
@@ -2542,7 +3544,7 @@ fn test_soft_knee_boundaries() {
 // }
 
 // #[cfg(test)]
-// mod tests {
+// mod tests_applied {
 //   use super::*;
 
 //   #[test]
