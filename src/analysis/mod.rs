@@ -7,6 +7,7 @@ pub mod monic_theory;
 pub mod sampler;
 pub mod sine_cache;
 pub mod time;
+pub mod tools;
 pub mod transient;
 pub mod trig;
 pub mod volume;
