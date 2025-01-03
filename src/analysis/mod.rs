@@ -1,5 +1,4 @@
 pub mod delay;
-pub mod eng;
 pub mod freq;
 pub mod groovability;
 pub mod melody;

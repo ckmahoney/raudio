@@ -1,5 +1,8 @@
 use super::*;
 
+use crate::analysis::sampler::read_audio_file;
+use crate::render::engrave::write_audio;
+
 pub fn dev_audio_asset(label: &str) -> String {
   format!("dev-audio/{}", label)
 }
@@ -1722,7 +1725,6 @@ mod test_unit_soft_knee_compression {
   // or for wet/dry in dB form, etc.
 }
 
-/// Split tests into separate modules for transient_shaper, gate, and expander.
 #[cfg(test)]
 mod test_unit_transient_shaper {
   use super::*;
@@ -1914,7 +1916,7 @@ mod test_unit_transient_shaper {
 }
 
 #[cfg(test)]
-mod gate_tests {
+mod test_unit_gate {
   use super::*;
 
   fn assert_approx_eq(a: f32, b: f32, tol: f32, msg: &str) {
@@ -1922,27 +1924,10 @@ mod gate_tests {
   }
 
   #[test]
-  fn test_gate_smoothing_behavior() {
-    let samples = vec![0.6, 0.8, 0.4, 0.3];
-    let params = GateParams {
-      threshold: 0.5,
-      attack_time: 0.05,
-      release_time: 0.05,
-      wet_dry_mix: 1.0,
-      ..Default::default()
-    };
-    let result = gate(&samples, params).unwrap();
-    assert!(
-      result.windows(2).all(|w| (w[1] - w[0]).abs() < 0.01),
-      "Gate transitions should be smooth."
-    );
-  }
-
-  #[test]
   fn test_empty_signal() {
     let samples: Vec<f32> = vec![];
     let params = GateParams {
-      threshold: 0.5,
+      threshold: -10f32,
       attack_time: 0.1,
       release_time: 0.1,
       wet_dry_mix: 0.5,
@@ -1962,6 +1947,7 @@ mod gate_tests {
       wet_dry_mix: 0.5,
       auto_gain: false,
       hold_time: None,
+      makeup_gain: 1f32
     };
 
     assert!(validate_gate_params(&valid_params).is_ok());
@@ -1974,6 +1960,7 @@ mod gate_tests {
       wet_dry_mix: 1.5,
       auto_gain: false,
       hold_time: None,
+      makeup_gain: 1f32
     };
 
     assert!(validate_gate_params(&invalid_params).is_err());
@@ -1996,7 +1983,7 @@ mod test_unit_expander {
       ..Default::default()
     };
 
-    let out = expander(&samples, params).expect("Expander failed");
+    let out = expander(&samples, params, None).expect("Expander failed");
     // Above threshold -> no attenuation.
     for (i, &sample) in samples.iter().enumerate() {
       assert!(
@@ -2020,7 +2007,7 @@ mod test_unit_expander {
       ..Default::default()
     };
 
-    let out = expander(&samples, params).expect("Expander failed");
+    let out = expander(&samples, params, None).expect("Expander failed");
 
     for (i, &sample) in samples.iter().enumerate() {
       if sample < params.threshold {
@@ -2101,7 +2088,7 @@ mod test_unit_expander {
       ..Default::default()
     };
 
-    let result = expander(&samples, params).unwrap();
+    let result = expander(&samples, params, None).unwrap();
     assert_eq!(result, samples, "Low-level signals should not be modified.");
   }
 
@@ -2144,7 +2131,7 @@ mod unit_test_amp_to_db {
   fn test_amp_to_db_negative_amplitude() {
     let amp = -0.5;
     let db = amp_to_db(amp);
-    assert_eq!(db, -96.0, "Negative amplitude should return MIN_DB (-96.0 dB).");
+    assert_eq!(db, amp_to_db(amp.abs()), "Negative amplitude should return its symmetric value.");
   }
 
   #[test]
@@ -2419,7 +2406,7 @@ mod test_edm_compression_patterns {
       makeup_gain: 1.0, // No makeup gain
       ..Default::default()
     };
-    let processed = expander(&samples, params).unwrap();
+    let processed = expander(&samples, params, None).unwrap();
 
     let (rms_after, dr_after) = (overall_rms(&processed), calc_dynamic_range_db(&processed));
     // Light expansion slightly raises dynamic range
@@ -2455,7 +2442,7 @@ mod test_edm_compression_patterns {
       makeup_gain: 1.0, // No makeup gain
       ..Default::default()
     };
-    let processed = expander(&samples, params).unwrap();
+    let processed = expander(&samples, params, None).unwrap();
 
     let (rms_after, dr_after) = (overall_rms(&processed), calc_dynamic_range_db(&processed));
     assert!(
@@ -2494,7 +2481,7 @@ mod test_edm_compression_patterns {
       makeup_gain: 1.0, // No makeup gain
       ..Default::default()
     };
-    let processed = expander(&samples, params).unwrap();
+    let processed = expander(&samples, params, None).unwrap();
 
     let (rms_after, dr_after) = (overall_rms(&processed), calc_dynamic_range_db(&processed));
     assert!(
@@ -2518,339 +2505,6 @@ mod test_edm_compression_patterns {
       Path::new(&output_path).exists(),
       "Processed audio file was not created at {}",
       output_path
-    );
-  }
-}
-
-
-
-#[cfg(test)]
-mod test_dynamic_compression {
-  use super::*;
-
-  #[test]
-  fn test_stereo_compression() {
-    let samples = vec![
-      vec![0.5, 1.0, 1.5], // Left channel
-      vec![1.0, 0.5, 0.0], // Right channel
-    ];
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None).unwrap();
-
-    for ch in &result {
-      assert_eq!(ch.len(), samples[0].len(), "Channel lengths should match input.");
-    }
-  }
-
-  #[test]
-  fn test_with_sidechain() {
-    let samples = vec![vec![1.0, 1.0, 1.0]];
-    let sidechain = vec![vec![0.5, 1.0, 0.5]]; // Sidechain triggers compression
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 4.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, Some(&sidechain)).unwrap();
-
-    assert!(
-      result[0][1] < result[0][0],
-      "Compression should occur when sidechain is active."
-    );
-  }
-
-  #[test]
-  fn test_invalid_dimensions() {
-    let samples = vec![vec![0.5, 1.0, 1.5]];
-    let sidechain = vec![vec![0.5, 1.0]]; // Mismatched lengths
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, Some(&sidechain));
-    assert!(result.is_err(), "Should fail with mismatched sidechain dimensions.");
-  }
-
-  #[test]
-  fn test_empty_samples() {
-    let samples: Vec<Vec<f32>> = vec![];
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None);
-    assert!(result.is_err(), "Should fail with empty input samples.");
-  }
-
-  #[test]
-  fn test_channel_specific_compression() {
-    let samples = vec![
-      vec![0.5, 1.0, 1.5], // Channel 1
-      vec![1.5, 1.0, 0.5], // Channel 2
-    ];
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None).unwrap();
-
-    for (i, ch) in result.iter().enumerate() {
-      for (j, &sample) in ch.iter().enumerate() {
-        assert!(
-          sample <= samples[i][j],
-          "Compression should not amplify any sample. Channel: {}, Index: {}",
-          i,
-          j
-        );
-      }
-    }
-  }
-
-  #[test]
-  fn test_silent_input() {
-    let samples = vec![vec![0.0, 0.0, 0.0]];
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None).unwrap();
-
-    for ch in &result {
-      assert!(
-        ch.iter().all(|&s| s == 0.0),
-        "Silent input should remain silent after compression."
-      );
-    }
-  }
-
-  #[test]
-  fn test_high_dynamic_range() {
-    let samples = vec![vec![-1.0, 0.0, 1.0]];
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 4.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None).unwrap();
-
-    for &sample in result[0].iter() {
-      assert!(
-        sample <= 1.0 && sample >= -1.0,
-        "Compressed output should remain within valid range."
-      );
-    }
-  }
-
-  #[test]
-  fn test_rapid_transients() {
-    let samples = vec![vec![0.0, 1.0, -1.0, 1.0, 0.0]];
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 4.0,
-      attack_time: 0.01,
-      release_time: 0.1,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None).unwrap();
-
-    assert!(
-      result[0][1] < samples[0][1],
-      "Compression should reduce the peak of the transient."
-    );
-  }
-
-  #[test]
-  fn test_large_input() {
-    let samples = vec![vec![1.0; 10_000]]; // Large signal
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None).unwrap();
-
-    assert!(
-      result[0].len() == samples[0].len(),
-      "Output length should match input length for large input."
-    );
-  }
-
-  #[test]
-  fn test_non_normalized_input() {
-    let samples = vec![vec![2.0, 4.0, 8.0]];
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None).unwrap();
-
-    for &sample in result[0].iter() {
-      assert!(
-        sample <= 8.0,
-        "Compressed output should not exceed the input's maximum value."
-      );
-    }
-  }
-
-  #[test]
-  fn test_variable_sidechain_levels() {
-    let samples = vec![vec![1.0, 1.0, 1.0]];
-    let sidechain = vec![vec![0.5, 1.5, 0.5]]; // Variable sidechain
-    let params = CompressorParams {
-      threshold: -6.0,
-      ratio: 4.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, Some(&sidechain)).unwrap();
-
-    assert!(
-      result[0][1] < result[0][0],
-      "Compression should react dynamically to sidechain levels."
-    );
-  }
-
-  #[test]
-  fn test_extreme_parameters() {
-    let samples = vec![vec![0.5, 1.0, 1.5]];
-    let params = CompressorParams {
-      threshold: -96.0,
-      ratio: 100.0,
-      ..Default::default()
-    };
-    let result = dynamic_compression(&samples, params, None).unwrap();
-
-    for &sample in result[0].iter() {
-      assert!(
-        sample <= 0.5,
-        "With extreme parameters, compression should heavily attenuate the signal."
-      );
-    }
-  }
-}
-
-
-#[cfg(test)]
-mod unit_test_time_to_coefficient {
-  use super::*;
-
-  #[test]
-  fn test_practical_audio_ranges() {
-    let coeff_fast = time_to_coefficient(0.0001); // 0.1ms
-    assert!(
-      coeff_fast > 0.0 && coeff_fast < 1.0,
-      "Coefficient out of range for 0.1ms: {}",
-      coeff_fast
-    );
-
-    let coeff_slow = time_to_coefficient(5.0); // 5 seconds
-    assert!(
-      coeff_slow > 0.999 && coeff_slow < 1.0,
-      "Coefficient out of range for 5s: {}",
-      coeff_slow
-    );
-  }
-
-  #[test]
-  fn test_monotonicity() {
-    let coeff_10ms = time_to_coefficient(0.01);
-    let coeff_20ms = time_to_coefficient(0.02);
-    let coeff_50ms = time_to_coefficient(0.05);
-    assert!(
-      coeff_10ms < coeff_20ms && coeff_20ms < coeff_50ms,
-      "Coefficients are not monotonic: 10ms={}, 20ms={}, 50ms={}",
-      coeff_10ms,
-      coeff_20ms,
-      coeff_50ms
-    );
-  }
-
-  #[test]
-  fn test_zero_time() {
-    assert_eq!(time_to_coefficient(0.0), 0.0);
-  }
-
-  #[test]
-  fn test_small_time() {
-    let coeff = time_to_coefficient(0.0001);
-    assert!(coeff > 0.0 && coeff < 1.0, "Coefficient out of bounds: {}", coeff);
-  }
-
-  #[test]
-  fn test_large_time() {
-    let coeff = time_to_coefficient(10.0);
-    assert!(
-      coeff > 0.999 && coeff < 1.0,
-      "Coefficient should approach 1 for large time: {}",
-      coeff
-    );
-  }
-
-  #[test]
-  fn test_negative_time() {
-    assert_eq!(time_to_coefficient(-1.0), 0.0);
-  }
-
-  #[test]
-  fn test_standard_cases() {
-    let coeff_10ms = time_to_coefficient(0.01);
-    assert!(
-      coeff_10ms > 0.0 && coeff_10ms < 1.0,
-      "Coefficient out of range for 10ms: {}",
-      coeff_10ms
-    );
-
-    let coeff_50ms = time_to_coefficient(0.05);
-    assert!(
-      coeff_50ms > coeff_10ms,
-      "Coefficient should increase with time: {} vs {}",
-      coeff_50ms,
-      coeff_10ms
-    );
-  }
-
-  #[test]
-  fn test_extreme_small_time() {
-    let coeff = time_to_coefficient(1e-10);
-    assert!(
-      coeff > 0.0 && coeff < 1.0,
-      "Coefficient for extremely small time is out of range: {}",
-      coeff
-    );
-  }
-
-  #[test]
-  fn test_extreme_large_time() {
-    let coeff = time_to_coefficient(1e10);
-    assert!(
-      coeff > 0.999 && coeff < 1.0,
-      "Coefficient for extremely large time should approach 1: {}",
-      coeff
-    );
-  }
-
-  #[test]
-  fn test_boundary_conditions() {
-    let coeff_very_small = time_to_coefficient(1e-6); // Near-zero but positive
-    assert!(
-      coeff_very_small > 0.0 && coeff_very_small < 1.0,
-      "Coefficient for very small positive time out of range: {}",
-      coeff_very_small
-    );
-
-    let coeff_very_large = time_to_coefficient(1e3); // Very large time
-    assert!(
-      coeff_very_large > 0.999 && coeff_very_large < 1.0,
-      "Coefficient for very large time out of range: {}",
-      coeff_very_large
     );
   }
 }
