@@ -13,6 +13,12 @@ pub fn dev_audio_asset(label: &str) -> String {
   format!("dev-audio/{}", label)
 }
 
+fn calc_dynamic_range(samples: &[f32]) -> f32 {
+  let max_val = samples.iter().copied().fold(f32::MIN, f32::max);
+  let min_val = samples.iter().copied().fold(f32::MAX, f32::min);
+  max_val - min_val
+}
+
 /// Enumeration for different envelope detection methods.
 #[derive(Debug, Clone, Copy)]
 pub enum EnvelopeMethod {
@@ -3830,6 +3836,325 @@ mod unit_test_amp_to_db {
     );
   }
 }
+
+
+
+#[cfg(test)]
+mod test_edm_compression_patterns {
+    use super::*;
+    use crate::analysis::sampler::read_audio_file;
+    use crate::render::engrave::write_audio;
+    use std::path::Path;
+
+    /// Helper: calculate overall RMS using the existing compute_rms function.
+    fn overall_rms(samples: &[f32]) -> f32 {
+        // Set window_size to the total number of samples to get a single RMS value
+        let rms_values = compute_rms(samples, samples.len());
+        // Assuming compute_rms returns at least one value
+        rms_values.first().copied().unwrap_or(0.0)
+    }
+
+    /// Helper: compute dynamic range in dB (20*log10(max/min))
+    fn calc_dynamic_range_db(samples: &[f32]) -> f32 {
+        let max_val = samples.iter().copied().fold(f32::MIN, f32::max).abs();
+        let min_val = samples.iter().copied().fold(f32::MAX, f32::min).abs();
+        if min_val == 0.0 {
+            amp_to_db(max_val)
+        } else {
+            amp_to_db(max_val / min_val)
+        }
+    }
+
+    /// Loads the dev-audio/lead.wav file as single-channel or merges if stereo.
+    fn load_lead_mono() -> (Vec<f32>, u32) {
+        let (channels, sample_rate) = read_audio_file("dev-audio/lead.wav")
+            .expect("Missing dev-audio/lead.wav for tests");
+        // If stereo or multi-channel, downmix here:
+        if channels.len() > 1 {
+            let mut mono = Vec::with_capacity(channels[0].len());
+            for frame_idx in 0..channels[0].len() {
+                let mut sum = 0.0;
+                for channel in &channels {
+                    sum += channel[frame_idx];
+                }
+                mono.push(sum / channels.len() as f32);
+            }
+            (mono, sample_rate)
+        } else {
+            (channels[0].clone(), sample_rate)
+        }
+    }
+
+    /// Generates the output file path based on the test name and effect type.
+    fn generate_output_path(effect: &str, intensity: &str) -> String {
+        dev_audio_asset(&format!("lead_{}_{}.wav", effect, intensity))
+    }
+
+    #[test]
+    fn test_light_compression() {
+        let (samples, sample_rate) = load_lead_mono();
+        let rms_before = overall_rms(&samples);
+        let dr_before = calc_dynamic_range_db(&samples);
+
+        let params = CompressorParams {
+            threshold: -20.0, // Fairly gentle
+            ratio: 2.0,       // Light ratio
+            attack_time: 0.01,
+            release_time: 0.1,
+            makeup_gain: 1.0, // No makeup gain
+            ..Default::default()
+        };
+        let processed = compressor(&samples, params, None).unwrap();
+
+        let rms_after = overall_rms(&processed);
+        let dr_after = calc_dynamic_range_db(&processed);
+
+        assert!(
+            rms_after <= rms_before * 1.05,
+            "Light compression shouldn't drastically raise RMS. Before={:.3}, After={:.3}",
+            rms_before,
+            rms_after
+        );
+        assert!(
+            dr_after < dr_before,
+            "Dynamic range should decrease under compression. Before={:.3} dB, After={:.3} dB",
+            dr_before,
+            dr_after
+        );
+
+        // Write processed audio to file after successful assertions
+        let output_path = generate_output_path("compression_light_test", "test");
+        write_audio(
+            sample_rate as usize,
+            vec![processed.clone()],
+            &output_path,
+        );
+
+        // Verify the output file was created
+        assert!(
+            Path::new(&output_path).exists(),
+            "Processed audio file was not created at {}",
+            output_path
+        );
+    }
+
+    #[test]
+    fn test_moderate_compression() {
+        let (samples, sample_rate) = load_lead_mono();
+        let (rms_before, dr_before) = (overall_rms(&samples), calc_dynamic_range_db(&samples));
+
+        let params = CompressorParams {
+            threshold: -15.0,
+            ratio: 4.0,    // Moderate ratio
+            attack_time: 0.01,
+            release_time: 0.2,
+            makeup_gain: 1.0, // No makeup gain
+            ..Default::default()
+        };
+        let processed = compressor(&samples, params, None).unwrap();
+
+        let (rms_after, dr_after) = (overall_rms(&processed), calc_dynamic_range_db(&processed));
+        assert!(
+            dr_after < dr_before,
+            "Moderate compression should decrease DR. Before={:.3} dB, After={:.3} dB",
+            dr_before,
+            dr_after
+        );
+        assert!(
+            rms_after <= rms_before,
+            "RMS should attenuate or remain the same under compression without makeup gain."
+        );
+
+        // Write processed audio to file after successful assertions
+        let output_path = generate_output_path("compression_moderate_test", "test");
+        write_audio(
+            sample_rate as usize,
+            vec![processed.clone()],
+            &output_path,
+        );
+
+        // Verify the output file was created
+        assert!(
+            Path::new(&output_path).exists(),
+            "Processed audio file was not created at {}",
+            output_path
+        );
+    }
+
+    #[test]
+    fn test_heavy_compression() {
+        let (samples, sample_rate) = load_lead_mono();
+        let (rms_before, dr_before) = (overall_rms(&samples), calc_dynamic_range_db(&samples));
+
+        let params = CompressorParams {
+            threshold: -25.0,
+            ratio: 10.0,    // Heavy ratio
+            attack_time: 0.005,
+            release_time: 0.2,
+            makeup_gain: 1.0, // No makeup gain
+            ..Default::default()
+        };
+        let processed = compressor(&samples, params, None).unwrap();
+
+        let (rms_after, dr_after) = (overall_rms(&processed), calc_dynamic_range_db(&processed));
+        assert!(
+            dr_after < dr_before * 0.7,
+            "Heavy compression should greatly decrease DR. Before={:.3} dB, After={:.3} dB",
+            dr_before,
+            dr_after
+        );
+        assert!(
+            rms_after <= rms_before,
+            "Heavy compression typically lowers (or flattens) RMS unless makeup_gain is large."
+        );
+
+        // Write processed audio to file after successful assertions
+        let output_path = generate_output_path("compression_heavy_test", "test");
+        write_audio(
+            sample_rate as usize,
+            vec![processed.clone()],
+            &output_path,
+        );
+
+        // Verify the output file was created
+        assert!(
+            Path::new(&output_path).exists(),
+            "Processed audio file was not created at {}",
+            output_path
+        );
+    }
+
+    #[test]
+    fn test_light_expansion() {
+        let (samples, sample_rate) = load_lead_mono();
+        let (rms_before, dr_before) = (overall_rms(&samples), calc_dynamic_range_db(&samples));
+
+        let params = ExpanderParams {
+            threshold: -10.0,
+            ratio: 1.5, 
+            attack_time: 0.01,
+            release_time: 0.1,
+            makeup_gain: 1.0, // No makeup gain
+            ..Default::default()
+        };
+        let processed = expander(&samples, params).unwrap();
+        
+        let (rms_after, dr_after) = (overall_rms(&processed), calc_dynamic_range_db(&processed));
+        // Light expansion slightly raises dynamic range
+        assert!(
+            dr_after > dr_before,
+            "Light expansion should increase DR. Before={:.3} dB, After={:.3} dB",
+            dr_before,
+            dr_after
+        );
+
+        // Write processed audio to file after successful assertions
+        let output_path = generate_output_path("expansion_light_test", "test");
+        write_audio(
+            sample_rate as usize,
+            vec![processed.clone()],
+            &output_path,
+        );
+
+        // Verify the output file was created
+        assert!(
+            Path::new(&output_path).exists(),
+            "Processed audio file was not created at {}",
+            output_path
+        );
+    }
+
+    #[test]
+    fn test_moderate_expansion() {
+        let (samples, sample_rate) = load_lead_mono();
+        let (rms_before, dr_before) = (overall_rms(&samples), calc_dynamic_range_db(&samples));
+
+        let params = ExpanderParams {
+            threshold: -10.0,
+            ratio: 4.0, // Moderate expansion ratio
+            attack_time: 0.01,
+            release_time: 0.2,
+            makeup_gain: 1.0, // No makeup gain
+            ..Default::default()
+        };
+        let processed = expander(&samples, params).unwrap();
+
+        let (rms_after, dr_after) = (overall_rms(&processed), calc_dynamic_range_db(&processed));
+        assert!(
+            dr_after > dr_before,
+            "Moderate expansion should increase DR. Before={:.3} dB, After={:.3} dB",
+            dr_before,
+            dr_after
+        );
+        assert!(
+            rms_after <= rms_before * 1.2,
+            "Expansion shouldn't excessively boost RMS."
+        );
+
+        // Write processed audio to file after successful assertions
+        let output_path = generate_output_path("expansion_moderate_test", "test");
+        write_audio(
+            sample_rate as usize,
+            vec![processed.clone()],
+            &output_path,
+        );
+
+        // Verify the output file was created
+        assert!(
+            Path::new(&output_path).exists(),
+            "Processed audio file was not created at {}",
+            output_path
+        );
+    }
+
+    #[test]
+    fn test_heavy_expansion() {
+        let (samples, sample_rate) = load_lead_mono();
+        let (rms_before, dr_before) = (overall_rms(&samples), calc_dynamic_range_db(&samples));
+
+        let params = ExpanderParams {
+            threshold: -10.0,
+            ratio: 8.0, // Large expansion ratio
+            attack_time: 0.005,
+            release_time: 0.2,
+            makeup_gain: 1.0, // No makeup gain
+            ..Default::default()
+        };
+        let processed = expander(&samples, params).unwrap();
+
+        let (rms_after, dr_after) = (overall_rms(&processed), calc_dynamic_range_db(&processed));
+        assert!(
+            dr_after > dr_before * 1.2,
+            "Heavy expansion significantly increases dynamic range. Before={:.3} dB, After={:.3} dB",
+            dr_before,
+            dr_after
+        );
+        // Heavy expansion can reduce overall RMS if quiet parts are pushed quieter
+        assert!(
+            rms_after <= rms_before,
+            "Heavy expansion typically lowers the average level if no makeup_gain is used."
+        );
+
+        // Write processed audio to file after successful assertions
+        let output_path = generate_output_path("expansion_heavy_test", "test");
+        write_audio(
+            sample_rate as usize,
+            vec![processed.clone()],
+            &output_path,
+        );
+
+        // Verify the output file was created
+        assert!(
+            Path::new(&output_path).exists(),
+            "Processed audio file was not created at {}",
+            output_path
+        );
+    }
+}
+
+
+
+
 
 // /// Performs role-based dynamic compression.
 // ///
