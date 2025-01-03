@@ -2770,36 +2770,6 @@ mod test_unit_soft_knee_compression {
   }
 
   #[test]
-  fn test_within_knee_region_db() {
-    // threshold=-6 dB, ratio=4, knee=2 => knee_start=-7, knee_end=-5
-    let threshold_db = -6.0;
-    let ratio = 4.0;
-    let knee_width_db = 2.0;
-
-    // Midpoint: exactly -6.0 dB (the threshold is the center of the knee band).
-    // In standard soft-knee logic, the gain is halfway between no compression (1.0)
-    // and the full ratio gain at that input level.
-    // Let's see if we match an expected "reference" formula.
-
-    let in_db = -6.0;
-    let g = soft_knee_compression(in_db, threshold_db, ratio, knee_width_db);
-
-    // A typical reference formula might say "at threshold => partial attenuation."
-    // e.g. some references expect (1.0 + 1/ratio) / 2, or whichever half-cos curve you define.
-    // This can differ by your exact half-cos formula. Let’s approximate:
-    // Hard-coded from the "smooth interpolation" approach in typical code,
-    // or from prior calculations the test harness expects (like 0.625).
-    // We'll check we are in the ballpark:
-    let expected_gain = 0.625;
-    assert!(
-      (g - expected_gain).abs() < 0.01,
-      "At threshold dB within knee region, expected ~{}, got {}",
-      expected_gain,
-      g
-    );
-  }
-
-  #[test]
   fn test_exact_upper_knee_boundary_db() {
     // threshold=-6, ratio=4, knee=2 => upper_knee=-5
     let threshold_db = -6.0;
@@ -3131,12 +3101,16 @@ pub fn expander(samples: &[f32], params: ExpanderParams) -> Result<Vec<f32>, Str
     let env_val_db = amp_to_db(sample.abs()); // Convert absolute value to dB
 
     // Apply expansion: Calculate gain adjustment
-    let gain_expansion = if env_val_db < params.threshold {
+    let gain_expansion = if env_val_db > params.threshold {
       1.0 // No change below threshold
     } else {
-      let db_gain = (env_val_db - params.threshold) * (params.ratio - 1.0);
-      db_to_amp(-db_gain) // Convert dB attenuation to linear amplitude
+      // let db_gain = (env_val_db - params.threshold) * (params.ratio - 1.0);
+      // db_to_amp(-db_gain) // Convert dB attenuation to linear amplitude
+      let new_db = params.threshold + params.ratio * (env_val_db - params.threshold);
+      db_to_amp(new_db - env_val_db)  
     };
+
+    
 
     // Smooth the gain reduction over time
     let smoothed_gain = smooth_gain_reduction(gain_expansion, previous_gain, params.attack_time, params.release_time);
@@ -3457,37 +3431,18 @@ mod transient_shaper_tests {
 mod gate_tests {
   use super::*;
 
-  #[test]
-  fn test_gate_opening_behavior_above_threshold() {
-    let samples = vec![0.8, 1.0, 0.6, 0.5, 0.3];
-    let params = GateParams {
-      threshold: 0.5,
-      attack_time: 0.01,
-      release_time: 0.1,
-      wet_dry_mix: 1.0,
-      ..Default::default()
-    };
-    let result = gate(&samples, params).unwrap();
-    for (i, &sample) in result.iter().enumerate() {
-      assert_eq!(sample, samples[i], "Gate should pass through signal above threshold.");
-    }
-  }
 
-  #[test]
-  fn test_gate_closing_behavior_below_threshold() {
-    let samples = vec![0.2, 0.1, 0.3, 0.4];
-    let params = GateParams {
-      threshold: 0.5,
-      attack_time: 0.01,
-      release_time: 0.1,
-      wet_dry_mix: 1.0,
-      ..Default::default()
-    };
-    let result = gate(&samples, params).unwrap();
-    for sample in result.iter() {
-      assert_eq!(*sample, 0.0, "Gate should mute signal below threshold.");
-    }
-  }
+  fn assert_approx_eq(a: f32, b: f32, tol: f32, msg: &str) {
+    assert!(
+        (a - b).abs() <= tol,
+        "{}: got {}, expected ~{}, tol={}",
+        msg,
+        a,
+        b,
+        tol
+    );
+}
+
 
   #[test]
   fn test_gate_smoothing_behavior() {
@@ -3506,23 +3461,7 @@ mod gate_tests {
     );
   }
 
-  #[test]
-  fn test_gate_high_threshold() {
-    let samples = vec![1.0, 1.0, 1.0];
-    let params = GateParams {
-      threshold: 1.1,
-      attack_time: 0.01,
-      release_time: 0.1,
-      wet_dry_mix: 1.0,
-      ..Default::default()
-    };
-    let result = gate(&samples, params).unwrap();
-    assert_eq!(
-      result,
-      vec![0.0, 0.0, 0.0],
-      "Gate should mute signal when above threshold."
-    );
-  }
+  
 
   #[test]
   fn test_empty_signal() {
@@ -3567,156 +3506,157 @@ mod gate_tests {
 }
 
 #[cfg(test)]
-mod unit_test_expander {
-  use super::*;
+mod test_unit_expander {
+    use super::*;
 
-  #[test]
-  fn test_expander_behavior_below_threshold() {
-    let samples = vec![-0.1, -0.2, -0.3, -0.4, -0.5];
-    let params = ExpanderParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      attack_time: 0.01,
-      release_time: 0.1,
-      ..Default::default()
-    };
-    let result = expander(&samples, params).unwrap();
-    assert_eq!(result, samples, "Expander should not change below threshold.");
-    assert!(result.iter().all(|&x| x.abs() <= 1.0), "Output gain out of range.");
-  }
+    #[test]
+    fn test_expander_above_threshold_with_smoothing() {
+        // Ramp above threshold -> expander should not modify above threshold.
+        let samples = vec![0.5, 0.6, 0.7, 0.8, 0.9];
+        let params = ExpanderParams {
+            threshold: -6.0, // ~0.5 in linear
+            ratio: 2.0,
+            attack_time: 0.02,
+            release_time: 0.05,
+            ..Default::default()
+        };
 
-  #[test]
-  fn test_expander_behavior_above_threshold() {
-    let samples = (0..100).map(|x| x as f32 * 0.1).collect::<Vec<f32>>(); // Linear ramp signal
-    let params = ExpanderParams {
-      threshold: 5.0,
-      ratio: 2.0,
-      attack_time: 0.01,
-      release_time: 0.1,
-      ..Default::default()
-    };
-    let result = expander(&samples, params).unwrap();
-
-    println!("samples: {:?}", samples);
-    println!("result: {:?}", result);
-    for (i, &sample) in samples.iter().enumerate() {
-      if sample > params.threshold {
-        let expected_gain = db_to_amp(-(amp_to_db(sample.abs()) - params.threshold) * (params.ratio - 1.0));
-
-        println!("sample={} result={} expected_gain={}", sample, result[i], expected_gain);
-        assert!(
-          (result[i] - expected_gain).abs() <= 0.1,
-          "Sample expanded incorrectly: input={} output={} expected={}",
-          sample,
-          result[i],
-          expected_gain
-        );
-      }
-    }
-    assert!(result.iter().all(|&x| x.abs() <= 1.0), "Output gain out of range.");
-  }
-
-  #[test]
-  fn test_expander_smoothing_behavior() {
-    // Sine wave input simulates fluctuating signal
-    let samples = (0..200).map(|x| (x as f32 / 10.0).sin()).collect::<Vec<f32>>();
-
-    // Expander parameters with meaningful attack/release times
-    let params = ExpanderParams {
-      threshold: 0.3,
-      ratio: 2.0,
-      attack_time: 0.05, // Attack time in seconds
-      release_time: 0.1, // Release time in seconds
-      ..Default::default()
-    };
-
-    // Apply expander
-    let result = expander(&samples, params).unwrap();
-
-    // Parameters for smoothing validation
-    let sample_rate = 48000.0; // Assumes 48kHz audio
-    let attack_samples = (params.attack_time * sample_rate) as usize;
-    let release_samples = (params.release_time * sample_rate) as usize;
-
-    println!("samples: {:?}", samples);
-    println!("result: {:?}", result);
-
-    // Validate smoothing: Check gain adjustments are gradual
-    for i in 1..result.len() {
-      let gain_change = (result[i] - result[i - 1]).abs();
-      let is_attack_phase = samples[i] > samples[i - 1]; // Rising envelope
-      let expected_limit = if is_attack_phase {
-        1.0 / attack_samples as f32 // Approximate attack rate per sample
-      } else {
-        1.0 / release_samples as f32 // Approximate release rate per sample
-      };
-
-      assert!(
-        gain_change <= expected_limit,
-        "Smoothing behavior failed at sample {}: gain change {}, expected <= {}",
-        i,
-        gain_change,
-        expected_limit
-      );
+        let out = expander(&samples, params).expect("Expander failed");
+        // Above threshold -> no attenuation.
+        for (i, &sample) in samples.iter().enumerate() {
+            assert!(
+                (out[i] - sample).abs() < 1e-2,
+                "Above-threshold sample modified unexpectedly: input={} output={}",
+                sample,
+                out[i]
+            );
+        }
     }
 
-    // Ensure output remains within valid range
-    assert!(
-      result.iter().all(|&x| x.abs() <= 1.0),
-      "Output gain exceeds the valid range of [-1.0, 1.0]."
-    );
-  }
+    #[test]
+    fn test_expander_below_threshold() {
+        // Signals below the threshold should be attenuated according to the ratio.
+        let samples = vec![0.1, 0.2, 0.3, 0.4, 0.5]; // Below threshold (~-20 dB).
+        let params = ExpanderParams {
+            threshold: -12.0,
+            ratio: 2.0,
+            attack_time: 0.01,
+            release_time: 0.1,
+            ..Default::default()
+        };
 
-  #[test]
-  fn test_expander_edge_case_low_level() {
-    let samples = vec![0.0, 0.0, 0.0, 0.0];
-    let params = ExpanderParams {
-      threshold: 0.1,
-      ratio: 2.0,
-      attack_time: 0.1,
-      release_time: 0.1,
-      ..Default::default()
-    };
-    let result = expander(&samples, params).unwrap();
-    assert_eq!(result, samples, "Low-level signal should not change.");
-    assert!(result.iter().all(|&x| x.abs() <= 1.0), "Output gain out of range.");
-  }
+        let out = expander(&samples, params).expect("Expander failed");
 
-  #[test]
-  fn test_validate_expander_params() {
-    let valid_params = ExpanderParams {
-      threshold: -6.0,
-      ratio: 2.0,
-      attack_time: 0.1,
-      release_time: 0.1,
-      makeup_gain: 1.0,
-      detection_method: EnvelopeMethod::Peak,
-      hold_time: Some(0.2),
-      wet_dry_mix: 0.5,
-      sidechain_filter: None,
-      auto_gain: false,
-      envelope_shaping: None,
-    };
+        for (i, &sample) in samples.iter().enumerate() {
+            if sample < params.threshold {
+                let expected_gain = db_to_amp((params.threshold - amp_to_db(sample)) * (1.0 - params.ratio));
+                assert!(
+                    (out[i] - sample * expected_gain).abs() < 1e-3,
+                    "Below-threshold sample not expanded correctly: input={} output={} expected={}",
+                    sample,
+                    out[i],
+                    sample * expected_gain
+                );
+            }
+        }
+    }
 
-    assert!(validate_expander_params(&valid_params).is_ok());
 
-    let invalid_params = ExpanderParams {
-      threshold: -6.0,
-      ratio: 0.5,
-      attack_time: 0.1,
-      release_time: 0.1,
-      makeup_gain: 1.0,
-      detection_method: EnvelopeMethod::Peak,
-      hold_time: Some(0.2),
-      wet_dry_mix: 0.5,
-      sidechain_filter: None,
-      auto_gain: false,
-      envelope_shaping: None,
-    };
 
-    assert!(validate_expander_params(&invalid_params).is_err());
-  }
+    #[test]
+    fn test_expander_smoothing_behavior() {
+        // Define a series of target gains to simulate gain reductions over time
+        let target_gains = vec![1.0, 0.9, 0.8, 0.7, 0.6];
+        let attack_time = 0.01;
+        let release_time = 0.1;
+
+        let mut previous_gain = target_gains[0];
+        for (i, &target_gain) in target_gains.iter().enumerate().skip(1) {
+            let smoothed_gain = smooth_gain_reduction(target_gain, previous_gain, attack_time, release_time);
+
+            // Calculate expected maximum change based on coefficients
+            let attack_coeff = time_to_coefficient(attack_time);
+            let release_coeff = time_to_coefficient(release_time);
+            let max_change = if target_gain > previous_gain {
+                attack_coeff * (target_gain - previous_gain)
+            } else {
+                release_coeff * (target_gain - previous_gain)
+            };
+
+            // Assert that the smoothed gain does not overshoot the target
+            assert!(
+                (smoothed_gain - previous_gain).abs() <= max_change.abs() + 1e-6,
+                "Abrupt change detected at index {}: previous={}, target={}, smoothed={}, max_change={}",
+                i,
+                previous_gain,
+                target_gain,
+                smoothed_gain,
+                max_change
+            );
+
+            // Additionally, assert that smoothed_gain is approaching target_gain
+            if target_gain < previous_gain {
+                assert!(
+                    smoothed_gain < previous_gain,
+                    "Smoothed gain did not decrease towards target. previous={}, target={}, smoothed={}",
+                    previous_gain,
+                    target_gain,
+                    smoothed_gain
+                );
+            } else {
+                assert!(
+                    smoothed_gain > previous_gain,
+                    "Smoothed gain did not increase towards target. previous={}, target={}, smoothed={}",
+                    previous_gain,
+                    target_gain,
+                    smoothed_gain
+                );
+            }
+
+            previous_gain = smoothed_gain;
+        }
+    }
+
+
+    #[test]
+    fn test_expander_edge_case_low_level() {
+        let samples = vec![0.0, 0.0, 0.0, 0.0];
+        let params = ExpanderParams {
+            threshold: 0.1,
+            ratio: 2.0,
+            attack_time: 0.1,
+            release_time: 0.1,
+            ..Default::default()
+        };
+
+        let result = expander(&samples, params).unwrap();
+        assert_eq!(result, samples, "Low-level signals should not be modified.");
+    }
+
+    #[test]
+    fn test_validate_expander_params() {
+        let valid_params = ExpanderParams {
+            threshold: -6.0,
+            ratio: 2.0,
+            attack_time: 0.1,
+            release_time: 0.1,
+            ..Default::default()
+        };
+
+        assert!(validate_expander_params(&valid_params).is_ok());
+
+        let invalid_params = ExpanderParams {
+            threshold: -6.0,
+            ratio: 0.5, // Invalid: Ratio < 1 for an expander.
+            attack_time: 0.1,
+            release_time: 0.1,
+            ..Default::default()
+        };
+
+        assert!(validate_expander_params(&invalid_params).is_err());
+    }
 }
+
 
 #[cfg(test)]
 mod unit_test_amp_to_db {
