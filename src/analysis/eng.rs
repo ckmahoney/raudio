@@ -3154,25 +3154,58 @@ pub fn gate(samples: &[f32], params: GateParams) -> Result<Vec<f32>, String> {
 ///
 /// # Parameters
 /// - `samples`: Input audio samples.
-/// - `params`: Transient shaper parameters (attack, sustain, etc.).
+/// - `params`: Transient shaper parameters.
 ///
 /// # Returns
 /// - `Result<Vec<f32>, String>`: Transient-shaped audio samples or an error if parameters are invalid.
 pub fn transient_shaper(samples: &[f32], params: TransientShaperParams) -> Result<Vec<f32>, String> {
+  // Validate parameters using the existing validation function
+  validate_transient_shaper_params(&params)?;
+  
+  // Detect the envelope of the signal
+  let envelope = envelope_follower(
+      samples,
+      params.attack_time,
+      params.release_time,
+      None, // Assuming no hold time; adjust if needed
+      Some(params.detection_method),
+      None, // Assuming no pre-emphasis; adjust if needed
+      Some(params.wet_dry_mix),
+  )?;
+  
   let mut output = Vec::with_capacity(samples.len());
-
-  for &sample in samples.iter() {
-    let shaped_sample = if sample.abs() > params.attack_threshold {
-      sample * params.attack_factor // Apply attack factor if above threshold
-    } else {
-      sample * params.sustain_factor // Apply sustain factor if below threshold
-    };
-
-    output.push(shaped_sample);
+  let mut previous_gain = 1.0;
+  
+  for (&sample, &env_val_db) in samples.iter().zip(envelope.iter()) {
+      if env_val_db > params.threshold {
+          // Determine if we're in the attack or sustain phase
+          let target_gain = if env_val_db > params.attack_threshold {
+              params.attack_factor
+          } else {
+              params.sustain_factor
+          };
+          
+          // Smooth the gain transition
+          let smoothed_gain = smooth_gain_reduction(target_gain, previous_gain, params.attack_time, params.release_time);
+          previous_gain = smoothed_gain;
+          
+          // Apply transient emphasis and makeup gain
+          let shaped_sample = sample * smoothed_gain * params.transient_emphasis * params.makeup_gain;
+          output.push(shaped_sample);
+      } else {
+          // Apply sustain factor with smoothing
+          let target_gain = params.sustain_factor;
+          let smoothed_gain = smooth_gain_reduction(target_gain, previous_gain, params.attack_time, params.release_time);
+          previous_gain = smoothed_gain;
+          
+          let shaped_sample = sample * smoothed_gain * params.makeup_gain;
+          output.push(shaped_sample);
+      }
   }
-
+  
   Ok(output)
 }
+
 
 /// Validates the parameters for the expander effect.
 fn validate_expander_params(params: &ExpanderParams) -> Result<(), String> {
@@ -3224,122 +3257,157 @@ fn validate_gate_params(params: &GateParams) -> Result<(), String> {
 
 /// Validates the parameters for the transient shaper effect.
 fn validate_transient_shaper_params(params: &TransientShaperParams) -> Result<(), String> {
-  // Validate transient emphasis: must be non-negative
+  // Validate transient_emphasis: must be non-negative
   if params.transient_emphasis < 0.0 {
-    return Err("Transient emphasis must be non-negative.".to_string());
-  }
-
-  // Validate attack and release times: must be non-negative
-  if params.attack_time < 0.0 {
-    return Err("Attack time must be non-negative.".to_string());
-  }
-
-  if params.release_time < 0.0 {
-    return Err("Release time must be non-negative.".to_string());
+      return Err("Transient emphasis must be non-negative.".to_string());
   }
 
   // Validate threshold: typically in dB, can be negative
   if params.threshold < MIN_DB {
-    return Err("Threshold must be above the minimum dB value.".to_string());
+      return Err("Threshold must be above the minimum dB value.".to_string());
+  }
+
+  // Validate attack_threshold: must be >= threshold
+  if params.attack_threshold < params.threshold {
+      return Err("Attack threshold must be greater than or equal to threshold.".to_string());
+  }
+
+  // Validate attack and release times: must be non-negative
+  if params.attack_time < 0.0 {
+      return Err("Attack time must be non-negative.".to_string());
+  }
+
+  if params.release_time < 0.0 {
+      return Err("Release time must be non-negative.".to_string());
   }
 
   // Validate wet_dry_mix: must be between 0.0 and 1.0
   if params.wet_dry_mix < 0.0 || params.wet_dry_mix > 1.0 {
-    return Err("Wet/Dry mix must be between 0.0 and 1.0.".to_string());
+      return Err("Wet/Dry mix must be between 0.0 and 1.0.".to_string());
+  }
+
+  // Validate attack_factor and sustain_factor: must be positive
+  if params.attack_factor <= 0.0 {
+      return Err("Attack factor must be positive.".to_string());
+  }
+
+  if params.sustain_factor <= 0.0 {
+      return Err("Sustain factor must be positive.".to_string());
   }
 
   Ok(())
 }
 
+
 /// Split tests into separate modules for transient_shaper, gate, and expander.
 #[cfg(test)]
-mod transient_shaper_tests {
+mod test_unit_transient_shaper {
   use super::*;
   use std::f32::EPSILON;
 
   // Helper function to assert smoothness in transitions
-  fn assert_smooth_transition(result: &[f32], _threshold: f32, start: usize, end: usize) {
-    let mut inflection_points = vec![start];
-    for i in (start + 1)..end {
+fn assert_smooth_transition(result: &[f32], _threshold: f32, start: usize, end: usize) {
+  if end < 2 {
+      // Not enough samples to check transitions
+      return;
+  }
+  let mut inflection_points = vec![start];
+  for i in (start + 2)..end {
       let prev_slope = result[i - 1] - result[i - 2];
       let curr_slope = result[i] - result[i - 1];
 
       if prev_slope.signum() != curr_slope.signum() {
-        inflection_points.push(i - 1);
+          inflection_points.push(i - 1);
       }
-    }
-    inflection_points.push(end - 1);
+  }
+  inflection_points.push(end - 1);
 
-    for w in inflection_points.windows(2) {
+  for w in inflection_points.windows(2) {
       let (start, end) = (w[0], w[1]);
       let segment = &result[start..=end];
       if segment[1] > segment[0] {
-        assert!(
-          segment.windows(2).all(|w| w[1] >= w[0]),
-          "Transition not smooth: {:?}",
-          segment
-        );
+          assert!(
+              segment.windows(2).all(|w| w[1] >= w[0]),
+              "Transition not smooth: {:?}",
+              segment
+          );
       } else {
-        assert!(
-          segment.windows(2).all(|w| w[1] <= w[0]),
-          "Transition not smooth: {:?}",
-          segment
-        );
+          assert!(
+              segment.windows(2).all(|w| w[1] <= w[0]),
+              "Transition not smooth: {:?}",
+              segment
+          );
       }
-    }
   }
+}
 
-  #[test]
-  fn test_transient_shaper_attack_phase() {
-    let samples = vec![0.5, 1.5, 0.8, 0.3];
-    let params = TransientShaperParams {
-      transient_emphasis: 1.5,
-      threshold: 0.6,
-      attack_time: 0.01,
-      release_time: 0.1,
-      attack_factor: 2.0,
-      sustain_factor: 1.0,
-      ..Default::default()
-    };
-    let result = transient_shaper(&samples, params).unwrap();
-    assert!(result[1] > samples[1], "Transient peak should be emphasized.");
-  }
-
-  #[test]
-  fn test_transient_shaper_sustain_phase() {
-    let samples = vec![0.2, 0.3, 0.1, 0.4];
-    let params = TransientShaperParams {
-      transient_emphasis: 1.0,
-      threshold: 0.3,
-      attack_time: 0.05,
-      release_time: 0.1,
-      attack_factor: 1.0,
-      sustain_factor: 0.5,
-      ..Default::default()
-    };
-    let result = transient_shaper(&samples, params).unwrap();
-    for (i, &sample) in result.iter().enumerate() {
-      if sample < 0.3 {
-        assert!(sample < samples[i], "Sustain phase should reduce level.");
-      }
-    }
-  }
-
-  #[test]
-  fn test_transient_shaper_smooth_transition() {
-    let samples = vec![0.2, 0.4, 0.6, 0.5, 0.7, 0.3];
-    let params = TransientShaperParams {
+#[test]
+fn test_transient_shaper_smooth_transition() {
+  let samples = vec![0.2, 0.4, 0.6, 0.5, 0.7, 0.3];
+  let params = TransientShaperParams {
       transient_emphasis: 1.5,
       threshold: 0.3,
+      attack_threshold: 0.5, // Ensure attack_threshold >= threshold
       attack_time: 0.05,
       release_time: 0.05,
       attack_factor: 2.0,
       sustain_factor: 1.0,
       ..Default::default()
+  };
+  let result = transient_shaper(&samples, params).unwrap();
+  assert_smooth_transition(&result, 0.3, 0, result.len());
+}
+
+
+
+  #[test]
+fn test_transient_shaper_attack_phase() {
+    let samples = vec![0.5, 1.5, 0.8, 0.3];
+    let params = TransientShaperParams {
+        transient_emphasis: 1.5,
+        threshold: 0.6,
+        attack_threshold: 0.7, // Ensure attack_threshold >= threshold
+        attack_time: 0.01,
+        release_time: 0.1,
+        attack_factor: 2.0,
+        sustain_factor: 1.0,
+        ..Default::default()
     };
     let result = transient_shaper(&samples, params).unwrap();
-    assert_smooth_transition(&result, 0.3, 0, result.len());
-  }
+    assert!(result[1] > samples[1], "Transient peak should be emphasized.");
+}
+
+#[test]
+fn test_transient_shaper_sustain_phase() {
+    let samples = vec![0.2, 0.3, 0.1, 0.4];
+    let params = TransientShaperParams {
+        transient_emphasis: 1.0,
+        threshold: 0.3,
+        attack_threshold: 0.35, // Ensure attack_threshold >= threshold
+        attack_time: 0.05,
+        release_time: 0.1,
+        attack_factor: 1.0,
+        sustain_factor: 0.5, // Set to attenuate sustain phase
+        ..Default::default()
+    };
+    let result = transient_shaper(&samples, params).unwrap();
+    let tolerance = 1e-4;
+    for (i, &sample) in result.iter().enumerate() {
+        if samples[i].abs() <= params.threshold {
+            let expected = samples[i].abs() * params.sustain_factor;
+            assert!(
+                (sample.abs() - expected).abs() < tolerance,
+                "Sustain phase should reduce level for sample {}: expected {}, got {}",
+                i,
+                expected,
+                sample.abs()
+            );
+        }
+    }
+}
+
+
+
 
   #[test]
   fn test_transient_shaper_edge_case_no_transients() {
