@@ -1,5 +1,9 @@
 use crate::analysis::{
-  in_range, melody::{find_reach, mask_sigh, mask_wah, pointwise_lowpass, LevelMacro, Levels, ODRMacro, ODR}, tools::rescale_amplitude, trig, volume::db_to_amp
+  in_range,
+  melody::{find_reach, mask_sigh, mask_wah, pointwise_lowpass, LevelMacro, Levels, ODRMacro, ODR},
+  tools::rescale_amplitude,
+  trig,
+  volume::db_to_amp,
 };
 use crate::fm::Operator;
 use crate::monic_theory::note_to_freq;
@@ -12,7 +16,7 @@ use rand;
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
 use std::{marker::PhantomData, os::unix::thread};
 
-use crate::analysis::tools::{ExpanderParams, CompressorParams, compressor, expander, compute_rms};
+use crate::analysis::tools::{compressor, compute_rms, expander, CompressorParams, ExpanderParams};
 
 use crate::analysis::delay::{self, DelayParams, DelayParamsMacro, StereoField};
 use crate::analysis::sampler::read_audio_file;
@@ -21,9 +25,9 @@ use crate::druid::{bell, melodic, noise, Element, Elementor};
 use crate::phrasing::contour::expr_none;
 use crate::phrasing::contour::Expr;
 use crate::phrasing::ranger::{self, Knob, KnobMacro, KnobMods, KnobMods2};
-use crate::synth::{MAX_DB, MIN_DB, DYNAMIC_RANGE_DB};
 use crate::render::{Renderable, Renderable2};
 use crate::reverb::convolution::ReverbParams;
+use crate::synth::{DYNAMIC_RANGE_DB, MAX_DB, MIN_DB};
 use crate::time::{self, note_to_cycles};
 use crate::types::render::{Conf, Feel, Melody, Stem, Stem2, Stem3};
 use crate::types::synthesis::{
@@ -109,8 +113,6 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
   ))
 }
 
-
-
 /// Returns a `Stem3` for the percussion preset.
 ///
 /// # Parameters
@@ -135,9 +137,13 @@ pub fn contour_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &A
   let expander_params = gen_beat_expander(arf);
   let compressor_params = gen_beat_compressor(arf);
 
-  
   let normalized = rescale_amplitude(0.25f32, &stem);
-  let stem = compressor(&expander(&normalized, expander_params, None).unwrap(), compressor_params, None).unwrap();
+  let stem = compressor(
+    &expander(&normalized, expander_params, None).unwrap(),
+    compressor_params,
+    None,
+  )
+  .unwrap();
 
   Renderable2::Sample((
     melody,
@@ -151,14 +157,14 @@ pub fn contour_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &A
   ))
 }
 
-pub fn gen_beat_compressor(arf:&Arf) -> CompressorParams {
+pub fn gen_beat_compressor(arf: &Arf) -> CompressorParams {
   let mut rng = thread_rng();
-  let ratio:f32 = match arf.energy {
+  let ratio: f32 = match arf.energy {
     Energy::High => in_range(&mut rng, 6.0, 8.0),
     Energy::Medium => in_range(&mut rng, 3.0, 6.0),
     Energy::Low => in_range(&mut rng, 2.0, 3.0),
   };
-  let threshold:f32 = match arf.role {
+  let threshold: f32 = match arf.role {
     Role::Kick => match arf.presence {
       // thresholds here tend to create the most open / sustained sound
       Presence::Tenuto => in_range(&mut rng, -6.0, -9.0),
@@ -180,11 +186,11 @@ pub fn gen_beat_compressor(arf:&Arf) -> CompressorParams {
       // thresholds for producing a closed / muted sound
       Presence::Staccatto => in_range(&mut rng, -24.0, -36.0),
     },
-    _ => panic!("Not implemented for melodic arfs")
+    _ => panic!("Not implemented for melodic arfs"),
   };
 
   CompressorParams {
-    ratio, 
+    ratio,
     threshold,
     attack_time: 0.05,
     release_time: 0.1,
@@ -192,15 +198,14 @@ pub fn gen_beat_compressor(arf:&Arf) -> CompressorParams {
   }
 }
 
-
-pub fn gen_beat_expander(arf:&Arf) -> ExpanderParams {
+pub fn gen_beat_expander(arf: &Arf) -> ExpanderParams {
   let mut rng = thread_rng();
 
-  let threshold:f32 = match arf.role {
+  let threshold: f32 = match arf.role {
     Role::Kick => in_range(&mut rng, -39.0, -27.0),
     Role::Perc => in_range(&mut rng, -24.0, -15.0),
     Role::Hats => in_range(&mut rng, -42.0, -30.0),
-    _ => panic!("Not implemented for melodic arfs")
+    _ => panic!("Not implemented for melodic arfs"),
   };
   ExpanderParams {
     threshold,
@@ -209,7 +214,6 @@ pub fn gen_beat_expander(arf:&Arf) -> ExpanderParams {
     ..Default::default()
   }
 }
-
 
 /// Returns a `Stem3` for the percussion preset.
 ///
@@ -220,18 +224,20 @@ pub fn gen_beat_expander(arf:&Arf) -> ExpanderParams {
 ///
 /// # Returns
 /// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
-pub fn simple_stem_at<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf, index:usize) -> Renderable2<'render> {
+pub fn simple_stem_at<'render>(
+  conf: &Conf, melody: &'render Melody<Note>, arf: &Arf, index: usize,
+) -> Renderable2<'render> {
   if let Ok(sample_path) = get_sample_path_by_index(arf, index, true) {
     let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
     let gain = visibility_gain_sample(arf.visibility);
     let amp_expr = vec![1f32];
-  
+
     let mut delays_note = vec![];
     let mut reverbs_room = vec![];
-  
+
     let lowpass_cutoff = NFf;
     let ref_sample = ref_samples[0].to_owned();
-  
+
     Renderable2::Sample((
       melody,
       ref_sample,
@@ -245,7 +251,6 @@ pub fn simple_stem_at<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: 
   } else {
     panic!("Unable to get the stem for arf {:?} at index {}", arf, index)
   }
-
 }
 
 pub trait Conventions<'render> {
@@ -819,7 +824,6 @@ pub fn get_sample_path(arf: &Arf) -> String {
   }
 }
 
-
 /// Retrieves a sample file path based on the given `Arf` configuration.
 ///
 /// # Parameters
@@ -827,7 +831,7 @@ pub fn get_sample_path(arf: &Arf) -> String {
 ///
 /// # Returns
 /// A randomly selected file path from the appropriate category.
-pub fn get_sample_path_by_index(arf: &Arf, index:usize, wraparound:bool) -> Result<String, String> {
+pub fn get_sample_path_by_index(arf: &Arf, index: usize, wraparound: bool) -> Result<String, String> {
   let key = match arf.role {
     Role::Hats => match arf.presence {
       Presence::Staccatto | Presence::Legato => format!("{}/hats/short", SAMPLE_SOURCE_DIR),
@@ -843,9 +847,11 @@ pub fn get_sample_path_by_index(arf: &Arf, index:usize, wraparound:bool) -> Resu
 
   // Retrieve the list of paths for the category
   if let Some(paths) = cache.get(&key) {
-
     if !wraparound && index > paths.len() {
-      return Err(format!("Attempted to access {} sample at unavailable index {}", key, index));
+      return Err(format!(
+        "Attempted to access {} sample at unavailable index {}",
+        key, index
+      ));
     }
 
     Ok(paths[index].clone())
@@ -948,12 +954,11 @@ fn eval_odr(cps: f32, at_n_samples: usize, odr: &ODR) -> (usize, usize, usize, u
   (ramp, fall, hold, kill)
 }
 
-
-pub fn get_rescale_target(visibility:Visibility) -> f32 {
+pub fn get_rescale_target(visibility: Visibility) -> f32 {
   match visibility {
-      Visibility::Visible => db_to_amp(-6.0),
-      Visibility::Foreground => db_to_amp(-21.0),
-      Visibility::Background => db_to_amp(-42.0),
-      Visibility::Hidden => db_to_amp(-60.0),
+    Visibility::Visible => db_to_amp(-6.0),
+    Visibility::Foreground => db_to_amp(-21.0),
+    Visibility::Background => db_to_amp(-42.0),
+    Visibility::Hidden => db_to_amp(-60.0),
   }
 }

@@ -74,65 +74,60 @@ pub fn get_audio_metadata(path: &str) -> Result<hound::WavSpec, Box<dyn std::err
   Ok(reader.spec())
 }
 
-
 fn find_indexes<F>(vec: &[f32], callback: F) -> Vec<usize>
 where
-    F: Fn(f32) -> bool,
+  F: Fn(f32) -> bool,
 {
-    vec.iter()
-        .enumerate()
-        .filter_map(|(i, &x)| if callback(x) { Some(i) } else { None })
-        .collect()
+  vec.iter().enumerate().filter_map(|(i, &x)| if callback(x) { Some(i) } else { None }).collect()
 }
-
 
 /// Given a signal, detect contiguous silence of silence_window_seconds
 /// and return the truncated stem.
-/// 
+///
 /// ## Arguments
 /// `samples` - the audio signal to trim
 /// `silence_window_seconds` - value in seconds representing the required contiguous silence for kill switch to activate
 /// `detector_window_size` - Resolution of RMS for zero detection
-/// 
-/// 
-/// Some scenarios that cause no trim: 
+///
+///
+/// Some scenarios that cause no trim:
 ///  - A large `silence_window_seconds` can result in no kill switch activation
 ///  - A wide `detector_window_size` is faster, but may blur too much (turning silence into signal)
-/// 
+///
 /// A scenarois that might trimming too early in the signal (consider a vocal sample where the speaker takes a tiny breath for 0.005 seconds and is silent)
 ///   - A miniscule `silence_window_seconds` is more likely to find a kill switch index than a larger `silence_window_seconds`
 ///     - If paired with a minisucle `detector_window_size` then the trim is likely to interrupt the signal unintentionally.
-pub fn trim_tail_silence(samples:&Vec<f32>, silence_window_seconds:f32, detector_window_size:usize) -> Vec<f32> {
-    let silence_detector = crate::analysis::tools::compute_rms(&samples, detector_window_size);
-    let zero_indexes = find_indexes(&silence_detector, |x| x < 1e-4);
-    if zero_indexes.len() == 0 {
-      return samples.clone()
-    }
-    let index_interval_seconds = crate::time::samples_to_seconds(detector_window_size);
-    let n_contiguous_indices_required = (silence_window_seconds / index_interval_seconds).floor() as usize;
-    let kill_index = if n_contiguous_indices_required == 0 {
-      // just get the first match
-      zero_indexes[0]
-    } else {
-      let mut accumulated_zeros = 0usize;
-      let mut p:Option<usize> = None;
-      
-      // use the window 
-      for (i, idx) in zero_indexes.iter().enumerate() {
-        if accumulated_zeros == n_contiguous_indices_required {
-          p = Some(*idx);
-          break
-        } else {
-          if i == 0 || zero_indexes[i-1] == zero_indexes[i] - 1 {
-            accumulated_zeros = accumulated_zeros + 1
-          } else {
-            accumulated_zeros = 0
-          }
-        };
-      };
+pub fn trim_tail_silence(samples: &Vec<f32>, silence_window_seconds: f32, detector_window_size: usize) -> Vec<f32> {
+  let silence_detector = crate::analysis::tools::compute_rms(&samples, detector_window_size);
+  let zero_indexes = find_indexes(&silence_detector, |x| x < 1e-4);
+  if zero_indexes.len() == 0 {
+    return samples.clone();
+  }
+  let index_interval_seconds = crate::time::samples_to_seconds(detector_window_size);
+  let n_contiguous_indices_required = (silence_window_seconds / index_interval_seconds).floor() as usize;
+  let kill_index = if n_contiguous_indices_required == 0 {
+    // just get the first match
+    zero_indexes[0]
+  } else {
+    let mut accumulated_zeros = 0usize;
+    let mut p: Option<usize> = None;
 
-      p.unwrap_or(samples.len()-1)
-    }; 
+    // use the window
+    for (i, idx) in zero_indexes.iter().enumerate() {
+      if accumulated_zeros == n_contiguous_indices_required {
+        p = Some(*idx);
+        break;
+      } else {
+        if i == 0 || zero_indexes[i - 1] == zero_indexes[i] - 1 {
+          accumulated_zeros = accumulated_zeros + 1
+        } else {
+          accumulated_zeros = 0
+        }
+      };
+    }
+
+    p.unwrap_or(samples.len() - 1)
+  };
 
   samples[0..kill_index].to_vec()
 }
@@ -193,7 +188,10 @@ pub fn read_audio_file(path: &str) -> Result<(Vec<Vec<f32>>, u32), Box<dyn std::
   };
   let detector_window_size = 1000; // about 0.02 seconds
   let silence_window_seconds = time::samples_to_seconds(3 * detector_window_size); // require three contiguous windows of silence
-  let filtered_channel_samples:Vec<Vec<f32>> = channel_samples.iter().map(|ch| trim_tail_silence(ch, silence_window_seconds, detector_window_size)).collect();
+  let filtered_channel_samples: Vec<Vec<f32>> = channel_samples
+    .iter()
+    .map(|ch| trim_tail_silence(ch, silence_window_seconds, detector_window_size))
+    .collect();
   // Ok((filtered_channel_samples, spec.sample_rate))
   Ok((channel_samples, spec.sample_rate))
 }

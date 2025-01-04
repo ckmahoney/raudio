@@ -154,20 +154,20 @@ fn perc_melody() -> Melody<Note> {
 }
 
 fn any_visibility() -> Visibility {
-  crate::presets::grab_variant(vec![Visibility::Foreground, Visibility::Background, Visibility::Visible, Visibility::Hidden])
+  crate::presets::grab_variant(vec![
+    Visibility::Foreground,
+    Visibility::Background,
+    Visibility::Visible,
+    Visibility::Hidden,
+  ])
 }
 
 fn any_energy() -> Energy {
-  crate::presets::grab_variant(vec![
-    Energy::High, Energy::Medium, Energy::Low
-  ])
+  crate::presets::grab_variant(vec![Energy::High, Energy::Medium, Energy::Low])
 }
 
-
 fn any_presence() -> Presence {
-  crate::presets::grab_variant(vec![
-    Presence::Staccatto, Presence::Legato, Presence::Tenuto
-  ])
+  crate::presets::grab_variant(vec![Presence::Staccatto, Presence::Legato, Presence::Tenuto])
 }
 
 fn kick_arf() -> Arf {
@@ -176,8 +176,8 @@ fn kick_arf() -> Arf {
     role: Role::Kick,
     register: 5,
     visibility: any_visibility(),
-    energy: any_energy(), 
-    presence: any_presence()
+    energy: any_energy(),
+    presence: any_presence(),
   }
 }
 
@@ -187,8 +187,8 @@ fn perc_arf() -> Arf {
     role: Role::Perc,
     register: 7,
     visibility: any_visibility(),
-    energy: any_energy(), 
-    presence: any_presence()
+    energy: any_energy(),
+    presence: any_presence(),
   }
 }
 fn hats_arf() -> Arf {
@@ -197,8 +197,8 @@ fn hats_arf() -> Arf {
     role: Role::Hats,
     register: 10,
     visibility: any_visibility(),
-    energy: any_energy(), 
-    presence: any_presence()
+    energy: any_energy(),
+    presence: any_presence(),
   }
 }
 
@@ -214,7 +214,7 @@ fn demonstrate() {
   let hats_melody = hats_melody();
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
-  let conf = Conf{cps, root};
+  let conf = Conf { cps, root };
 
   let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf());
   let stem_perc = perc::renderable(&conf, &perc_melody, &perc_arf());
@@ -231,7 +231,7 @@ fn demonstrate() {
 
   let keep_stems = Some(path.as_str());
 
-  let mix = render::combiner_with_reso2(&conf, &renderables, &vec![],  &group_reverbs, keep_stems);
+  let mix = render::combiner_with_reso2(&conf, &renderables, &vec![], &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", location(demo_name), demo_name);
   render::engrave::samples(SR, &mix, &filename);
 }
@@ -245,7 +245,7 @@ fn samp(c: f32, r: f32) -> SampleBuffer {
   let hats_melody = hats_melody();
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
-  let conf = Conf{cps, root};
+  let conf = Conf { cps, root };
 
   let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf());
   let stem_perc = perc::renderable(&conf, &perc_melody, &perc_arf());
@@ -260,7 +260,7 @@ fn samp(c: f32, r: f32) -> SampleBuffer {
   let complexity: f32 = rng.gen::<f32>();
   let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
 
-  render::combiner_with_reso2(&conf, &renderables, &vec![],  &group_reverbs, None)
+  render::combiner_with_reso2(&conf, &renderables, &vec![], &group_reverbs, None)
 }
 
 #[test]
@@ -336,10 +336,5 @@ fn test_demo() {
 fn test_render_playbook() {
   let filepath: &str = &format!("{}/demo/amen/test_amen_playbook", crate::demo::out_dir);
 
-  crate::render_playbook(
-    filepath,
-    "hop",
-    "src/demo/playbook-demo-ambien.json",
-    "test-preset-fum",
-  )
+  crate::render_playbook(filepath, "hop", "src/demo/playbook-demo-ambien.json", "test-preset-fum")
 }

@@ -16,7 +16,7 @@ pub fn cycles_from_n(cps: f32, n: usize) -> f32 {
 }
 
 /// Given a number of samples, returns the absolute time in seconds it represents using the application wide sample rate.
-pub fn samples_to_seconds(n_samples:usize) -> f32 {
+pub fn samples_to_seconds(n_samples: usize) -> f32 {
   n_samples as f32 / SRf
 }
 

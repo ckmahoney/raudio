@@ -315,9 +315,7 @@ fn demonstrate() {
 
   use Renderable::{Group, Instance};
   let renderables: Vec<Renderable2> = vec![
-    stem_kick,
-    stem_perc,
-    stem_hats,
+    stem_kick, stem_perc, stem_hats,
     // stem_bass,
     // stem_chords,
     // stem_lead,

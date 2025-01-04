@@ -3,7 +3,6 @@ use super::*;
 use crate::analysis::sampler::read_audio_file;
 use crate::render::engrave::write_audio;
 
-
 #[cfg(test)]
 mod test_compressor_params {
   use super::*;
@@ -1944,7 +1943,7 @@ mod test_unit_gate {
       wet_dry_mix: 0.5,
       auto_gain: false,
       hold_time: None,
-      makeup_gain: 1f32
+      makeup_gain: 1f32,
     };
 
     assert!(validate_gate_params(&valid_params).is_ok());
@@ -1957,7 +1956,7 @@ mod test_unit_gate {
       wet_dry_mix: 1.5,
       auto_gain: false,
       hold_time: None,
-      makeup_gain: 1f32
+      makeup_gain: 1f32,
     };
 
     assert!(validate_gate_params(&invalid_params).is_err());
@@ -2128,7 +2127,11 @@ mod unit_test_amp_to_db {
   fn test_amp_to_db_negative_amplitude() {
     let amp = -0.5;
     let db = amp_to_db(amp);
-    assert_eq!(db, amp_to_db(amp.abs()), "Negative amplitude should return its symmetric value.");
+    assert_eq!(
+      db,
+      amp_to_db(amp.abs()),
+      "Negative amplitude should return its symmetric value."
+    );
   }
 
   #[test]
@@ -2505,4 +2508,3 @@ mod test_edm_compression_patterns {
     );
   }
 }
-

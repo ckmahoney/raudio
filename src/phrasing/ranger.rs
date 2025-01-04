@@ -1,9 +1,8 @@
 use std::os::unix::thread;
 
-
 use crate::analysis::volume::db_to_amp;
 use crate::synth::{pi, pi2, pi_2, pi_4, MFf, NFf, SRf, SR};
-pub use crate::synth::{MAX_DB, MIN_DB, DYNAMIC_RANGE_DB};
+pub use crate::synth::{DYNAMIC_RANGE_DB, MAX_DB, MIN_DB};
 use crate::time;
 /// # Rangers
 ///
