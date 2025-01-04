@@ -153,14 +153,31 @@ fn perc_melody() -> Melody<Note> {
   vec![zip_line(tala, tones, amps)]
 }
 
+fn any_visibility() -> Visibility {
+  crate::presets::grab_variant(vec![Visibility::Foreground, Visibility::Background, Visibility::Visible, Visibility::Hidden])
+}
+
+fn any_energy() -> Energy {
+  crate::presets::grab_variant(vec![
+    Energy::High, Energy::Medium, Energy::Low
+  ])
+}
+
+
+fn any_presence() -> Presence {
+  crate::presets::grab_variant(vec![
+    Presence::Staccatto, Presence::Legato, Presence::Tenuto
+  ])
+}
+
 fn kick_arf() -> Arf {
   Arf {
     mode: Mode::Enharmonic,
     role: Role::Kick,
     register: 5,
-    visibility: Visibility::Visible,
-    energy: Energy::Medium,
-    presence: Presence::Tenuto,
+    visibility: any_visibility(),
+    energy: any_energy(), 
+    presence: any_presence()
   }
 }
 
@@ -169,9 +186,9 @@ fn perc_arf() -> Arf {
     mode: Mode::Enharmonic,
     role: Role::Perc,
     register: 7,
-    visibility: Visibility::Visible,
-    energy: Energy::Low,
-    presence: Presence::Staccatto,
+    visibility: any_visibility(),
+    energy: any_energy(), 
+    presence: any_presence()
   }
 }
 fn hats_arf() -> Arf {
@@ -179,9 +196,9 @@ fn hats_arf() -> Arf {
     mode: Mode::Enharmonic,
     role: Role::Hats,
     register: 10,
-    visibility: Visibility::Foreground,
-    energy: Energy::Medium,
-    presence: Presence::Staccatto,
+    visibility: any_visibility(),
+    energy: any_energy(), 
+    presence: any_presence()
   }
 }
 
@@ -259,8 +276,8 @@ fn test_hypnosis() {
   let mut track: SampleBuffer = vec![];
   let mut ring: SampleBuffer = vec![];
 
-  let n_versions = 8;
-  let n_loops = 4;
+  let n_versions = 12;
+  let n_loops = 2;
 
   use rand::Rng;
   let mut rng = rand::thread_rng();
@@ -282,7 +299,7 @@ fn test_hypnosis() {
 
     cpss *= 1.5f32;
     if cpss > base_cps * 3f32 {
-      cpss /= 3f32;
+      cpss /= 2f32;
     };
   }
 

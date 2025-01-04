@@ -2,7 +2,7 @@ use super::*;
 
 /// mix of three different percs.
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  simple_stem(conf, melody, arf)
+  contour_stem(conf, melody, arf)
 }
 
 mod test_functional_compressor {
@@ -89,7 +89,7 @@ use super::*;
 
     }
 
-    
+
     for n_samples in [100, 200, 500, 1000] {
       let window_size_seconds = time::samples_to_seconds(n_samples);
       println!("Got duration: {}", window_size_seconds)

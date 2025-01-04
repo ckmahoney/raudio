@@ -131,8 +131,7 @@ pub fn trim_tail_silence(samples:&Vec<f32>, silence_window_seconds:f32, detector
         };
       };
 
-      p.unwrap_or(samples.len()-1);
-      p.unwrap()
+      p.unwrap_or(samples.len()-1)
     }; 
 
   samples[0..kill_index].to_vec()

@@ -1,8 +1,5 @@
 use crate::analysis::{
-  in_range,
-  melody::{find_reach, mask_sigh, mask_wah, pointwise_lowpass, LevelMacro, Levels, ODRMacro, ODR},
-  trig,
-  volume::db_to_amp,
+  in_range, melody::{find_reach, mask_sigh, mask_wah, pointwise_lowpass, LevelMacro, Levels, ODRMacro, ODR}, tools::rescale_amplitude, trig, volume::db_to_amp
 };
 use crate::fm::Operator;
 use crate::monic_theory::note_to_freq;
@@ -13,7 +10,7 @@ use crate::types::render::{ArfFM, StemFM};
 use crate::{render, AmpLifespan};
 use rand;
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
-use std::marker::PhantomData;
+use std::{marker::PhantomData, os::unix::thread};
 
 use crate::analysis::tools::{ExpanderParams, CompressorParams, compressor, expander, compute_rms};
 
@@ -112,6 +109,106 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
   ))
 }
 
+
+
+/// Returns a `Stem3` for the percussion preset.
+///
+/// # Parameters
+/// - `conf`: Configuration object for additional context.
+/// - `melody`: Melody structure specifying note events for the stem.
+/// - `arf`: Configuration for amplitude and visibility adjustments.
+///
+/// # Returns
+/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+pub fn contour_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
+  let sample_path = get_sample_path(arf);
+
+  let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
+  let amp_expr = vec![1f32];
+
+  let mut delays_note = vec![];
+  let mut reverbs_room = vec![];
+
+  let lowpass_cutoff = NFf;
+  let stem = ref_samples[0].to_owned();
+  let target_rms = get_rescale_target(arf.visibility);
+  let expander_params = gen_beat_expander(arf);
+  let compressor_params = gen_beat_compressor(arf);
+
+  
+  let normalized = rescale_amplitude(0.25f32, &stem);
+  let stem = compressor(&expander(&normalized, expander_params, None).unwrap(), compressor_params, None).unwrap();
+
+  Renderable2::Sample((
+    melody,
+    rescale_amplitude(target_rms, &stem),
+    amp_expr,
+    lowpass_cutoff,
+    delays_note,
+    vec![],
+    vec![],
+    reverbs_room,
+  ))
+}
+
+pub fn gen_beat_compressor(arf:&Arf) -> CompressorParams {
+  let mut rng = thread_rng();
+  let ratio:f32 = match arf.energy {
+    Energy::High => in_range(&mut rng, 6.0, 8.0),
+    Energy::Medium => in_range(&mut rng, 3.0, 6.0),
+    Energy::Low => in_range(&mut rng, 2.0, 3.0),
+  };
+  let threshold:f32 = match arf.role {
+    Role::Kick => match arf.presence {
+      // thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(&mut rng, -6.0, -9.0),
+      Presence::Legato => in_range(&mut rng, -9.0, -15.0),
+      // thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(&mut rng, -15.0, -24.0),
+    },
+    Role::Perc => match arf.presence {
+      // thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(&mut rng, -6.0, -9.0),
+      Presence::Legato => in_range(&mut rng, -12.0, -18.0),
+      // thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(&mut rng, -21.0, -33.0),
+    },
+    Role::Hats => match arf.presence {
+      // thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(&mut rng, -9.0, -12.0),
+      Presence::Legato => in_range(&mut rng, -15.0, -21.0),
+      // thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(&mut rng, -24.0, -36.0),
+    },
+    _ => panic!("Not implemented for melodic arfs")
+  };
+
+  CompressorParams {
+    ratio, 
+    threshold,
+    attack_time: 0.05,
+    release_time: 0.1,
+    ..Default::default()
+  }
+}
+
+
+pub fn gen_beat_expander(arf:&Arf) -> ExpanderParams {
+  let mut rng = thread_rng();
+
+  let threshold:f32 = match arf.role {
+    Role::Kick => in_range(&mut rng, -39.0, -27.0),
+    Role::Perc => in_range(&mut rng, -24.0, -15.0),
+    Role::Hats => in_range(&mut rng, -42.0, -30.0),
+    _ => panic!("Not implemented for melodic arfs")
+  };
+  ExpanderParams {
+    threshold,
+    attack_time: 0.05,
+    release_time: 0.1,
+    ..Default::default()
+  }
+}
 
 
 /// Returns a `Stem3` for the percussion preset.
