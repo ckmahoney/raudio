@@ -87,13 +87,25 @@ where
 
 
 /// Given a signal, detect contiguous silence of silence_window_seconds
-/// and return the truncated stem
+/// and return the truncated stem.
+/// 
+/// ## Arguments
+/// `samples` - the audio signal to trim
+/// `silence_window_seconds` - value in seconds representing the required contiguous silence for kill switch to activate
+/// `detector_window_size` - Resolution of RMS for zero detection
+/// 
+/// 
+/// Some scenarios that cause no trim: 
+///  - A large `silence_window_seconds` can result in no kill switch activation
+///  - A wide `detector_window_size` is faster, but may blur too much (turning silence into signal)
+/// 
+/// A scenarois that might trimming too early in the signal (consider a vocal sample where the speaker takes a tiny breath for 0.005 seconds and is silent)
+///   - A miniscule `silence_window_seconds` is more likely to find a kill switch index than a larger `silence_window_seconds`
+///     - If paired with a minisucle `detector_window_size` then the trim is likely to interrupt the signal unintentionally.
 pub fn trim_tail_silence(samples:&Vec<f32>, silence_window_seconds:f32, detector_window_size:usize) -> Vec<f32> {
     let silence_detector = crate::analysis::tools::compute_rms(&samples, detector_window_size);
-
-    let zero_indexes = find_indexes(&silence_detector, |x| x < std::f32::EPSILON);
+    let zero_indexes = find_indexes(&silence_detector, |x| x < 1e-4);
     if zero_indexes.len() == 0 {
-      panic!("Got no zeros");
       return samples.clone()
     }
     let index_interval_seconds = crate::time::samples_to_seconds(detector_window_size);
@@ -180,8 +192,11 @@ pub fn read_audio_file(path: &str) -> Result<(Vec<Vec<f32>>, u32), Box<dyn std::
       }
     }
   };
-
-  Ok((channel_samples.iter().map(|ch| trim_tail_silence(ch, 0.0125, 25)).collect(), spec.sample_rate))
+  let detector_window_size = 1000; // about 0.02 seconds
+  let silence_window_seconds = time::samples_to_seconds(3 * detector_window_size); // require three contiguous windows of silence
+  let filtered_channel_samples:Vec<Vec<f32>> = channel_samples.iter().map(|ch| trim_tail_silence(ch, silence_window_seconds, detector_window_size)).collect();
+  // Ok((filtered_channel_samples, spec.sample_rate))
+  Ok((channel_samples, spec.sample_rate))
 }
 
 /// Reads 24-bit samples from a WAV file.

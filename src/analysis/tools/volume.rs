@@ -1,3 +1,5 @@
+use crate::Visibility;
+
 use super::*;
 
 
@@ -79,6 +81,7 @@ pub fn db_to_amp(db: f32) -> f32 {
 /// - `Vec<f32>`: RMS values for each input sample.
 pub fn compute_rms(samples: &[f32], window_size: usize) -> Vec<f32> {
     if samples.is_empty() || window_size == 0 {
+        eprintln!("Warning, skipping rms computation because signal or windw_size is empty");
         return vec![0.0; samples.len()];
     }
 
@@ -121,7 +124,19 @@ pub fn count_energy(samples: &[f32]) -> f32 {
 }
 
 
+/// Given a signal and the ideal RMS for it, with an allowed margin of error,
+/// Creates a new version of the stem with gain staging applied.
+/// 
+/// ## Arguments
+/// 
+/// target_rms: A value in [0, 0.25] describing the target RMS value for the signal. 
+/// samples: The signal to rescale
+pub fn rescale_amplitude(target_rms: f32, samples:&Vec<f32>) -> Vec<f32> {
+    let current_rms = count_energy(samples);
+    let scale_factor = target_rms/current_rms;
 
+    samples.iter().map(|x| *x * scale_factor).collect()
+}
 
 
 
@@ -307,4 +322,280 @@ fn apply_k_weighting(samples: &[f32]) -> Result<Vec<f32>, String> {
     let hs_filtered = apply_highshelf(&hp_filtered, 2000.0, 4.0)?;
 
     Ok(hs_filtered)
+}
+
+#[cfg(test)]
+mod test_unit_keith_factor {
+    use super::*;
+    use rand::thread_rng;
+    
+    #[test]
+    fn test_punchy_signal() {
+        let mut rng = thread_rng();
+
+        let thresh_fall_db = 18f32;
+
+        let dur_onset_seconds = 0.1f32;
+        let dur_punch_seconds = 0.1f32;
+
+        // construct a decay duration, tail duration, and window size such that we know
+        // the filter will trigger and return an filtered signal
+        let dur_decay_seconds = 0.05f32;
+        let dur_tail_seconds_short = 0.1f32;
+        let dur_tail_seconds_long = 1.1f32;
+
+        
+        let window_size_sec = dur_decay_seconds/2f32;
+
+
+        // use 'featured signal' values above the fall threshold
+        let onset_db_range = (-45.0, -12.0);
+        let punch_db_range = (-12.0, -6.0);
+        let decay_db_range = (-24.0, -12.0);
+        // use a db range that is guaranteed to be under the fall threshold in the tail
+        let tail_db_range = (
+            decay_db_range.0 - thresh_fall_db - 1.0, 
+            decay_db_range.1 - thresh_fall_db - 1.0
+        );
+
+
+        let total_signal_length_short =  dur_onset_seconds + dur_punch_seconds + dur_decay_seconds + dur_tail_seconds_short;
+        let total_signal_length_long =  dur_onset_seconds + dur_punch_seconds + dur_decay_seconds + dur_tail_seconds_long;
+        let n_samples_short = time::samples_of_seconds(1f32, total_signal_length_short);
+        let n_samples_long = time::samples_of_seconds(1f32, total_signal_length_long);
+        let mut signal_short: Vec<f32> = Vec::with_capacity(n_samples_short);
+        let mut signal_long: Vec<f32> = Vec::with_capacity(n_samples_long);
+
+        for i in 0..n_samples_short {
+            let curr_pos = time::samples_to_seconds(i);
+            let (min_db, max_db) = if curr_pos >  dur_onset_seconds + dur_punch_seconds + dur_decay_seconds {
+                // in the tail 
+                tail_db_range
+            } else if curr_pos >  dur_onset_seconds + dur_punch_seconds {
+                // in the decay
+                decay_db_range
+            } else if curr_pos >  dur_onset_seconds {
+                // in the punch
+                punch_db_range
+            } else {
+                // in the onset
+                onset_db_range
+            };
+            let sign = if rng.gen::<f32>() < 0.5f32 { 1f32 } else { -1f32 };
+            let sample_val = sign * in_range(&mut rng, db_to_amp(min_db), db_to_amp(max_db));
+            signal_short.push(sample_val);
+            signal_long.push(sample_val);
+        }
+
+        for i in 0..(n_samples_long - n_samples_short) {
+            let (min_db, max_db) =tail_db_range;
+            let sign = if rng.gen::<f32>() < 0.5f32 { 1f32 } else { -1f32 };
+            let sample_val = sign * in_range(&mut rng, db_to_amp(min_db), db_to_amp(max_db));
+            
+            signal_long.push(sample_val)
+        }
+
+        let label_short = format!("unit-keith-factor_short.wav");
+        let label_long = format!("unit-keith-factor_long.wav");
+        crate::render::engrave::samples(SR, &signal_short, &dev_audio_asset(&label_short));
+        crate::render::engrave::samples(SR, &signal_long, &dev_audio_asset(&label_long));
+        let keith_factor_short = keith_factor(&signal_short, thresh_fall_db, window_size_sec);
+        let keith_factor_long = keith_factor(&signal_long, thresh_fall_db, window_size_sec);
+        assert!(keith_factor_short > keith_factor_long, "Shorter punchy signals must have a lower Keith factor than longer smoother signals")
+    }
+}
+
+
+#[cfg(test)]
+mod test_unit_rescale_signal {
+    use super::*;
+    use rand::thread_rng;
+    
+    #[test]
+    fn test_rms_rescaling() {
+        let mut rng = thread_rng();
+
+        let thresh_fall_db = 18f32;
+
+        let dur_onset_seconds = 0.1f32;
+        let dur_punch_seconds = 0.1f32;
+
+        // construct a decay duration, tail duration, and window size such that we know
+        // the filter will trigger and return an filtered signal
+        let dur_decay_seconds = 0.05f32;
+        let dur_tail_seconds_short = 0.1f32;
+        let dur_tail_seconds_long = 1.1f32;
+
+        
+        let window_size_sec = dur_decay_seconds/2f32;
+
+
+        // use 'featured signal' values above the fall threshold
+        let onset_db_range = (-45.0, -12.0);
+        let punch_db_range = (-12.0, -6.0);
+        let decay_db_range = (-24.0, -12.0);
+        // use a db range that is guaranteed to be under the fall threshold in the tail
+        let tail_db_range = (
+            decay_db_range.0 - thresh_fall_db - 1.0, 
+            decay_db_range.1 - thresh_fall_db - 1.0
+        );
+
+
+        let total_signal_length_short =  dur_onset_seconds + dur_punch_seconds + dur_decay_seconds + dur_tail_seconds_short;
+        let total_signal_length_long =  dur_onset_seconds + dur_punch_seconds + dur_decay_seconds + dur_tail_seconds_long;
+        let n_samples_short = time::samples_of_seconds(1f32, total_signal_length_short);
+        let n_samples_long = time::samples_of_seconds(1f32, total_signal_length_long);
+        let mut signal_short: Vec<f32> = Vec::with_capacity(n_samples_short);
+        let mut signal_long: Vec<f32> = Vec::with_capacity(n_samples_long);
+
+        for i in 0..n_samples_short {
+            let curr_pos = time::samples_to_seconds(i);
+            let (min_db, max_db) = if curr_pos >  dur_onset_seconds + dur_punch_seconds + dur_decay_seconds {
+                // in the tail 
+                tail_db_range
+            } else if curr_pos >  dur_onset_seconds + dur_punch_seconds {
+                // in the decay
+                decay_db_range
+            } else if curr_pos >  dur_onset_seconds {
+                // in the punch
+                punch_db_range
+            } else {
+                // in the onset
+                onset_db_range
+            };
+            let sign = if rng.gen::<f32>() < 0.5f32 { 1f32 } else { -1f32 };
+            let sample_val = sign * in_range(&mut rng, db_to_amp(min_db), db_to_amp(max_db));
+            signal_short.push(sample_val);
+            signal_long.push(sample_val);
+        }
+
+        for i in 0..(n_samples_long - n_samples_short) {
+            let (min_db, max_db) =tail_db_range;
+            let sign = if rng.gen::<f32>() < 0.5f32 { 1f32 } else { -1f32 };
+            let sample_val = sign * in_range(&mut rng, db_to_amp(min_db), db_to_amp(max_db));
+            
+            signal_long.push(sample_val)
+        }
+
+        let label_short = format!("unit-rescale_short.wav");
+        let label_long = format!("unit-rescale_long.wav");
+        let label_short_rescaled = format!("unit-rescale_short_rescaled.wav");
+        let label_short_rescaled_softer = format!("unit-rescale_short_rescaled_softer.wav");
+        let label_long_rescaled = format!("unit-rescale_long_rescaled.wav");
+        crate::render::engrave::samples(SR, &signal_short, &dev_audio_asset(&label_short));
+
+        let curr_energy_short = count_energy(&signal_short);
+        let curr_energy_long = count_energy(&signal_long);
+
+        let test_scale_factor_louder = 1.25;
+        let expected_short_rms = curr_energy_short * test_scale_factor_louder;
+
+        let short_rescaled_louder = rescale_amplitude(expected_short_rms, &signal_short);
+        crate::render::engrave::samples(SR, &short_rescaled_louder, &dev_audio_asset(&label_short_rescaled));
+
+        assert!(count_energy(&signal_short) < count_energy(&short_rescaled_louder), "Rescaling to be louder must make the signal louder.");
+
+
+        let test_scale_factor_louder = 0.5;
+        let expected_short_rms_softer = curr_energy_short * test_scale_factor_louder;
+
+        let short_rescaled_softer = rescale_amplitude(expected_short_rms_softer, &signal_short);
+        crate::render::engrave::samples(SR, &short_rescaled_softer, &dev_audio_asset(&label_short_rescaled_softer));
+        let softer_rms = count_energy(&short_rescaled_softer);
+
+        assert!(count_energy(&signal_short) > count_energy(&short_rescaled_softer), "Rescaling to be quieter must make the signal quieter.");
+    }
+}
+
+/// Computes the Keith Factor of an audio signal, which measures the relative spread of energy.
+/// A value of 1 indicates a very punchy signal, while a value of 0 indicates a constant signal.
+///
+/// # Parameters
+/// - `signal`: Slice of audio samples (f32).
+/// - `thresh_fallen`: Threshold in decibels (dB) below the peak to trigger the kill index.
+/// - `fallen_window_sec`: Duration in seconds that the signal must remain below the threshold to confirm the kill index.
+///
+/// # Returns
+/// - A `f32` value representing the ratio of energy up to the kill index over the total energy.
+///   Always returns a value between 0 and 1. Returns `1.0` if no kill index is found.
+///
+/// # Behavior
+/// 1. Identifies the peak value of the signal in dB.
+/// 2. Determines the kill threshold based on `thresh_fallen`.
+/// 3. Searches for the first index after the peak where the signal falls below the threshold
+///    and remains below for `fallen_window_sec`.
+/// 4. Calculates the RMS energy up to the kill index and the total RMS energy.
+/// 5. Returns the ratio of these energies.
+///
+/// # Example
+/// ```
+/// let signal = vec![0.0, 0.1, 0.3, 0.5, 0.2, 0.1, 0.0];
+/// let keith = keith_factor(&signal, 18.0, 0.5, 0.1);
+/// println!("Keith Factor: {}", keith);
+/// ```
+fn keith_factor(
+    signal: &[f32],
+    thresh_fallen: f32,      // e.g., 18 dB
+    fallen_window_sec: f32,  // Hold time in seconds
+) -> f32 {
+    // Determine sample count for fallen_window_sec
+    let fallen_window_samples = crate::time::samples_of_seconds(1f32, fallen_window_sec);
+
+    // Handle empty input signal edge case
+    if signal.is_empty() {
+        return 1.0; // Constant signal-like behavior
+    }
+
+    // Precompute dB values for all samples
+    let db_signal: Vec<f32> = signal.iter().map(|&val| amp_to_db(val.abs())).collect();
+
+    // Find peak amplitude and corresponding dB
+    let (peak_index, peak_db) = db_signal
+        .iter()
+        .enumerate()
+        .fold((0, f32::NEG_INFINITY), |(max_idx, max_db), (i, &db_val)| {
+            if db_val > max_db {
+                (i, db_val)
+            } else {
+                (max_idx, max_db)
+            }
+        });
+
+    // Threshold for kill trigger in dB
+    let kill_threshold_db = peak_db - thresh_fallen;
+
+    // Search for kill_index
+    let mut kill_index = None;
+    for i in (peak_index + 1)..signal.len() {
+        if db_signal[i] < kill_threshold_db {
+            // Check if the signal remains below the threshold for the required window
+            let end_index = i + fallen_window_samples;
+            let below_threshold = if end_index > signal.len() {
+                db_signal[i..].iter().all(|&db| db < kill_threshold_db)
+            } else {
+                db_signal[i..end_index].iter().all(|&db| db < kill_threshold_db)
+            };
+
+            if below_threshold {
+                kill_index = Some(i);
+                break;
+            }
+        }
+    }
+
+    // If no kill_index is found, assume constant signal
+    let kill_index = kill_index.unwrap_or(signal.len());
+
+    // Compute energy ratios
+    let rms_featured = count_energy(&signal[..kill_index]);
+    let rms_lifetime = count_energy(signal);
+
+    // Avoid division by zero
+    if rms_lifetime == 0.0 {
+        return 1.0;
+    }
+
+    println!("rms_featured {} rms_lifetime {}", rms_featured, rms_lifetime);
+
+    rms_lifetime / rms_featured
 }

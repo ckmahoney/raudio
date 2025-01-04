@@ -12,7 +12,7 @@ mod more;
 pub use dynamics::*;
 pub use more::*;
 pub use volume::*;
-
+pub use super::*;
 
 pub fn dev_audio_asset(label: &str) -> String {
     format!("dev-audio/{}", label)
