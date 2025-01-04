@@ -1,7 +1,9 @@
 use std::os::unix::thread;
 
+
 use crate::analysis::volume::db_to_amp;
 use crate::synth::{pi, pi2, pi_2, pi_4, MFf, NFf, SRf, SR};
+pub use crate::synth::{MAX_DB, MIN_DB, DYNAMIC_RANGE_DB};
 use crate::time;
 /// # Rangers
 ///
@@ -12,10 +14,6 @@ use crate::time;
 use crate::types::synthesis::{MacroMotion, Range};
 static one: f32 = 1f32;
 static half: f32 = 0.5f32;
-
-pub const MIN_DB: f32 = -96f32;
-pub const MAX_DB: f32 = 0f32;
-pub const DYNAMIC_RANGE_DB: f32 = MAX_DB - MIN_DB;
 
 #[derive(Copy, Clone, Debug)]
 /// A set of three dials for managing the parameters of these predefined methods.
