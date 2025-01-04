@@ -7,14 +7,14 @@ static demo_name: &str = "amen-beat";
 
 use crate::analysis::volume::db_to_amp;
 use crate::presets::Instrument;
-use crate::render::{self, Renderable};
+use crate::render::{self, Renderable2};
 use crate::reverb;
 use crate::types::render::{Feel, Melody, Stem};
 use crate::types::synthesis::{
   Ampl, Bandpass, Direction, Duration, Ely, FilterPoint, Freq, Frex, GlideLen, Monae, Mote, Note, Register, Soids, Tone,
 };
 
-use presets::ambien::{hats, kick, perc};
+use presets::fum::{hats, kick, perc};
 
 // static cps:f32 = 1.8f32;
 static cps: f32 = 2.1f32;
@@ -156,7 +156,7 @@ fn perc_melody() -> Melody<Note> {
 fn kick_arf() -> Arf {
   Arf {
     mode: Mode::Enharmonic,
-    role: Role::Perc,
+    role: Role::Kick,
     register: 5,
     visibility: Visibility::Visible,
     energy: Energy::Medium,
@@ -178,10 +178,10 @@ fn hats_arf() -> Arf {
   Arf {
     mode: Mode::Enharmonic,
     role: Role::Hats,
-    register: 12,
+    register: 10,
     visibility: Visibility::Foreground,
     energy: Energy::Medium,
-    presence: Presence::Legato,
+    presence: Presence::Staccatto,
   }
 }
 
@@ -197,13 +197,13 @@ fn demonstrate() {
   let hats_melody = hats_melody();
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
+  let conf = Conf{cps, root};
 
-  let stem_hats = hats::renderable(&hats_melody, &hats_arf());
-  let stem_perc = perc::renderable(&perc_melody, &perc_arf());
-  let stem_kick = kick::renderable(&kick_mel, &kick_arf());
+  let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf());
+  let stem_perc = perc::renderable(&conf, &perc_melody, &perc_arf());
+  let stem_kick = kick::renderable(&conf, &kick_mel, &kick_arf());
 
-  use Renderable::{Group, Instance};
-  let renderables: Vec<Renderable> = vec![stem_kick, stem_perc, stem_hats];
+  let renderables: Vec<Renderable2> = vec![stem_kick, stem_perc, stem_hats];
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;
@@ -214,7 +214,7 @@ fn demonstrate() {
 
   let keep_stems = Some(path.as_str());
 
-  let mix = render::combiner(cps, root, &renderables, &group_reverbs, keep_stems);
+  let mix = render::combiner_with_reso2(&conf, &renderables, &vec![],  &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", location(demo_name), demo_name);
   render::engrave::samples(SR, &mix, &filename);
 }
@@ -228,13 +228,14 @@ fn samp(c: f32, r: f32) -> SampleBuffer {
   let hats_melody = hats_melody();
   let perc_melody = perc_melody();
   let kick_mel = kick_melody();
+  let conf = Conf{cps, root};
 
-  let stem_hats = hats::renderable(&hats_melody, &hats_arf());
-  let stem_perc = perc::renderable(&perc_melody, &perc_arf());
-  let stem_kick = kick::renderable(&kick_mel, &kick_arf());
+  let stem_hats = hats::renderable(&conf, &hats_melody, &hats_arf());
+  let stem_perc = perc::renderable(&conf, &perc_melody, &perc_arf());
+  let stem_kick = kick::renderable(&conf, &kick_mel, &kick_arf());
 
-  use Renderable::{Group, Instance};
-  let renderables: Vec<Renderable> = vec![stem_kick, stem_perc, stem_hats];
+  use Renderable2::{Group, Instance};
+  let renderables: Vec<Renderable2> = vec![stem_kick, stem_perc, stem_hats];
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;
@@ -242,7 +243,7 @@ fn samp(c: f32, r: f32) -> SampleBuffer {
   let complexity: f32 = rng.gen::<f32>();
   let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
 
-  render::combiner(c, r, &renderables, &group_reverbs, None)
+  render::combiner_with_reso2(&conf, &renderables, &vec![],  &group_reverbs, None)
 }
 
 #[test]
@@ -322,6 +323,6 @@ fn test_render_playbook() {
     filepath,
     "hop",
     "src/demo/playbook-demo-ambien.json",
-    "test-preset-ambien",
+    "test-preset-fum",
   )
 }

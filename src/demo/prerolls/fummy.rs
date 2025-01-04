@@ -315,12 +315,12 @@ fn demonstrate() {
 
   use Renderable::{Group, Instance};
   let renderables: Vec<Renderable2> = vec![
-    // stem_kick,
-    // stem_perc,
-    // stem_hats,
-    stem_bass,
-    stem_chords,
-    stem_lead,
+    stem_kick,
+    stem_perc,
+    stem_hats,
+    // stem_bass,
+    // stem_chords,
+    // stem_lead,
   ];
 
   use crate::types::timbre::Enclosure;
@@ -342,7 +342,6 @@ fn test_demonstrate() {
 
 #[test]
 fn test_render_playbook() {
-  eprintln!("There's something wrong with the mountain preset! be carefule");
   let filepath: &str = &format!("{}/demo/ambien/test_ambien_playbook", crate::demo::out_dir);
   crate::render_playbook(
     filepath,
