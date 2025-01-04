@@ -15,13 +15,15 @@ use rand;
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
 use std::marker::PhantomData;
 
+use crate::analysis::tools::{ExpanderParams, CompressorParams, compressor, expander, compute_rms};
+
 use crate::analysis::delay::{self, DelayParams, DelayParamsMacro, StereoField};
 use crate::analysis::sampler::read_audio_file;
 use crate::druid::{self, noise::NoiseColor, soid_fx, soids as druidic_soids};
 use crate::druid::{bell, melodic, noise, Element, Elementor};
 use crate::phrasing::contour::expr_none;
 use crate::phrasing::contour::Expr;
-use crate::phrasing::ranger::{self, Knob, KnobMacro, KnobMods, KnobMods2};
+use crate::phrasing::ranger::{self, MAX_DB, MIN_DB, Knob, KnobMacro, KnobMods, KnobMods2};
 use crate::render::{Renderable, Renderable2};
 use crate::reverb::convolution::ReverbParams;
 use crate::time::{self, note_to_cycles};
@@ -107,6 +109,45 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
     vec![],
     reverbs_room,
   ))
+}
+
+
+
+/// Returns a `Stem3` for the percussion preset.
+///
+/// # Parameters
+/// - `conf`: Configuration object for additional context.
+/// - `melody`: Melody structure specifying note events for the stem.
+/// - `arf`: Configuration for amplitude and visibility adjustments.
+///
+/// # Returns
+/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+pub fn simple_stem_at<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf, index:usize) -> Renderable2<'render> {
+  if let Ok(sample_path) = get_sample_path_by_index(arf, index, true) {
+    let (ref_samples, sample_rate) = read_audio_file(&sample_path).expect("Failed to read percussion sample");
+    let gain = visibility_gain_sample(arf.visibility);
+    let amp_expr = vec![1f32];
+  
+    let mut delays_note = vec![];
+    let mut reverbs_room = vec![];
+  
+    let lowpass_cutoff = NFf;
+    let ref_sample = ref_samples[0].to_owned();
+  
+    Renderable2::Sample((
+      melody,
+      ref_sample,
+      amp_expr,
+      lowpass_cutoff,
+      delays_note,
+      vec![],
+      vec![],
+      reverbs_room,
+    ))
+  } else {
+    panic!("Unable to get the stem for arf {:?} at index {}", arf, index)
+  }
+
 }
 
 pub trait Conventions<'render> {
@@ -680,6 +721,41 @@ pub fn get_sample_path(arf: &Arf) -> String {
   }
 }
 
+
+/// Retrieves a sample file path based on the given `Arf` configuration.
+///
+/// # Parameters
+/// - `arf`: The amplitude and visibility configuration.
+///
+/// # Returns
+/// A randomly selected file path from the appropriate category.
+pub fn get_sample_path_by_index(arf: &Arf, index:usize, wraparound:bool) -> Result<String, String> {
+  let key = match arf.role {
+    Role::Hats => match arf.presence {
+      Presence::Staccatto | Presence::Legato => format!("{}/hats/short", SAMPLE_SOURCE_DIR),
+      Presence::Tenuto => format!("{}/hats/long", SAMPLE_SOURCE_DIR),
+    },
+    Role::Kick => format!("{}/kick", SAMPLE_SOURCE_DIR),
+    Role::Perc => format!("{}/perc", SAMPLE_SOURCE_DIR),
+    _ => panic!("No samples provided for role: {}", arf.role),
+  };
+
+  // Access the cache
+  let cache = SAMPLE_CACHE.read().expect("Failed to read SAMPLE_CACHE");
+
+  // Retrieve the list of paths for the category
+  if let Some(paths) = cache.get(&key) {
+
+    if !wraparound && index > paths.len() {
+      return Err(format!("Attempted to access {} sample at unavailable index {}", key, index));
+    }
+
+    Ok(paths[index].clone())
+  } else {
+    panic!("Role not found in cache: {}", arf.role);
+  }
+}
+
 /// Initializes the sample cache by scanning the audio-sample directories.
 ///
 /// # Returns
@@ -773,3 +849,5 @@ fn eval_odr(cps: f32, at_n_samples: usize, odr: &ODR) -> (usize, usize, usize, u
 
   (ramp, fall, hold, kill)
 }
+
+

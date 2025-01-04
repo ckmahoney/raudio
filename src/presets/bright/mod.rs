@@ -1,6 +1,6 @@
 use std::i32::MAX;
 
-use super::*;
+pub use super::*;
 pub mod bass;
 pub mod chords;
 pub mod hats;

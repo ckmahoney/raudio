@@ -15,6 +15,11 @@ pub fn cycles_from_n(cps: f32, n: usize) -> f32 {
   n as f32 / one
 }
 
+/// Given a number of samples, returns the absolute time in seconds it represents using the application wide sample rate.
+pub fn samples_to_seconds(n_samples:usize) -> f32 {
+  n_samples as f32 / SRf
+}
+
 /// Given a duration in seconds, return the number of samples representing this length
 pub fn samples_of_dur(cps: f32, dur: f32) -> usize {
   samples_of_seconds(cps, dur)

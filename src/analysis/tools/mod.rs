@@ -8,10 +8,15 @@ use rand::Rng;
 mod dynamics;
 mod volume;
 mod test;
+mod more;
 pub use dynamics::*;
+pub use more::*;
 pub use volume::*;
 
 
+pub fn dev_audio_asset(label: &str) -> String {
+    format!("dev-audio/{}", label)
+  }
 /// Applies a low-pass biquad filter to the input samples.
 ///
 /// This function designs and applies a low-pass filter to the provided audio samples using

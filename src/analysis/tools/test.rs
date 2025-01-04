@@ -3,9 +3,6 @@ use super::*;
 use crate::analysis::sampler::read_audio_file;
 use crate::render::engrave::write_audio;
 
-pub fn dev_audio_asset(label: &str) -> String {
-  format!("dev-audio/{}", label)
-}
 
 #[cfg(test)]
 mod test_compressor_params {

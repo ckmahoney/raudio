@@ -3,6 +3,8 @@ use rubato::{FftFixedInOut, Resampler};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::time;
+
 pub enum AudioFormat {
   Mono(Vec<f32>),             // Single-channel audio
   Stereo(Vec<f32>, Vec<f32>), // Separate left and right channels
@@ -72,6 +74,58 @@ pub fn get_audio_metadata(path: &str) -> Result<hound::WavSpec, Box<dyn std::err
   Ok(reader.spec())
 }
 
+
+fn find_indexes<F>(vec: &[f32], callback: F) -> Vec<usize>
+where
+    F: Fn(f32) -> bool,
+{
+    vec.iter()
+        .enumerate()
+        .filter_map(|(i, &x)| if callback(x) { Some(i) } else { None })
+        .collect()
+}
+
+
+/// Given a signal, detect contiguous silence of silence_window_seconds
+/// and return the truncated stem
+pub fn trim_tail_silence(samples:&Vec<f32>, silence_window_seconds:f32, detector_window_size:usize) -> Vec<f32> {
+    let silence_detector = crate::analysis::tools::compute_rms(&samples, detector_window_size);
+
+    let zero_indexes = find_indexes(&silence_detector, |x| x < std::f32::EPSILON);
+    if zero_indexes.len() == 0 {
+      panic!("Got no zeros");
+      return samples.clone()
+    }
+    let index_interval_seconds = crate::time::samples_to_seconds(detector_window_size);
+    let n_contiguous_indices_required = (silence_window_seconds / index_interval_seconds).floor() as usize;
+    let kill_index = if n_contiguous_indices_required == 0 {
+      // just get the first match
+      zero_indexes[0]
+    } else {
+      let mut accumulated_zeros = 0usize;
+      let mut p:Option<usize> = None;
+      
+      // use the window 
+      for (i, idx) in zero_indexes.iter().enumerate() {
+        if accumulated_zeros == n_contiguous_indices_required {
+          p = Some(*idx);
+          break
+        } else {
+          if i == 0 || zero_indexes[i-1] == zero_indexes[i] - 1 {
+            accumulated_zeros = accumulated_zeros + 1
+          } else {
+            accumulated_zeros = 0
+          }
+        };
+      };
+
+      p.unwrap_or(samples.len()-1);
+      p.unwrap()
+    }; 
+
+  samples[0..kill_index].to_vec()
+}
+
 /// Reads an audio file and returns the audio buffer and sample rate.
 ///
 /// # Parameters
@@ -127,7 +181,7 @@ pub fn read_audio_file(path: &str) -> Result<(Vec<Vec<f32>>, u32), Box<dyn std::
     }
   };
 
-  Ok((channel_samples, spec.sample_rate))
+  Ok((channel_samples.iter().map(|ch| trim_tail_silence(ch, 0.0125, 25)).collect(), spec.sample_rate))
 }
 
 /// Reads 24-bit samples from a WAV file.

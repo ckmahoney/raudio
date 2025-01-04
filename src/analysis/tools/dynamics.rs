@@ -104,7 +104,7 @@ impl Default for CompressorParams {
             attack_time: 0.01,
             release_time: 0.1,
             lookahead_time: None,
-            detection_method: EnvelopeMethod::Peak,
+            detection_method: EnvelopeMethod::Rms(0.05),
             hold_time: None,
             wet_dry_mix: 1.0,
             sidechain_filter: None,
@@ -197,7 +197,7 @@ impl Default for ExpanderParams {
             attack_time: 0.01,                      // Default attack time in seconds
             release_time: 0.1,                      // Default release time in seconds
             makeup_gain: 1.0,                       // No gain applied by default
-            detection_method: EnvelopeMethod::Peak, // Default detection method
+            detection_method: EnvelopeMethod::Rms(0.05), // Default detection method
             hold_time: None,                        // No hold time by default
             wet_dry_mix: 1.0,                       // Fully wet by default
             sidechain_filter: None,                 // No sidechain filter by default
@@ -205,18 +205,6 @@ impl Default for ExpanderParams {
             envelope_shaping: None,                 // No envelope shaping by default
         }
     }
-}
-
-/// Parameters for configuring a compander, which combines compression and expansion.
-///
-/// This struct holds the parameters for both compression and expansion stages,
-/// allowing for comprehensive dynamic range control.
-#[derive(Debug, Clone, Copy)]
-pub struct CompanderParams {
-    /// Compressor parameters for compression stage.
-    pub compressor: CompressorParams,
-    /// Expander parameters for expansion stage.
-    pub expander: ExpanderParams,
 }
 
 /// Parameters for configuring a transient shaper.

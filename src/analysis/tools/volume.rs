@@ -99,7 +99,7 @@ pub fn compute_rms(samples: &[f32], window_size: usize) -> Vec<f32> {
         }
 
         let current_window_size = window.len();
-        let rms = if current_window_size > 0 {
+        let rms = if current_window_size > 0 && squared_sum > 0.0 {
             (squared_sum / current_window_size as f32).sqrt()
         } else {
             0.0
@@ -109,6 +109,17 @@ pub fn compute_rms(samples: &[f32], window_size: usize) -> Vec<f32> {
 
     rms_output
 }
+
+/// For a signal in range [-1, 1], 
+/// provides the RMS of the entire signal.
+pub fn count_energy(samples: &[f32]) -> f32 {
+    if samples.is_empty() {
+        return 0.0
+    }
+    let sum_squares:f32 = samples.iter().map(|x| x.powi(2i32)).collect::<Vec<f32>>().iter().sum();
+    (sum_squares/samples.len() as f32).sqrt()
+}
+
 
 
 
