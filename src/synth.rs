@@ -1,3 +1,9 @@
+/// This module provides the settings for the application's synthesis engine.
+/// It includes definitions for Sample Rate, Minimum Frequency, Minimum Decibel Value,
+/// Maximum Decibel value.
+/// 
+/// The module also offers convenient aliases for standard constants at f32 precision.
+
 use crate::render;
 use crate::types::*;
 
@@ -43,6 +49,25 @@ pub fn MAX_POW_2u() -> u32 {
 }
 pub const MAX_REGISTER: i32 = 13;
 pub const MIN_REGISTER: i32 = 4;
+
+
+
+/// Global static values in decibels
+/// 
+/// The total supported dynamic range is MAX_DB-MIN_DB 
+/// however, musically we have a more conservative THRESH_NOISE_DB
+/// 
+/// Presets will output amplitude envelopes bound by THRESH_NOISE_DB
+/// Ingested samples, applied reverb and delay, and resampling may produce
+/// artifacts under MIN_DB. These will be gated. 
+/// 
+/// Signal values in (-72, -60) DB are left in tact.
+pub const MIN_DB: f32 = -80f32;
+pub const MAX_DB: f32 = 0f32;
+pub const THRESH_NOISE_DB: f32 = -72f32;
+pub const DYNAMIC_RANGE_DB: f32 = MAX_DB - MIN_DB;
+
+
 
 /*
 // notes from /home/naltroc/synthony-serivce/wendy/src/synth.rs
