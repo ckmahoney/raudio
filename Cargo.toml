@@ -21,6 +21,8 @@ dotenv = "0.15.0"
 rubato = "0.16.1"
 fs = "0.0.5"
 once_cell = "1.20.2"
+biquad = "0.5.0"
+itertools = "0.13.0"
 
 [[bin]]
 name = "raudio"
