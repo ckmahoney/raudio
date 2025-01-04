@@ -12,7 +12,7 @@ use std::f32::EPSILON;
 use rustfft::num_traits::zero;
 
 use super::*;
-  use crate::analysis::tools::{count_energy, dev_audio_asset};
+  use crate::analysis::{sampler::trim_tail_silence, tools::{count_energy, dev_audio_asset}};
 
   fn hats_arf() -> Arf {
     Arf {
@@ -80,6 +80,21 @@ use super::*;
   /// compressor varies with similar intensity up through thresh -25db  
   /// compressor past -25db begins to feel highpassed
 
+  #[test]
+  fn test_g()  {
+    let dbs = [-96f32, -84f32, -72f32, -60f32, -48f32, -36f32, -24f32, -12f32, 0f32];
+    let dbs:Vec<f32> = (0..15).map(|x| (-6f32 * x as f32) as f32).collect();
+    for db in dbs {
+      println!("decibels: {} linear amplitude value: {} rms value: {}", db, db_to_amp(db), db_to_amp(db).powi(2i32));
+
+    }
+
+    
+    for n_samples in [100, 200, 500, 1000] {
+      let window_size_seconds = time::samples_to_seconds(n_samples);
+      println!("Got duration: {}", window_size_seconds)
+    }
+  }
   
   #[test]
   fn test_iter_compressor_threshold() {
@@ -88,7 +103,7 @@ use super::*;
     let thresholds:Vec<f32> = (0..12).map(|i| i as f32 * -3.0 - 10.0).collect::<Vec<f32>>();
     let attack_time = 0.05f32;
     let release_time = 0.1f32;
-    let ratio = 8f32;
+    let ratio = 3f32;
     render::engrave::samples(SR, &samples, &dev_audio_asset(&format!("original-{}.wav", Role::Hats)));
 
     for thresh in thresholds.iter() {
@@ -117,12 +132,12 @@ use super::*;
   fn test_iter_expander_threshold() {
     let samples = get_stem_samples(Role::Hats);
 
-    let thresholds:Vec<f32> = (0..12).map(|i| i as f32 * -3.0 - 10.0).collect::<Vec<f32>>();
+    let thresholds:Vec<f32> = (0..4).map(|i| i as f32 * -3.0 - 10.0).collect::<Vec<f32>>();
     let attack_time = 0.05f32;
     let release_time = 0.1f32;
-    let ratio = 8f32;
+    let ratio = 3f32;
     render::engrave::samples(SR, &samples, &dev_audio_asset(&format!("original-{}.wav", Role::Hats)));
-
+    
     for thresh in thresholds.iter() {
       let expander_params = ExpanderParams {
         threshold: *thresh,
@@ -134,8 +149,15 @@ use super::*;
 
       match expander(&samples, expander_params, None) {
         Ok(result) => {
+
           let label = format!("hats-expander-threshold-{}-attack-time-{}-release-time-{}-ratio-{}.wav", *thresh, attack_time, release_time, ratio);
-          render::engrave::samples(SR, &result, &dev_audio_asset(&label))
+          println!("Samples at 48000..48200: {:?}", &samples[48000..48400]);
+          render::engrave::samples(SR, &result, &dev_audio_asset(&label));
+
+
+          // render::engrave::samples(SR, &result, &dev_audio_asset(&label));
+          // let label = format!("hats-expander-threshold-{}-attack-time-{}-release-time-{}-ratio-{}-trimmed.wav", *thresh, attack_time, release_time, ratio);
+          // let trimmed = trim_tail_silence(&samples, 0.002, 100);
         }
         Err(msg) => {
           panic!("Failure while running test: {}", msg)

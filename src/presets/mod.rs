@@ -23,7 +23,8 @@ use crate::druid::{self, noise::NoiseColor, soid_fx, soids as druidic_soids};
 use crate::druid::{bell, melodic, noise, Element, Elementor};
 use crate::phrasing::contour::expr_none;
 use crate::phrasing::contour::Expr;
-use crate::phrasing::ranger::{self, MAX_DB, MIN_DB, Knob, KnobMacro, KnobMods, KnobMods2};
+use crate::phrasing::ranger::{self, Knob, KnobMacro, KnobMods, KnobMods2};
+use crate::synth::{MAX_DB, MIN_DB, DYNAMIC_RANGE_DB};
 use crate::render::{Renderable, Renderable2};
 use crate::reverb::convolution::ReverbParams;
 use crate::time::{self, note_to_cycles};
@@ -851,3 +852,11 @@ fn eval_odr(cps: f32, at_n_samples: usize, odr: &ODR) -> (usize, usize, usize, u
 }
 
 
+pub fn get_rescale_target(visibility:Visibility) -> f32 {
+  match visibility {
+      Visibility::Visible => db_to_amp(-6.0),
+      Visibility::Foreground => db_to_amp(-21.0),
+      Visibility::Background => db_to_amp(-42.0),
+      Visibility::Hidden => db_to_amp(-60.0),
+  }
+}
