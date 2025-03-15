@@ -258,7 +258,9 @@ fn samp(c: f32, r: f32) -> SampleBuffer {
   use crate::Distance;
 
   let complexity: f32 = rng.gen::<f32>();
-  let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
+  let group_reverbs = vec![
+    crate::inp::arg_xform::reverb_params(&mut rng, cps, 32f32/c, &Distance::Near, &Enclosure::Vast, complexity)
+  ];
 
   render::combiner_with_reso2(&conf, &renderables, &vec![], &group_reverbs, None)
 }

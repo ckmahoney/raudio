@@ -2,7 +2,7 @@ use std::os::unix::thread;
 
 use super::*;
 
-/// Returns a `Stem3` for the kick preset.
+/// Returns a `DrumSample` for the kick preset.
 ///
 /// # Parameters
 /// - `conf`: Configuration object for additional context.
@@ -10,7 +10,7 @@ use super::*;
 /// - `arf`: Configuration for amplitude and visibility adjustments.
 ///
 /// # Returns
-/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+/// A `DrumSample` with configured sample buffers, amplitude expressions, and effect parameters.
 pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   // Dynamically retrieve a kick sample file path
   let sample_path = get_sample_path(arf);

@@ -13,6 +13,7 @@ pub fn merge_soids(amplitudes: &Vec<f32>, phases: &Vec<f32>) -> (f32, f32) {
   (resultant_amplitude, resultant_phase)
 }
 
+/// Reduces duplicate frequencies by merging them in terms of amplitude and phase. 
 pub fn process_soids(sinusoids: (Vec<f32>, Vec<f32>, Vec<f32>)) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
   let (mut amps, mut muls, mut phis) = sinusoids;
 

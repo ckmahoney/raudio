@@ -91,15 +91,17 @@ pub mod synthesis {
 
   #[derive(Copy, Clone, Debug)]
   pub enum MacroMotion {
+    
     // static values
-    Min,
-    Mean,
-    Max,
-    Constant,
+    Min,  // the lower value of the two options
+    Mean, // the linear mean of the two options
+    Max,  // the highest value of the options
+    Constant, // a random value in [min, max] applied for the lifetime of the instance
+
     // animated values
-    Forward,
-    Reverse,
-    Random,
+    Forward, // linear interpolation from min to max 
+    Reverse, // linear interpolation from max to min
+    Random,  // a new value each time
   }
 
   #[derive(Copy, Clone, Debug)]
@@ -497,11 +499,27 @@ pub mod render {
   /// SampleBuffer from input samples (like perc)
   /// Tuple represents
   /// (melody, reference sample buffer, amplitude contour, lowpass_cutoff_freq, delay1 (per noteevent), delay2 (total line)), reverb1 (per noteevent), reverb2 (total line))
-  pub type Stem3<'render> = (
+  pub type DrumSample<'render> = (
     &'render Melody<synthesis::Note>,
     SampleBuffer,
     Vec<Range>,
     f32,
+    Vec<crate::analysis::delay::DelayParams>,
+    Vec<crate::analysis::delay::DelayParams>,
+    Vec<crate::reverb::convolution::ReverbParams>,
+    Vec<crate::reverb::convolution::ReverbParams>,
+  );
+
+
+  /// SampleBuffer from input samples (like perc)
+  /// Tuple represents
+  /// (melody, reference sample buffer, amplitude contour, lowpass_cutoff_freq, delay1 (per noteevent), delay2 (total line)), reverb1 (per noteevent), reverb2 (total line))
+  pub type DrumSample2<'render> = (
+    &'render Melody<synthesis::Note>,
+    SampleBuffer,
+    Vec<Range>,
+    f32,
+    Vec<crate::analysis::tools::animation::DynamicMotion>,
     Vec<crate::analysis::delay::DelayParams>,
     Vec<crate::analysis::delay::DelayParams>,
     Vec<crate::reverb::convolution::ReverbParams>,

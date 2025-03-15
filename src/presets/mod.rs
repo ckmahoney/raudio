@@ -29,7 +29,7 @@ use crate::render::{Renderable, Renderable2};
 use crate::reverb::convolution::ReverbParams;
 use crate::synth::{DYNAMIC_RANGE_DB, MAX_DB, MIN_DB};
 use crate::time::{self, note_to_cycles};
-use crate::types::render::{Conf, Feel, Melody, Stem, Stem2, Stem3};
+use crate::types::render::{Conf, Feel, Melody, Stem, Stem2, DrumSample};
 use crate::types::synthesis::{
   bp2_unit, BoostGroup, Bp2, Direction, Ely, Freq, ModulationEffect, Note, PhaseModParams,
 };
@@ -79,7 +79,7 @@ pub fn simple_tacet<'render>(melody: &'render Melody<Note>) -> Renderable2<'rend
   Renderable2::Tacet(s)
 }
 
-/// Returns a `Stem3` for the percussion preset.
+/// Returns a `DrumSample` for the percussion preset.
 ///
 /// # Parameters
 /// - `conf`: Configuration object for additional context.
@@ -87,7 +87,7 @@ pub fn simple_tacet<'render>(melody: &'render Melody<Note>) -> Renderable2<'rend
 /// - `arf`: Configuration for amplitude and visibility adjustments.
 ///
 /// # Returns
-/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+/// A `DrumSample` with configured sample buffers, amplitude expressions, and effect parameters.
 pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   let sample_path = get_sample_path(arf);
 
@@ -113,7 +113,7 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
   ))
 }
 
-/// Returns a `Stem3` for the percussion preset.
+/// Returns a `DrumSample` for the percussion preset.
 ///
 /// # Parameters
 /// - `conf`: Configuration object for additional context.
@@ -121,7 +121,7 @@ pub fn simple_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Ar
 /// - `arf`: Configuration for amplitude and visibility adjustments.
 ///
 /// # Returns
-/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+/// A `DrumSample` with configured sample buffers, amplitude expressions, and effect parameters.
 pub fn contour_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
   let sample_path = get_sample_path(arf);
 
@@ -215,7 +215,7 @@ pub fn gen_beat_expander(arf: &Arf) -> ExpanderParams {
   }
 }
 
-/// Returns a `Stem3` for the percussion preset.
+/// Returns a `DrumSample` for the percussion preset.
 ///
 /// # Parameters
 /// - `conf`: Configuration object for additional context.
@@ -223,7 +223,7 @@ pub fn gen_beat_expander(arf: &Arf) -> ExpanderParams {
 /// - `arf`: Configuration for amplitude and visibility adjustments.
 ///
 /// # Returns
-/// A `Stem3` with configured sample buffers, amplitude expressions, and effect parameters.
+/// A `DrumSample` with configured sample buffers, amplitude expressions, and effect parameters.
 pub fn simple_stem_at<'render>(
   conf: &Conf, melody: &'render Melody<Note>, arf: &Arf, index: usize,
 ) -> Renderable2<'render> {

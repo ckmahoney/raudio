@@ -1039,19 +1039,20 @@ pub fn render_operators_with_envelopes(
 
 #[test]
 fn animated_fm_synthesis_demo() {
-  let base_freqs: Vec<f32> = vec![110.0, 220.0, 330.0]; // Example base frequencies
-  let cps = 1.0; // Cycles per second
-  let n_cycles = 4.0 * cps;
+  for cps in vec![1.0f32, 1.2f32, 1.4f32, 1.6f32] {
+    let base_freqs: Vec<f32> = vec![110.0, 220.0, 330.0]; // Example base frequencies
+    let n_cycles = 4.0 * cps;
 
-  let mut final_signal = vec![];
+    let mut final_signal = vec![];
 
-  // Create carriers and render them with their modulators
-  for base_freq in base_freqs {
-    let carrier = random_carrier_with_modulators(base_freq, cps, n_cycles, 3, 2); // 3 modulators, depth 2
-    let rendered_signal = carrier.render(n_cycles, cps, SR);
-    final_signal.extend(rendered_signal);
+    // Create carriers and render them with their modulators
+    for base_freq in base_freqs {
+      let carrier = random_carrier_with_modulators(base_freq, cps, n_cycles, 3, 2); // 3 modulators, depth 2
+      let rendered_signal = carrier.render(n_cycles, cps, SR);
+      final_signal.extend(rendered_signal);
+    }
+
+    // Save the rendered signal to a WAV file
+    engrave::samples(SR, &final_signal, &format!("animated_fm_synthesis_demo_{}_cps.wav", cps));
   }
-
-  // Save the rendered signal to a WAV file
-  engrave::samples(SR, &final_signal, "animated_fm_synthesis_demo.wav");
 }

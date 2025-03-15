@@ -19,7 +19,7 @@ use crate::render;
 use crate::reverb::convolution::{self, ReverbParams};
 use crate::synth::{pi, pi2, MFf, NFf, SRf, SampleBuffer, MF, NF, SR};
 use crate::time::{self, samples_per_cycle};
-use crate::types::render::{Conf, Feel, Melody, Span, Stem, Stem2, Stem3, StemFM};
+use crate::types::render::{Conf, Feel, Melody, Span, Stem, Stem2, DrumSample, StemFM};
 use crate::types::synthesis::{
   BoostGroup, BoostGroupMacro, Bp, Bp2, Clippers, GlideLen, MacroMotion, Modifiers, ModifiersHolder, Note, Range, Soids,
 };
@@ -41,7 +41,7 @@ pub enum Renderable2<'render> {
   Instance(Stem2<'render>),
   Tacet(Stem2<'render>),
   Group(Vec<Stem2<'render>>),
-  Sample(Stem3<'render>),
+  Sample(DrumSample<'render>),
   Mix(Vec<(f32, Renderable2<'render>)>),
   FMOp(StemFM<'render>),
 }
@@ -208,7 +208,9 @@ fn channel(cps: f32, root: f32, (melody, soids, expr, feel, knob_mods, delays): 
 }
 
 ///Generate a value based on the motion type
-fn generate_value(motion: MacroMotion, min: f32, max: f32, p: f32, rng: &mut ThreadRng) -> f32 {
+fn generate_value(motion: MacroMotion, a: f32, b: f32, p: f32, rng: &mut ThreadRng) -> f32 {
+  let min = a.min(b);
+  let max = a.max(b);
   match motion {
     MacroMotion::Min => min,
     MacroMotion::Max => max,
@@ -1413,7 +1415,7 @@ pub fn combiner_with_reso2<'render>(
 /// Render a channel from sample-based input, applying the necessary effects
 #[inline]
 fn channel_with_samples(
-  conf: &Conf, (melody, ref_samples, amp_expr, lowpass_cutoff_freq, delays1, delays2, reverbs1, reverbs2): &Stem3,
+  conf: &Conf, (melody, ref_samples, amp_expr, lowpass_cutoff_freq, delays1, delays2, reverbs1, reverbs2): &DrumSample,
 ) -> SampleBuffer {
   let Conf { cps, root } = *conf;
 
