@@ -3,9 +3,10 @@ use crate::synth::{SRf, SR};
 use crate::timbre::Role;
 use biquad::{Biquad, Coefficients, DirectForm1, Hertz, ToHertz, Type as FilterType, Q_BUTTERWORTH_F32};
 use std::error::Error;
-
+use crate::MacroMotion;
 use rand::Rng;
-mod dynamics;
+pub mod animation;
+pub mod dynamics;
 mod more;
 mod test;
 mod volume;
