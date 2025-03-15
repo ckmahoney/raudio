@@ -64,7 +64,7 @@ pub fn el_to_soid(el: &Element) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
 }
 
 /// Flatten the input Elements into a single tuple of (amp, mul, offset) values as (Vec<f32>, Vec<f32>, Vec<f32>)
-pub fn prepare_soids_input(input: Vec<(Vec<f32>, Vec<f32>, Vec<f32>)>) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+pub fn flatten_soids(input: Vec<(Vec<f32>, Vec<f32>, Vec<f32>)>) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
   let mut amps_flattened = Vec::new();
   let mut muls_flattened = Vec::new();
   let mut phis_flattened = Vec::new();
@@ -77,6 +77,11 @@ pub fn prepare_soids_input(input: Vec<(Vec<f32>, Vec<f32>, Vec<f32>)>) -> (Vec<f
 
   (amps_flattened, muls_flattened, phis_flattened)
 }
+
+pub fn prepare_soids_input(input: Vec<(Vec<f32>, Vec<f32>, Vec<f32>)>) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+  flatten_soids(input)
+}
+
 #[test]
 fn test() {
   let amplitudes = vec![1.0, 0.5, 0.8]; // unique amplitudes

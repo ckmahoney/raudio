@@ -316,6 +316,7 @@ fn channel_with_reso(
 ) -> SampleBuffer {
   let mut rng = thread_rng();
   let Conf { cps, root } = *conf;
+  let soids = crate::analysis::trig::process_soids(soids.clone());
 
   // Pre-compute knobs for Constant motion
   // only evaluate moving knob macros per note-event.
@@ -356,7 +357,7 @@ fn channel_with_reso(
 
         // delay1 is applied per note-event in summer_with_reso
         let moment = summer_with_reso(
-          p, len_cycles, cps, root, *amp, freq, durs[i], soids, &expr, bp, knob_mods, &delays1,
+          p, len_cycles, cps, root, *amp, freq, durs[i], &soids, &expr, bp, knob_mods, &delays1,
         );
 
         // Apply reverbs per note-event
@@ -1699,35 +1700,62 @@ mod test {
       write_test_asset(&result, &format!("combine_with_space_{}", i));
     }
   }
-
   #[test]
   fn test_mixing_soids() {
-    use crate::analysis::trig;
-
-    let mods_chords: ModifiersHolder = modifiers_chords();
-    let mods_lead: ModifiersHolder = modifiers_lead();
-
-    let enclosure = gen_enclosure();
-    let se_lead: SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
-    let se_chords: SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
-    let mel = happy_birthday::lead_melody();
-    let soidss: Vec<Soids> = vec![melodic::soids_triangle(MFf), melodic::soids_sawtooth(MFf)];
-    let expr = (vec![1f32], vec![1f32], vec![0f32]);
-    let soids: Soids = trig::process_soids(trig::prepare_soids_input(soidss));
-    let stems: Vec<Renderable> = vec![
-      Renderable::Instance((&mel, soids, expr, feeling_lead(), KnobMods::unit(), se_lead.delays)),
-      // (happy_birthday::lead_melody(), melodic::dress_sawtooth as fn(f32) -> Dressing, feeling_chords(), mods_chords, &se_chords.delays)
-    ];
-
-    let result = combiner(
-      happy_birthday::cps,
-      happy_birthday::root,
-      &stems,
-      &se_lead.reverbs,
-      None,
-    );
-    write_test_asset(&result, &format!("combine_with_merged_soids"));
+      use crate::analysis::trig;
+      use std::time::Instant;
+  
+      let mods_chords: ModifiersHolder = modifiers_chords();
+      let mods_lead: ModifiersHolder = modifiers_lead();
+  
+      let enclosure = gen_enclosure();
+      let se_lead: SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+      let se_chords: SpaceEffects = arg_xform::positioning(happy_birthday::cps, &enclosure, &gen_positioning());
+      let mel = happy_birthday::lead_melody();
+      let soids_raw: Vec<Soids> = vec![
+          melodic::soids_triangle(MFf),
+          melodic::soids_sawtooth(MFf),
+          melodic::soids_sawtooth(MFf)
+      ];
+      let expr = (vec![1f32], vec![1f32], vec![0f32]);
+      let soid_processed: Soids = trig::process_soids(trig::prepare_soids_input(soids_raw.clone()));
+  
+      let stems_raw: Vec<Renderable> = vec![
+          Renderable::Instance((&mel, trig::flatten_soids(soids_raw.clone()), expr.clone(), feeling_lead(), KnobMods::unit(), se_lead.delays.clone())),
+      ];
+      let stems_processed: Vec<Renderable> = vec![
+          Renderable::Instance((&mel, soid_processed, expr, feeling_lead(), KnobMods::unit(), se_lead.delays)),
+      ];
+  
+      // Record timing for the raw render
+      let start_raw = Instant::now();
+      let result_raw = combiner(
+          happy_birthday::cps,
+          happy_birthday::root,
+          &stems_raw,
+          &se_lead.reverbs,
+          None,
+      );
+      let duration_raw = start_raw.elapsed();
+      write_test_asset(&result_raw, &format!("test_mixing_soids_raw_soids"));
+  
+      // Record timing for the processed render
+      let start_processed = Instant::now();
+      let result_processed = combiner(
+          happy_birthday::cps,
+          happy_birthday::root,
+          &stems_processed,
+          &se_lead.reverbs,
+          None,
+      );
+      let duration_processed = start_processed.elapsed();
+      write_test_asset(&result_processed, &format!("test_mixing_soids_processed_soids"));
+  
+      // Print the durations to the console
+      println!("Raw render took {:?}", duration_raw);
+      println!("Processed render took {:?}", duration_processed);
   }
+  
 
   #[test]
   fn test_longest_delay_length() {
