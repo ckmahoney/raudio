@@ -48,7 +48,8 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     (0.3, stemmy(conf, melody, arf)),
     // (0.3, crate::presets::valley::hats::renderable(conf, melody, arf)),
     (0.2, stemmy(conf, melody, arf)),
-  ])
+  ]);
+  contour_stem(conf, melody, arf)
 }
 
 /// Generates a set of delay macros for hats in house music.

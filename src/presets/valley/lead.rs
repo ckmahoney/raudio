@@ -98,8 +98,8 @@ fn pmod_chorus(v: Visibility, e: Energy, p: Presence) -> KnobPair {
     Visibility::Visible => [0.8, 0.8 + 0.1 * rng.gen::<f32>()],
   };
 
-  let chorus_visibility = [0.5f32, 1f32];
-  let modulation_depth = [0.1f32, 1f32];
+  // let chorus_visibility = [0.5f32, 1f32];
+  // let modulation_depth = [0.1f32, 1f32];
   let intensity = [0.5 * 1f32 / 3f32, 0.5 * 1f32 / 3f32];
 
   (
@@ -236,8 +236,6 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     Visibility::Foreground => druidic_soids::overs_square(mullet),
     Visibility::Visible => druidic_soids::overs_sawtooth(mullet),
   };
-
-  let soids = druidic_soids::octave(mullet);
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
 

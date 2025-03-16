@@ -43,10 +43,11 @@ pub fn stemmy<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) ->
 
 /// mix of three different percs.
 pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf) -> Renderable2<'render> {
-  Renderable2::Mix(vec![
-    (2f32 / 3f32, stemmy(conf, melody, arf)),
-    (1f32 / 3f32, stemmy(conf, melody, arf)),
-  ])
+  // Renderable2::Mix(vec![
+  //   (2f32 / 3f32, stemmy(conf, melody, arf)),
+  //   (1f32 / 3f32, stemmy(conf, melody, arf)),
+  // ]);
+  contour_stem(conf, melody, arf)
 }
 
 /// Generates a set of delay macros for percussion in house music.

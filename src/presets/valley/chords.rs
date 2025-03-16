@@ -259,9 +259,9 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   };
 
   let mut knob_mods: KnobMods2 = KnobMods2::unit();
-  knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
-  knob_mods.0.push(amp_knob_presence(arf.visibility, arf.energy, arf.presence));
-  knob_mods.2.push(pmod_chorus(arf.visibility, arf.energy, arf.presence));
+  // knob_mods.0.push(amp_onset(arf.visibility, arf.energy, arf.presence));
+  // knob_mods.0.push(amp_knob_presence(arf.visibility, arf.energy, arf.presence));
+  // knob_mods.2.push(pmod_chorus(arf.visibility, arf.energy, arf.presence));
   let n_samples = (SRf * len_cycles / 2f32) as usize;
 
   let mut dynamics = dynamics::gen_organic_amplitude(10, n_samples, arf.visibility);
