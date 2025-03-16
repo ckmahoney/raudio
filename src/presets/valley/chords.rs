@@ -269,7 +269,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
 
   let expr = (dynamics, vec![1f32], vec![0f32]);
   let mut rng = thread_rng();
-  let delays_note = generate_chord_delay_macros(arf.visibility, arf.energy, arf.presence)
+  let delays_note:Vec<DelayParams> = generate_chord_delay_macros(arf.visibility, arf.energy, arf.presence)
     .iter()
     .map(|mac| mac.gen(&mut rng, conf.cps))
     .collect();
@@ -279,7 +279,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
   let reverbs_note: Vec<ReverbParams> = vec![];
   let reverbs_room: Vec<ReverbParams> = vec![];
 
-  let stem = (
+  let stem:Stem2 = (
     melody,
     soids,
     expr,
@@ -291,5 +291,16 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     reverbs_room,
   );
 
-  Renderable2::Instance(stem)
+  let stem_fm: StemFM = (
+    &melody,
+    arf.clone(),
+    crate::presets::fum::chords::dexed_pad, 
+    vec![],                                
+    vec![],                                 
+    vec![],                                 
+    vec![],                                 
+  );
+
+  // Renderable2::Instance(stem)
+  Renderable2::FMOp(stem_fm)
 }

@@ -148,5 +148,19 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     reverbs_room,
   );
 
-  Renderable2::Instance(stem)
+  Renderable2::Instance(stem);
+
+
+  let stem_fm: StemFM = (
+    &melody,
+    arf.clone(),
+    crate::presets::fum::bass::dexed_bass, 
+    vec![],                                
+    vec![],                                 
+    vec![],                                 
+    vec![],                                 
+  );
+
+  // Renderable2::Instance(stem)
+  Renderable2::FMOp(stem_fm)
 }

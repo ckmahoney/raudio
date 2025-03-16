@@ -990,7 +990,7 @@ pub fn combiner_with_reso<'render>(
           vec![tacet2(conf.cps, stem)]
         }
         Renderable2::FMOp(fm_stem) => {
-          panic!("FM Me Captaion")
+          vec![fm_combiner_with_reso(conf, fm_stem.clone(), &vec![], keep_stems)]
         }
       };
 
