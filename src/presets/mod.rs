@@ -161,9 +161,9 @@ pub fn contour_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &A
 
 pub fn gen_beat_compressor(rng: &mut ThreadRng, arf: &Arf) -> CompressorParams {
   let ratio: f32 = match arf.energy {
-    Energy::High => in_range(rng, 6.0, 8.0),
-    Energy::Medium => in_range(rng, 3.0, 6.0),
-    Energy::Low => in_range(rng, 2.0, 3.0),
+    Energy::High => in_range(rng, 3.0, 4.5),
+    Energy::Medium => in_range(rng, 1.5, 2.5),
+    Energy::Low => in_range(rng, 1.0, 1.2),
   };
   let threshold: f32 = match arf.role {
     Role::Kick => match arf.presence {

@@ -236,9 +236,20 @@ fn chords_arf() -> Arf {
     mode: Mode::Melodic,
     role: Role::Chords,
     register: 8,
-    visibility: Visibility::Visible,
+    visibility: Visibility::Background,
     energy: Energy::High,
     presence: Presence::Tenuto,
+  }
+}
+
+fn lead_arf() -> Arf {
+  Arf {
+    mode: Mode::Melodic,
+    role: Role::Lead,
+    register: 8,
+    visibility: Visibility::Background,
+    energy: Energy::Low,
+    presence: Presence::Legato,
   }
 }
 
@@ -264,16 +275,6 @@ fn perc_arf() -> Arf {
   }
 }
 
-fn lead_arf() -> Arf {
-  Arf {
-    mode: Mode::Melodic,
-    role: Role::Lead,
-    register: 8,
-    visibility: Visibility::Foreground,
-    energy: Energy::High,
-    presence: Presence::Legato,
-  }
-}
 
 fn hats_arf() -> Arf {
   Arf {
@@ -318,9 +319,9 @@ fn demonstrate() {
     (kick_arf(), stem_kick), 
     (perc_arf(), stem_perc), 
     (hats_arf(), stem_hats),
-    // (bass_arf(), stem_bass),
-    // (chords_arf(), stem_chords),
-    // (lead_arf(), stem_lead),
+    (bass_arf(), stem_bass),
+    (chords_arf(), stem_chords),
+    (lead_arf(), stem_lead),
   ];
 
   use crate::types::timbre::Enclosure;

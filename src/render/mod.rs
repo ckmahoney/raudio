@@ -971,31 +971,31 @@ pub fn combiner<'render>(
 
 pub fn gen_inst_compressor(rng: &mut ThreadRng, arf: &Arf) -> CompressorParams {
   let ratio: f32 = match arf.energy {
-    Energy::High => in_range(rng, 6.0, 8.0),
-    Energy::Medium => in_range(rng, 3.0, 6.0),
-    Energy::Low => in_range(rng, 2.0, 3.0),
+    Energy::High => in_range(rng, 2.0, 3.0),
+    Energy::Medium => in_range(rng, 1.5, 2.0),
+    Energy::Low => in_range(rng, 1.05, 1.2),
   };
   let threshold: f32 = match arf.role {
     Role::Bass => match arf.presence {
       // higher thresholds here tend to create the most open / sustained sound
-      Presence::Tenuto => in_range(rng, -6.0, -9.0),
+      Presence::Staccatto => in_range(rng, -6.0, -9.0),
       Presence::Legato => in_range(rng, -9.0, -15.0),
       // low thresholds for producing a closed / muted sound
-      Presence::Staccatto => in_range(rng, -15.0, -24.0),
+      Presence::Tenuto => in_range(rng, -15.0, -24.0),
     },
     Role::Chords => match arf.presence {
       // higher thresholds here tend to create the most open / sustained sound
-      Presence::Tenuto => in_range(rng, -6.0, -9.0),
+      Presence::Staccatto => in_range(rng, -6.0, -9.0),
       Presence::Legato => in_range(rng, -12.0, -18.0),
       // low thresholds for producing a closed / muted sound
-      Presence::Staccatto => in_range(rng, -21.0, -33.0),
+      Presence::Tenuto => in_range(rng, -21.0, -33.0),
     },
     Role::Lead => match arf.presence {
       // higher thresholds here tend to create the most open / sustained sound
-      Presence::Tenuto => in_range(rng, -9.0, -12.0),
+      Presence::Staccatto => in_range(rng, -9.0, -12.0),
       Presence::Legato => in_range(rng, -15.0, -21.0),
       // lower thresholds for producing a closed / muted sound
-      Presence::Staccatto => in_range(rng, -24.0, -36.0),
+      Presence::Tenuto => in_range(rng, -24.0, -36.0),
     },
     _ => panic!("Not implemented for melodic arfs"),
   };
@@ -1095,6 +1095,7 @@ pub fn gen_inst_expander(rng: &mut ThreadRng, arf: &Arf) -> ExpanderParams {
 pub fn fm_combiner_with_reso<'render>(
   conf: &Conf, stem: StemFM<'render>, reverbs: &Vec<ReverbParams>, keep_stems: Option<&str>,
 ) -> SampleBuffer {
+  println!("fm combiner_with_reso");
   let (melody, arf, fm_fn, delay1, delay2, reverb1, reverb2) = stem;
 
   let append_delay = time::samples_of_dur(1f32, longest_delay_length(&delay1));

@@ -258,6 +258,7 @@ pub fn render_score(score: DruidicScore, preset: Preset, out_dir: &str, asset_na
     0f32,
   )];
   let keeps = if keep_stems { Some(out_dir) } else { None };
+  let keeps = None;
   let signal = render::combiner_with_reso2(&score.conf, &stems, &stem_reverbs, &group_reverb, keeps);
   render::engrave::samples(crate::synth::SR, &signal, &mixdown_name);
   mixdown_name

@@ -12,8 +12,7 @@ pub fn renderable<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &Arf
     vec![], // Delay2
     vec![], // Reverb1
     vec![], // Reverb2
-  ));
-  simple_tacet(melody)
+  ))
 }
 
 #[test]

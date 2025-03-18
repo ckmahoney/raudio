@@ -186,7 +186,7 @@ fn demonstrate() {
   let complexity: f32 = rng.gen::<f32>().min(0.01);
   let group_reverbs = vec![];
   let keep_stems = Some(path.as_str());
-  let mix = render::combiner_with_reso2(&Conf { cps, root }, &renderables, &vec![],  &group_reverbs, keep_stems);
+  let mix = render::combiner_with_reso2(&Conf { cps, root }, &renderables, &vec![], &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", location(demo_name), demo_name);
   render::engrave::samples(SR, &mix, &filename);
 }
