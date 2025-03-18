@@ -314,11 +314,13 @@ fn demonstrate() {
   let stem_kick = kick::renderable(&conf, &kick_mel, &kick_arf());
 
   use Renderable::{Group, Instance};
-  let renderables: Vec<Renderable2> = vec![
-    stem_kick, stem_perc, stem_hats,
-    // stem_bass,
-    // stem_chords,
-    // stem_lead,
+  let renderables: Vec<(Arf,Renderable2)> = vec![
+    (kick_arf(), stem_kick), 
+    (perc_arf(), stem_perc), 
+    (hats_arf(), stem_hats),
+    // (bass_arf(), stem_bass),
+    // (chords_arf(), stem_chords),
+    // (lead_arf(), stem_lead),
   ];
 
   use crate::types::timbre::Enclosure;

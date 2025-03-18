@@ -171,7 +171,14 @@ fn demonstrate() {
   let stem_chords = chords::renderable(&conf, &chords_melody, &chords_arf());
   let stem_bass = bass::renderable(&conf, &bass_melody, &bass_arf());
 
-  let renderables: Vec<Renderable2> = vec![stem_bass, stem_chords, stem_lead];
+  let renderables: Vec<(Arf,Renderable2)> = vec![
+    // (kick_arf(), stem_kick), 
+    // (perc_arf(), stem_perc), 
+    // (hats_arf(), stem_hats),
+    (bass_arf(), stem_bass),
+    (chords_arf(), stem_chords),
+    (lead_arf(), stem_lead),
+  ];
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;
@@ -179,7 +186,7 @@ fn demonstrate() {
   let complexity: f32 = rng.gen::<f32>().min(0.01);
   let group_reverbs = vec![];
   let keep_stems = Some(path.as_str());
-  let mix = render::combiner_with_reso(&Conf { cps, root }, &renderables, &group_reverbs, keep_stems);
+  let mix = render::combiner_with_reso2(&Conf { cps, root }, &renderables, &vec![],  &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", location(demo_name), demo_name);
   render::engrave::samples(SR, &mix, &filename);
 }

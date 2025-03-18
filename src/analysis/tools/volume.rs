@@ -120,12 +120,12 @@ pub fn count_energy(samples: &[f32]) -> f32 {
   (sum_squares / samples.len() as f32).sqrt()
 }
 
-/// Given a signal and the ideal RMS for it, with an allowed margin of error,
+/// Given a signal and the ideal RMS for it
 /// Creates a new version of the stem with gain staging applied.
 ///
 /// ## Arguments
 ///
-/// target_rms: A value in [0, 0.25] describing the target RMS value for the signal.
+/// target_rms: A value in [0, infinity] describing the target RMS value for the signal.
 /// samples: The signal to rescale
 pub fn rescale_amplitude(target_rms: f32, samples: &Vec<f32>) -> Vec<f32> {
   let current_rms = count_energy(samples);

@@ -221,9 +221,8 @@ pub fn render_score(score: DruidicScore, preset: Preset, out_dir: &str, asset_na
   files::with_dir(&mixdown_name);
   let mut pre_mix_buffs: Vec<synth::SampleBuffer> = Vec::new();
   let mut rng: ThreadRng = rand::thread_rng();
-  let mut stems: Vec<Renderable2> = Vec::with_capacity(score.parts.len());
+  let mut stems: Vec<(Arf, Renderable2)> = Vec::with_capacity(score.parts.len());
   let mut stem_reverbs: Vec<ReverbParams> = Vec::with_capacity(score.parts.len());
-  let mut i = 0;
 
   for (client_positioning, arf, melody) in &score.parts {
     let delays = inp::arg_xform::gen_delays(
@@ -237,15 +236,14 @@ pub fn render_score(score: DruidicScore, preset: Preset, out_dir: &str, asset_na
     let convolution_layer = inp::arg_xform::gen_convolution_stem(
       &mut rng,
       arf,
-      len_seconds,
+      len_seconds/4f32,
       score.conf.cps,
       &client_positioning.distance,
       &client_positioning.enclosure,
     );
     let stem = Preset::create_stem(&score.conf, melody, arf, preset);
-    i = i + 1;
     stem_reverbs.push(convolution_layer);
-    stems.push(stem)
+    stems.push((arf.clone(), stem))
   }
 
   let len_seconds: f32 = score_duration_seconds(&score);
@@ -253,14 +251,13 @@ pub fn render_score(score: DruidicScore, preset: Preset, out_dir: &str, asset_na
   // a single small convolution layer varying only by groupEnclosure
   let group_reverb: Vec<ReverbParams> = vec![inp::arg_xform::reverb_params(
     &mut rng,
-    len_seconds,
+    len_seconds/8f32,
     score.conf.cps,
     &Distance::Near,
     &score.groupEnclosure,
     0f32,
   )];
   let keeps = if keep_stems { Some(out_dir) } else { None };
-  let keeps = None;
   let signal = render::combiner_with_reso2(&score.conf, &stems, &stem_reverbs, &group_reverb, keeps);
   render::engrave::samples(crate::synth::SR, &signal, &mixdown_name);
   mixdown_name

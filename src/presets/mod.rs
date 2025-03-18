@@ -132,12 +132,14 @@ pub fn contour_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &A
   let mut reverbs_room = vec![];
 
   let lowpass_cutoff = NFf;
-  let stem = ref_samples[0].to_owned();
-  let target_rms = get_rescale_target(arf.visibility);
-  let expander_params = gen_beat_expander(arf);
-  let compressor_params = gen_beat_compressor(arf);
+  let mut rng = thread_rng();
 
-  let normalized = rescale_amplitude(0.25f32, &stem);
+  let stem = ref_samples[0].to_owned();
+  let target_rms = get_rescale_target(&mut rng, arf.visibility);
+  let expander_params = gen_beat_expander(&mut rng, arf);
+  let compressor_params = gen_beat_compressor(&mut rng, arf);
+
+  let normalized = rescale_amplitude(0.5f32, &stem);
   let stem = compressor(
     &expander(&normalized, expander_params, None).unwrap(),
     compressor_params,
@@ -157,34 +159,33 @@ pub fn contour_stem<'render>(conf: &Conf, melody: &'render Melody<Note>, arf: &A
   ))
 }
 
-pub fn gen_beat_compressor(arf: &Arf) -> CompressorParams {
-  let mut rng = thread_rng();
+pub fn gen_beat_compressor(rng: &mut ThreadRng, arf: &Arf) -> CompressorParams {
   let ratio: f32 = match arf.energy {
-    Energy::High => in_range(&mut rng, 6.0, 8.0),
-    Energy::Medium => in_range(&mut rng, 3.0, 6.0),
-    Energy::Low => in_range(&mut rng, 2.0, 3.0),
+    Energy::High => in_range(rng, 6.0, 8.0),
+    Energy::Medium => in_range(rng, 3.0, 6.0),
+    Energy::Low => in_range(rng, 2.0, 3.0),
   };
   let threshold: f32 = match arf.role {
     Role::Kick => match arf.presence {
-      // thresholds here tend to create the most open / sustained sound
-      Presence::Tenuto => in_range(&mut rng, -6.0, -9.0),
-      Presence::Legato => in_range(&mut rng, -9.0, -15.0),
-      // thresholds for producing a closed / muted sound
-      Presence::Staccatto => in_range(&mut rng, -15.0, -24.0),
+      // higher thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(rng, -6.0, -9.0),
+      Presence::Legato => in_range(rng, -9.0, -15.0),
+      // low thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(rng, -15.0, -24.0),
     },
     Role::Perc => match arf.presence {
-      // thresholds here tend to create the most open / sustained sound
-      Presence::Tenuto => in_range(&mut rng, -6.0, -9.0),
-      Presence::Legato => in_range(&mut rng, -12.0, -18.0),
-      // thresholds for producing a closed / muted sound
-      Presence::Staccatto => in_range(&mut rng, -21.0, -33.0),
+      // higher thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(rng, -6.0, -9.0),
+      Presence::Legato => in_range(rng, -12.0, -18.0),
+      // low thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(rng, -21.0, -33.0),
     },
     Role::Hats => match arf.presence {
-      // thresholds here tend to create the most open / sustained sound
-      Presence::Tenuto => in_range(&mut rng, -9.0, -12.0),
-      Presence::Legato => in_range(&mut rng, -15.0, -21.0),
-      // thresholds for producing a closed / muted sound
-      Presence::Staccatto => in_range(&mut rng, -24.0, -36.0),
+      // higher thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(rng, -9.0, -12.0),
+      Presence::Legato => in_range(rng, -15.0, -21.0),
+      // lower thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(rng, -24.0, -36.0),
     },
     _ => panic!("Not implemented for melodic arfs"),
   };
@@ -198,13 +199,12 @@ pub fn gen_beat_compressor(arf: &Arf) -> CompressorParams {
   }
 }
 
-pub fn gen_beat_expander(arf: &Arf) -> ExpanderParams {
-  let mut rng = thread_rng();
+pub fn gen_beat_expander(rng: &mut ThreadRng, arf: &Arf) -> ExpanderParams {
 
   let threshold: f32 = match arf.role {
-    Role::Kick => in_range(&mut rng, -39.0, -27.0),
-    Role::Perc => in_range(&mut rng, -24.0, -15.0),
-    Role::Hats => in_range(&mut rng, -42.0, -30.0),
+    Role::Kick => in_range(rng, -39.0, -27.0),
+    Role::Perc => in_range(rng, -24.0, -15.0),
+    Role::Hats => in_range(rng, -42.0, -30.0),
     _ => panic!("Not implemented for melodic arfs"),
   };
   ExpanderParams {
@@ -954,11 +954,11 @@ fn eval_odr(cps: f32, at_n_samples: usize, odr: &ODR) -> (usize, usize, usize, u
   (ramp, fall, hold, kill)
 }
 
-pub fn get_rescale_target(visibility: Visibility) -> f32 {
+pub fn get_rescale_target(rng: &mut ThreadRng, visibility: Visibility) -> f32 {
   match visibility {
-    Visibility::Visible => db_to_amp(-6.0),
-    Visibility::Foreground => db_to_amp(-21.0),
-    Visibility::Background => db_to_amp(-42.0),
-    Visibility::Hidden => db_to_amp(-60.0),
+    Visibility::Visible => in_range(rng, db_to_amp(-12.0), db_to_amp(-6.0)),
+    Visibility::Foreground => in_range(rng, db_to_amp(-27.0), db_to_amp(-18.0)),
+    Visibility::Background => in_range(rng, db_to_amp(-49.0), db_to_amp(-42.0)),
+    Visibility::Hidden => in_range(rng, db_to_amp(-60.0), db_to_amp(-52.0)),
   }
 }

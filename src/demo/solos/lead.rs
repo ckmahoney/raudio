@@ -121,7 +121,13 @@ fn demonstrate() {
   );
 
   use Renderable2::{Group, Instance};
-  let renderables: Vec<Renderable2> = vec![stem_lead1, stem_lead2, stem_lead3, stem_lead4];
+
+  let renderables: Vec<(Arf,Renderable2)> = vec![
+    (lead_arf(Visibility::Visible, Energy::Low, Presence::Staccatto), stem_lead1),
+    (lead_arf(Visibility::Foreground, Energy::Medium, Presence::Staccatto), stem_lead2),
+    (lead_arf(Visibility::Background, Energy::High, Presence::Staccatto), stem_lead3),
+    (lead_arf(Visibility::Hidden, Energy::High, Presence::Staccatto), stem_lead4),
+  ];
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;
@@ -131,7 +137,7 @@ fn demonstrate() {
   let group_reverbs: Vec<crate::reverb::convolution::ReverbParams> = vec![];
   let keep_stems = Some(path.as_str());
   let group_reverbs = vec![];
-  let mix = render::combiner_with_reso(&Conf { cps, root }, &renderables, &group_reverbs, keep_stems);
+  let mix = render::combiner_with_reso2(&Conf { cps, root }, &renderables, &vec![], &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", location(demo_name), demo_name);
   render::engrave::samples(SR, &mix, &filename);
 }

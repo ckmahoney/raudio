@@ -4,9 +4,12 @@ pub mod ifft;
 pub mod ninja;
 pub mod realize;
 
+use crate::analysis::in_range;
 use crate::analysis::delay::{DelayParams, StereoField};
+use crate::analysis::tools::{compressor, expander, rescale_amplitude, CompressorParams, ExpanderParams};
 use crate::analysis::volume::db_to_amp;
 use crate::analysis::{delay, freq::apply_filter, freq::apply_resonance, freq::slice_signal, xform_freq};
+use crate::presets::get_rescale_target;
 use crate::druid::applied_modulation::{self, update_mods};
 use crate::druid::{inflect, melody_frexer, ApplyAt, Element, Elementor};
 use crate::fm::{render_operators, Operator};
@@ -28,6 +31,10 @@ use crate::{Energy, Mode, Presence, Role, Visibility};
 use rand;
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, Rng};
+
+use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
+
 
 #[derive(Clone, Debug)]
 pub enum Renderable<'render> {
@@ -312,7 +319,9 @@ fn get_knob_mods(
 
 #[inline]
 fn channel_with_reso(
-  conf: &Conf, (melody, soids, expr, bp, knob_macros, delays1, delays2, reverbs1, reverbs2): &Stem2,
+  conf: &Conf,
+  arf: &Arf,
+  (melody, soids, expr, bp, knob_macros, delays1, delays2, reverbs1, reverbs2): &Stem2,
 ) -> SampleBuffer {
   let mut rng = thread_rng();
   let Conf { cps, root } = *conf;
@@ -356,9 +365,21 @@ fn channel_with_reso(
         );
 
         // delay1 is applied per note-event in summer_with_reso
-        let moment = summer_with_reso(
+        let mut moment = summer_with_reso(
           p, len_cycles, cps, root, *amp, freq, durs[i], &soids, &expr, bp, knob_mods, &delays1,
         );
+
+        let target_rms = get_rescale_target(&mut rng, arf.visibility);
+        let expander_params = gen_inst_expander(&mut rng, &arf);
+        let compressor_params = gen_inst_compressor(&mut rng, &arf);
+
+        let normalized = rescale_amplitude(0.5f32, &moment);
+        moment = compressor(
+          &expander(&normalized, expander_params, None).unwrap(),
+          compressor_params,
+          None,
+        )
+        .unwrap();
 
         // Apply reverbs per note-event
         let moment_wet = if reverbs1.is_empty() {
@@ -946,99 +967,64 @@ pub fn combiner<'render>(
   }
 }
 
-use rayon::prelude::*;
-use rayon::ThreadPoolBuilder;
 
-/// Given a list of renderables (either instances or groups) and how to represent them in space,
-/// Generate the signals and apply reverberation. Return the new signal.
-/// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
-pub fn combiner_with_reso<'render>(
-  conf: &Conf, renderables: &Vec<Renderable2<'render>>, reverbs: &Vec<convolution::ReverbParams>,
-  keep_stems: Option<&str>,
-) -> SampleBuffer {
-  // Initialize a global Rayon thread pool with a max of 4 threads
-  let _ = ThreadPoolBuilder::new().num_threads(4).build_global();
 
-  // Collect channels by processing each renderable in parallel
-  let mut channels: Vec<SampleBuffer> = renderables
-    .par_iter()
-    .enumerate()
-    .map(|(j, renderable)| {
-      let ch = match renderable {
-        Renderable2::Instance(stem) => {
-          // Process a single stem
-          vec![channel_with_reso(conf, stem)]
-        }
-        Renderable2::Group(stems) => {
-          // Process each stem in the group
-          stems.par_iter().map(|stem| channel_with_reso(conf, stem)).collect::<Vec<_>>()
-        }
-        Renderable2::Sample(stem) => {
-          vec![channel_with_samples(conf, stem)]
-        }
+pub fn gen_inst_compressor(rng: &mut ThreadRng, arf: &Arf) -> CompressorParams {
+  let ratio: f32 = match arf.energy {
+    Energy::High => in_range(rng, 6.0, 8.0),
+    Energy::Medium => in_range(rng, 3.0, 6.0),
+    Energy::Low => in_range(rng, 2.0, 3.0),
+  };
+  let threshold: f32 = match arf.role {
+    Role::Bass => match arf.presence {
+      // higher thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(rng, -6.0, -9.0),
+      Presence::Legato => in_range(rng, -9.0, -15.0),
+      // low thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(rng, -15.0, -24.0),
+    },
+    Role::Chords => match arf.presence {
+      // higher thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(rng, -6.0, -9.0),
+      Presence::Legato => in_range(rng, -12.0, -18.0),
+      // low thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(rng, -21.0, -33.0),
+    },
+    Role::Lead => match arf.presence {
+      // higher thresholds here tend to create the most open / sustained sound
+      Presence::Tenuto => in_range(rng, -9.0, -12.0),
+      Presence::Legato => in_range(rng, -15.0, -21.0),
+      // lower thresholds for producing a closed / muted sound
+      Presence::Staccatto => in_range(rng, -24.0, -36.0),
+    },
+    _ => panic!("Not implemented for melodic arfs"),
+  };
 
-        Renderable2::Mix(weighted_stems) => weighted_stems
-          .iter()
-          .map(|(mul, renderable2)| {
-            combiner_with_reso(&conf, &vec![renderable2.to_owned()], &vec![], keep_stems)
-              .iter()
-              .map(|v| mul * v)
-              .collect()
-          })
-          .collect(),
-        Renderable2::Tacet(stem) => {
-          vec![tacet2(conf.cps, stem)]
-        }
-        Renderable2::FMOp(fm_stem) => {
-          vec![fm_combiner_with_reso(conf, fm_stem.clone(), &vec![], keep_stems)]
-        }
-      };
-
-      if let Some(stem_dir) = keep_stems {
-        // Keep the substems
-        ch.iter().enumerate().for_each(|(stem_num, channel_samples)| {
-          let filename = format!("{}/part-{}-twig-{}.wav", stem_dir, j, stem_num);
-          if channel_samples.is_empty() {
-            eprintln!("Warning: Channel samples are empty for stem {}-{}", j, stem_num);
-          }
-          render::engrave::samples(SR, &channel_samples, &filename);
-        });
-      }
-
-      let rendered_channel = pad_and_mix_buffers(ch);
-
-      match rendered_channel {
-        Ok(signal) => signal,
-        Err(msg) => panic!("Unexpected error while mixing channels: {}", msg),
-      }
-    })
-    .collect();
-
-  // Optionally save stems if `keep_stems` is provided
-  if let Some(stem_dir) = keep_stems {
-    channels.iter().enumerate().for_each(|(stem_num, channel_samples)| {
-      let filename = format!("{}/stem-{}.wav", stem_dir, stem_num);
-      render::engrave::samples(SR, &channel_samples, &filename);
-    });
-  }
-
-  // Pad and mix the collected channels into a final signal
-  match pad_and_mix_buffers(channels) {
-    Ok(signal) => {
-      // Apply reverbs if provided
-      if reverbs.is_empty() {
-        signal
-      } else {
-        reverbs.iter().fold(signal, |sig, params| {
-          let mut sig = convolution::of(&sig, &params);
-          trim_zeros(&mut sig);
-          sig
-        })
-      }
-    }
-    Err(msg) => panic!("Failed to mix and render audio: {}", msg),
+  CompressorParams {
+    ratio,
+    threshold,
+    attack_time: 0.1,
+    release_time: 0.2,
+    ..Default::default()
   }
 }
+
+pub fn gen_inst_expander(rng: &mut ThreadRng, arf: &Arf) -> ExpanderParams {
+
+  let threshold: f32 = match arf.role {
+    Role::Bass => in_range(rng, -39.0, -27.0),
+    Role::Chords => in_range(rng, -24.0, -15.0),
+    Role::Lead => in_range(rng, -42.0, -30.0),
+    _ => panic!("Not implemented for melodic arfs"),
+  };
+  ExpanderParams {
+    threshold,
+    attack_time: 0.1,
+    release_time: 0.2,
+    ..Default::default()
+  }
+}
+
 
 // #[inline]
 // fn fm_channel_with_reso(
@@ -1170,8 +1156,21 @@ pub fn fm_combiner_with_reso<'render>(
           let gain = polyphony_attenuation * high_freq_attenuation;
           let operators = fm_fn(conf, &arf, note, conf.cps, n_cycles, curr_pos_cycles, gain * velocity);
 
+          let mut rng = thread_rng();
           // Render the operators to a single channel
           let mut moment = render_operators(operators, n_cycles, conf.cps, SR);
+
+          let target_rms = get_rescale_target(&mut rng, arf.visibility);
+          let expander_params = gen_inst_expander(&mut rng, &arf);
+          let compressor_params = gen_inst_compressor(&mut rng, &arf);
+
+          let normalized = rescale_amplitude(0.5f32, &moment);
+          moment = compressor(
+            &expander(&normalized, expander_params, None).unwrap(),
+            compressor_params,
+            None,
+          )
+          .unwrap();
 
           // Apply per-note reverb effects
           if !reverb1.is_empty() {
@@ -1319,7 +1318,7 @@ mod test_fm_render {
 /// Generate the signals and apply reverberation. Return the new signal.
 /// Accepts an optional parameter `keep_stems`. When provided, it is the directory for placing the stems.
 pub fn combiner_with_reso2<'render>(
-  conf: &Conf, renderables: &Vec<Renderable2<'render>>, stem_reverbs: &Vec<convolution::ReverbParams>,
+  conf: &Conf, renderables: &Vec<(Arf, Renderable2<'render>)>, stem_reverbs: &Vec<convolution::ReverbParams>,
   group_reverbs: &Vec<convolution::ReverbParams>, keep_stems: Option<&str>,
 ) -> SampleBuffer {
   // Initialize a global Rayon thread pool with a max of 4 threads
@@ -1329,15 +1328,15 @@ pub fn combiner_with_reso2<'render>(
   let mut channels: Vec<SampleBuffer> = renderables
     .par_iter()
     .enumerate()
-    .map(|(j, renderable)| {
+    .map(|(j, (arf, renderable))| {
       let ch = match renderable {
         Renderable2::Instance(stem) => {
           // Process a single stem
-          vec![channel_with_reso(conf, stem)]
+          vec![channel_with_reso(conf, arf, stem)]
         }
         Renderable2::Group(stems) => {
           // Process each stem in the group
-          stems.par_iter().map(|stem| channel_with_reso(conf, stem)).collect::<Vec<_>>()
+          stems.par_iter().map(|stem| channel_with_reso(conf, arf, stem)).collect::<Vec<_>>()
         }
         Renderable2::Sample(stem) => {
           vec![channel_with_samples(conf, stem)]
@@ -1346,7 +1345,7 @@ pub fn combiner_with_reso2<'render>(
         Renderable2::Mix(weighted_stems) => weighted_stems
           .iter()
           .map(|(gain, renderable2)| {
-            combiner_with_reso2(&conf, &vec![renderable2.to_owned()], &vec![], &vec![], keep_stems)
+            combiner_with_reso2(&conf, &vec![(*arf, renderable2.to_owned())], &vec![], &vec![], keep_stems)
               .iter()
               .map(|v| gain * v)
               .collect()

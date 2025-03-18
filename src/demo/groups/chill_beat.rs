@@ -173,15 +173,19 @@ fn demonstrate() {
   let stem_kick3 = kick::renderable(&conf, &kick_mel, &kick_arf(Presence::Tenuto));
 
   use Renderable2::{Group, Instance};
-  let renderables: Vec<Renderable2> = vec![
-    stem_kick1, // stem_kick2,
-    // stem_kick3,
-    stem_perc1, // stem_perc2,
-    // stem_perc3,
-    stem_hats1,
-    // stem_hats2,
-    // stem_hats3,
+
+
+  let renderables: Vec<(Arf,Renderable2)> = vec![
+    (kick_arf(Presence::Staccatto), stem_kick1), 
+    (perc_arf(Presence::Staccatto), stem_perc1), 
+    (hats_arf(Presence::Staccatto), stem_hats1),
+    // (bass_arf(), stem_bass),
+    // (chords_arf(), stem_chords),
+    // (lead_arf(), stem_lead),
   ];
+
+
+
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;
@@ -190,7 +194,7 @@ fn demonstrate() {
   let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Vast, complexity);
   let keep_stems = Some(path.as_str());
 
-  let mix = render::combiner_with_reso(&Conf { cps, root }, &renderables, &group_reverbs, keep_stems);
+  let mix = render::combiner_with_reso2(&Conf { cps, root }, &renderables, &vec![], &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", path, demo_name);
   render::engrave::samples(SR, &mix, &filename);
 }
@@ -220,7 +224,12 @@ fn samp(cps: f32, root: f32) -> SampleBuffer {
   let stem_kick = kick::renderable(&conf, &kick_mel, &kick_arf(Presence::Tenuto));
 
   use Renderable::{Group, Instance};
-  let renderables: Vec<Renderable2> = vec![stem_kick, stem_perc, stem_hats];
+  
+  let renderables: Vec<(Arf,Renderable2)> = vec![
+    (kick_arf(Presence::Tenuto), stem_kick), 
+    (perc_arf(Presence::Legato), stem_perc), 
+    (hats_arf(Presence::Staccatto), stem_hats),
+  ];
 
   use crate::types::timbre::Enclosure;
   use crate::Distance;
@@ -230,8 +239,7 @@ fn samp(cps: f32, root: f32) -> SampleBuffer {
     // crate::inp::arg_xform::reverb_params(&mut rng, len_seconds, cps, &Distance::Near, &Enclosure::Spring, complexity)
   ];
   // let group_reverbs = crate::inp::arg_xform::gen_reverbs(&mut rng, cps, &Distance::Near, &Enclosure::Spring, complexity);
-
-  render::combiner_with_reso(&Conf { cps, root }, &renderables, &group_reverbs, None)
+  render::combiner_with_reso2(&Conf { cps, root }, &renderables, &vec![], &group_reverbs, None)
 }
 
 #[test]

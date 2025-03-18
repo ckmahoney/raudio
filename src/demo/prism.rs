@@ -96,9 +96,11 @@ pub fn render_labelled_arf(
 
   let group_reverbs: Vec<ReverbParams> = vec![];
   let keep_stems = Some(destination_dir);
-  let stems: Vec<Renderable2> = vec![Preset::create_stem(&conf, melody, arf, preset)];
+  let stems: Vec<(Arf,Renderable2)> = vec![
+    (arf.clone(), Preset::create_stem(&conf, melody, arf, preset))
+  ];
 
-  let samples = render::combiner_with_reso(&conf, &stems, &group_reverbs, keep_stems);
+  let samples = render::combiner_with_reso2(&conf, &stems, &vec![], &group_reverbs, keep_stems);
   let filename = format!("{}/{}.wav", destination_dir, label);
   engrave::samples(SR, &samples, &filename);
 }
