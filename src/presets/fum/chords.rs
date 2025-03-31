@@ -52,8 +52,8 @@ fn test_dexed_pad_bandwidth() {
     for op in &ops {
       match get_remaining_range(&op, 0f32, 0f32, MFf, NFf) {
         Some((lower_range, upper_range)) => {
-          println!("Has op {:?}", op);
-          println!("Got bandwidth lower {} upper {}", lower_range, upper_range);
+          // println!("Has op {:?}", op);
+          // println!("Got bandwidth lower {} upper {}", lower_range, upper_range);
         }
         None => assert!(false, "Must not design a synth that exceeds its bandwidth"),
       }

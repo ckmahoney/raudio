@@ -86,7 +86,6 @@ mod tests {
 /// - A single vector of mixed samples.
 pub fn render_operators(operators: Vec<Operator>, n_cycles: f32, cps: f32, sample_rate: usize) -> Vec<f32> {
 
-  println!("Got operators to render {:?}", operators);
   let n_samples = crate::time::samples_of_cycles(cps, n_cycles); // Total number of samples
   let operator_signals: Vec<Vec<f32>> =
     operators.iter().map(|operator| operator.render(n_cycles, cps, sample_rate)).collect();
